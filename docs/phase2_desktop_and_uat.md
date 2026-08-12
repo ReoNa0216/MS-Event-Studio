@@ -90,7 +90,8 @@ review interaction gates.
 ## Windows candidate
 
 Built natively on Windows 11 with Python 3.12.3 and PyInstaller 6.21.0 at
-2026-08-12 21:56 CST. This is a local unsigned development candidate, not a
+2026-08-12 22:06 CST in the isolated `build/venv/windows` environment. This is
+a local unsigned development candidate, not a
 published or code-signed release.
 
 | Field | Value |
@@ -98,15 +99,16 @@ published or code-signed release.
 | Application version | `0.2.0.dev1` |
 | Bundle mode | `onedir-windowed` |
 | Executable | `dist/windows/MS-Event-Studio/MS-Event-Studio.exe` |
-| Executable SHA-256 | `9324498bca33ee94ad2413dc27315208a1ca1c46da62401232c013b8f9d244fb` |
-| Bundle file count | 2,545 |
-| Bundle bytes | 529,054,313 |
-| Bundle tree SHA-256 | `a83b79f5e36b0aeab8ae3625eb1a4e04ecb38ff419f450993367931398cfbb85` |
+| Runtime versions | NumPy 2.5.2, pandas 2.3.3, PyArrow 21.0.0, SciPy 1.18.0, Pillow 11.3.0 |
+| Executable SHA-256 | `51f78b31cec4e216e630c08be2273c43771238fb2d328065d4748df97375e776` |
+| Bundle file count | 2,427 |
+| Bundle bytes | 240,668,511 |
+| Bundle tree SHA-256 | `c8787b564684c2a9252d8c6200f3752ad2b34618e9c380d2c17142f750903a5f` |
 | Packaged smoke | exit 0, `status=ok`, `window_system=win32` |
 | Embedded icon | extracted from EXE and visually verified at small size |
 | Validated archive | `release/MS-Event-Studio-0.2.0-dev1-windows-x64.zip` |
-| Archive bytes | 190,731,995 |
-| Archive SHA-256 | `01689deb9c67dc764a875c96522e83281725b9476c5f27aac54ad54658b34a57` |
+| Archive bytes | 92,668,750 |
+| Archive SHA-256 | `b904bad00f545e6ad910365c78af61c47551e9ddd3e6647d8904d939ab548065` |
 
 The complete per-file manifest and smoke payload are generated at
 `dist/windows/build_manifest.json` and `dist/windows/smoke_test.json`.

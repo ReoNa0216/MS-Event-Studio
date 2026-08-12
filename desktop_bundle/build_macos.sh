@@ -2,7 +2,6 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-python_bin="${PYTHON_BIN:-python3}"
 version="${MS_EVENT_STUDIO_VERSION:-dev-candidate}"
 
 if [[ ! "$version" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
@@ -14,6 +13,16 @@ cd "$repo_root"
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "macOS packaging must run on macOS." >&2
   exit 1
+fi
+if [[ -n "${PYTHON_BIN:-}" ]]; then
+  python_bin="$PYTHON_BIN"
+else
+  bootstrap_python="${PYTHON_BOOTSTRAP:-python3}"
+  venv_root="$repo_root/build/venv/macos"
+  if [[ ! -x "$venv_root/bin/python" ]]; then
+    "$bootstrap_python" -m venv "$venv_root"
+  fi
+  python_bin="$venv_root/bin/python"
 fi
 machine="$($python_bin -c 'import platform; print(platform.machine().lower())')"
 if [[ "$machine" != "arm64" ]]; then

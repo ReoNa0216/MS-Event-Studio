@@ -96,6 +96,7 @@ class BrandGuidedAndActionsTest(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn('"dist\\windows"', windows)
+        self.assertIn('"build\\venv\\windows"', windows)
         self.assertIn('$ReleaseRoot = Join-Path $RepoRoot "release"', windows)
         self.assertIn('"MS-Event-Studio-$Version-windows-x64.zip"', windows)
         self.assertIn('"build\\release-staging\\windows-"', windows)
@@ -103,6 +104,7 @@ class BrandGuidedAndActionsTest(unittest.TestCase):
         self.assertIn("Move-Item -LiteralPath $StagedArchive -Destination $Archive", windows)
         self.assertNotIn('"release\\windows\\', windows)
         self.assertIn('dist_root="$repo_root/dist/macos"', macos)
+        self.assertIn('venv_root="$repo_root/build/venv/macos"', macos)
         self.assertIn('release_root="$repo_root/release"', macos)
         self.assertIn('archive="$release_root/MS-Event-Studio-', macos)
         self.assertIn('build/release-staging/macos.', macos)
