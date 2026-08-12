@@ -1,9 +1,12 @@
-# Native desktop candidates
+# Native desktop builds
 
 PyInstaller must run on the target operating system; it is not a
-cross-compiler. Both supported platforms use a windowed `onedir` bundle so the
-Tk, NumPy, SciPy, pandas, and PyArrow runtime is inspectable and does not unpack
-into a temporary directory on every launch.
+cross-compiler. The historical `0.2.0.dev3` build uses a windowed `onedir`
+bundle containing Tk, NumPy, SciPy, pandas, and PyArrow. It passed scientific
+and packaged-smoke regression, but its UX was rejected. Do not treat the
+commands below as proof that a Phase 2R WebView candidate is accepted; follow
+[`../docs/MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md`](../docs/MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md)
+for the required pywebview migration and release gates.
 
 ```powershell
 python -m pip install -e ".[packaging]"
@@ -41,19 +44,21 @@ If an older Windows candidate is intentionally still open, do not terminate it
 or overwrite its bundle. Build beside it with, for example,
 `python -m desktop_bundle.build_desktop --dist-root dist/windows-side-by-side`.
 
-The committed transparent master PNG produces runtime Tk icons and a native
-Windows `.ico` or macOS `.icns`. PyInstaller embeds the platform icon and the
-packaged PNG set, so source and frozen windows share the same identity.
+The committed transparent master PNG produces runtime icons and a native
+Windows `.ico` or macOS `.icns`. The Phase 2R WebView shell must retain the same
+MS identity while packaging its HTML/CSS/JS/SVG assets.
 
-The Windows entry point enables Per-Monitor V2 DPI awareness before Tk creates
-its first window. This prevents Windows display scaling from bitmap-stretching
-the interface and keeps text and borders sharp on 125–200% displays.
+The historical Windows entry point enables Per-Monitor V2 DPI awareness before
+Tk creates its first window. Phase 2R must verify native WebView rendering at
+100%, 125%, 150%, and 200% rather than relying on that Tk-only check.
 
-Unlike LMA Studio, this bundle intentionally has no `MS-Event-Studio.exe.config`.
-LMA Studio's 142-byte config enables .NET `loadFromRemoteSources` for its
-pywebview/pythonnet/CLR/Edge WebView2 host. MS Event Studio uses native Tk and
-does not load CLR assemblies, so copying that config would have no effect and
-would imply a runtime dependency that does not exist.
+The historical dev3 Tk bundle intentionally has no
+`MS-Event-Studio.exe.config`: it does not load CLR, so that absence is correct.
+This rule must change with Phase 2R. Once the entry point uses
+pywebview/pythonnet/CLR/Edge WebView2, the Windows build must copy a validated
+`MS-Event-Studio.exe.config` beside the executable with
+`loadFromRemoteSources` enabled, and the build/smoke tests must fail if the file
+is absent or incorrect.
 
 The build manifest records application/Python/PyInstaller versions, executable
 hash, complete bundle tree hash, file sizes/hashes, and the smoke payload.
@@ -64,5 +69,7 @@ file in an `onedir` candidate together.
 PyInstaller is not a cross-compiler: a Windows success does not satisfy the
 macOS gate. The macOS CI candidate is ad-hoc signed and checked with `codesign`,
 `plutil`, and `file`; Apple Developer ID signing and notarization remain a later
-release operation. `.github/workflows/release-desktop.yml` runs both native
-paths with the same manual-candidate/tag-release policy as LMA Studio.
+release operation. `.github/workflows/release-desktop.yml` retains the same
+native-runner and manual-candidate/tag-release policy as LMA Studio, but its
+dependencies, spec, and smoke path must be upgraded for WebView before the next
+candidate is built.

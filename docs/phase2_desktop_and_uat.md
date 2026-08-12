@@ -1,69 +1,82 @@
-# Phase 2 desktop candidate and UAT
+# Phase 2 dev3 scientific and packaging baseline
 
-Run date: 2026-08-13 (Asia/Shanghai)
+Evidence date: 2026-08-13 (Asia/Shanghai)
 
-Status: **implementation candidate ready; Phase 2 exit pending mouse UAT and a
-native macOS build/UAT**.
+Status: **scientific, persistence, performance, and Windows packaged-smoke
+baseline passed; desktop UX rejected; Phase 2 not exited.**
 
-## Implemented surface
+The `0.2.0.dev3` Tk bundle described here is retained for regression evidence.
+It is not a polished candidate and must not be sent to the user for further UX
+acceptance. The superseding architecture, task flow, QA matrix, and staged
+execution plan are in
+[`MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md`](MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md).
 
-The desktop application opens in a Chinese-first, responsive native Tk window.
-Its welcome page directly ports LMA Studio's 64 px dark app bar, 520 px bootstrap
-panel, 8 px panel corners, 42 px actions, spacing, and visual hierarchy. The
-Windows build uses Microsoft YaHei UI for Chinese and enables Per-Monitor V2
-before creating Tk, preventing bitmap stretching. MS Event Studio remains
-distinct through its cyan peak/apex icon, trace-first two-column workbench, and
-event-evidence inspector. The welcome page provides 新建项目, 打开项目, and a
-disposable 引导测试. New-project inspection performs the one
-large source parse, complete stream hash, target-ion extraction, real byte
-progress, and cancellation. Project creation reuses that prepared scan table,
-rechecks source edge identity before and after creation, and publishes only a
-fully validated sibling staging directory.
+## Why the UX status changed
 
-The review view provides a min/max-envelope trace, automatic apexes as a
-separate never-decimated overlay, physical support intervals, deterministic
-dense labels, linear/log display, bounded pan/window requests, status/source
-filters, and one SQLite snapshot per backend window response. Selected-event
-evidence includes real scan identity, PC34/MS782/TIC, m/z/ppm, prominence,
-physical width, snap offset, and quality flags.
+User review and three independent audits found blocking issues that the current
+automated suite did not exercise:
 
-Status writes update the visual model immediately and persist on a single
-background writer; a conflict or I/O error restores the exact prior visual
-state. Add and Adjust call the scientific real-scan snap rules rather than
-creating arbitrary times. Restore and durable Undo/Redo append audit rows.
-Color is paired with marker shape and text tokens. Plain-letter shortcuts are
-disabled whenever a text-entry widget has focus.
+- the review page mixes a Canvas-painted welcome screen with `ttk/clam`
+  workbench controls and cannot reliably match LMA Studio's WebView typography,
+  rounded cards, spacing, and component states;
+- selected-event evidence is an unstructured text block, while review and peak
+  edit actions are visually crowded and do not expose a clear hierarchy;
+- Add/Adjust mode only changes the cursor and bottom status text; it has no
+  persistent active state, allowed-region overlay, hover candidate, preview, or
+  explicit apply/cancel step;
+- clicks outside the data plot can reach the add/adjust write path because the
+  legacy handler does not validate the complete plot rectangle;
+- the highest peak maps to the plot top and its triangle/label necessarily
+  crosses the border;
+- analysis-range editing is split across multiple native dialogs, and export
+  copy exposes developer-facing human/machine terminology;
+- the 84 baseline tests do not construct the complete review UI or compare
+  standard-state screenshots.
 
-Analysis-range changes first compute a read-only diff. Apply requires a second
-explicit confirmation, verifies the unchanged manifest/review/detection
-snapshot, reserves the old SQLite writer, builds a new generation, archives a
-guarded immutable copy of the retired review database, and switches the root
-manifest once. Stable mappings retain EventID; ambiguous/unmatched old reviews
-remain stale. A stale old application may write its obsolete database path
-without changing the bound archive or the new active generation.
+The approved remedy is a Phase 2R move to the same pywebview + HTML/CSS/SVG
+application shell and design system as frozen LMA Studio v0.4.4. The Python
+scientific and project core below remains the regression baseline.
 
-Human and machine exports exclude stale generation history. Human CSV defaults
-to accepted only; pending remains opt-in. Machine export contains every review
-status in the active generation and requires downstream status filtering.
+## Baseline behavior that passed
 
-## Automated gates
+- one-pass source inspection with complete stream hash, real byte progress,
+  cancellation, mutation guards, and reuse of the parsed scan table during
+  atomic project creation;
+- min/max display pyramids, bounded 1/10-minute windows, event overlays,
+  physical support intervals, deterministic labels, linear/log display, and
+  one SQLite snapshot per backend window response;
+- real-scan PC34/MS782/TIC, m/z/ppm, prominence, physical-width, snap-offset,
+  and quality evidence;
+- optimistic review updates with a single background writer and exact visual
+  rollback on conflict or I/O failure;
+- real-scan Add/Adjust rules, durable Undo/Redo, append-only audit, and reopen
+  persistence;
+- previewed analysis-range recalculation with unchanged-state guards,
+  stable-ID reconciliation, archived old generations, and one atomic manifest
+  switch;
+- active-generation review-result CSV and versioned audit/data exports.
 
-The Chinese-first source run discovered 84 tests: 83 passed and one symlink test was
-skipped solely because the Windows account lacks symlink creation privilege.
-Covered failure paths include corrupt display-cache rebuild, optimistic-write
-rollback, stale range previews, mutation of a previewed detection table,
-post-switch manifest rollback, stale old-window writes, project reopen, durable
-undo/redo, path attacks, and atomic export/project staging.
+These capabilities are implementation facts, not proof that their legacy UI is
+understandable or visually acceptable.
 
-The packaged hidden-window smoke test exercises NumPy/SciPy detection, pandas
-and PyArrow Parquet round-trip, SQLite review, display-pyramid build/read, human
-CSV, and machine contract in the frozen runtime. It produced 1,201 scans, three
-automatic events, 304 display points, one accepted human row, and three machine
-rows.
+## Automated baseline
 
-The four real-MS regressions were rerun from ignored parse caches. All gates
-passed, source and user-project snapshots remained unchanged, and the canonical
-summary stayed:
+The source run discovered 84 tests: 83 passed and one symlink test was skipped
+solely because the Windows account lacks symlink creation privilege. Covered
+failure paths include corrupt display-cache rebuild, optimistic-write rollback,
+stale range previews, mutation of a previewed detection table, post-switch
+manifest rollback, stale old-window writes, project reopen, durable undo/redo,
+path attacks, and atomic export/project staging.
+
+The packaged hidden-window smoke test exercised NumPy/SciPy detection, pandas
+and PyArrow Parquet round-trip, SQLite review, display-pyramid build/read,
+review-result CSV, and the versioned audit/data export in the frozen runtime. It
+produced 1,201 scans, three automatic events, 304 display points, one accepted
+CSV row, and three rows in the complete data export.
+
+Four real-MS regressions were rerun from ignored parse caches. All gates passed,
+source and user-project snapshots remained unchanged, and the canonical summary
+stayed:
 
 ```text
 c03232a6153ba48a1f12d1e69c26bbad33d43b2d069f428d2e2ea074616f0b30
@@ -85,20 +98,18 @@ subsequent browsing does not reread the raw TXT.
 | 10-minute window p95 (100 windows) | 20.92 ms |
 | Review p95 (100 writes) | 9.65 ms |
 | 100 review writes total | 865.25 ms |
-| Human export (100 accepted rows) | 14.96 ms |
-| Machine export (1,794 rows) | 101.50 ms |
+| Review-result export (100 accepted rows) | 14.96 ms |
+| Complete data export (1,794 rows) | 101.50 ms |
 
-All defined interaction p95 gates are below 250 ms. Detector execution and the
-initial cache/database builds are creation/recalculation work, not window or
-review interaction gates.
+All defined backend interaction p95 gates are below 250 ms. Detector execution
+and initial cache/database builds are creation/recalculation work rather than
+window/review interaction gates.
 
-## Windows candidate
+## Historical Windows dev3 bundle
 
-Rebuilt natively on Windows 11 with Python 3.12.3 and PyInstaller 6.21.0 on
-2026-08-13 in the isolated `build/venv/windows` environment after the
-LMA-aligned typography, rounded bootstrap controls, and Per-Monitor V2 UI
-refactor. This is a local unsigned development candidate, not a published or
-code-signed release.
+Built natively on Windows 11 with Python 3.12.3 and PyInstaller 6.21.0 on
+2026-08-13 in the isolated `build/venv/windows` environment. This is a local,
+unsigned, scientific/package regression bundle—not an accepted release.
 
 | Field | Value |
 |---|---|
@@ -111,74 +122,36 @@ code-signed release.
 | Bundle bytes | 240,675,352 |
 | Bundle tree SHA-256 | `3a95ebc32a5d1af565061185a9137d1737a03b0ccf5e36e5b9fc61862175d75c` |
 | Packaged smoke | exit 0, `status=ok`, `window_system=win32` |
-| Embedded icon | extracted from EXE and visually verified at small size |
-| Validated archive | `release/MS-Event-Studio-0.2.0-dev3-windows-x64.zip` |
+| Validated regression archive | `release/MS-Event-Studio-0.2.0-dev3-windows-x64.zip` |
 | Archive bytes | 92,676,388 |
 | Archive SHA-256 | `f20dc43485742c24a681377520e12ba9ac1d2af8cbb445415d79f4fc4ebc855e` |
 
-The complete per-file manifest and smoke payload are generated at
-`dist/windows/build_manifest.json` and `dist/windows/smoke_test.json`.
-`dist/` is the mutable native-candidate area; after validation the wrapper
-publishes only `release/MS-Event-Studio-<version>-windows-x64.zip` and its
-SHA-256 sidecar. Both directories are intentionally ignored by Git.
+Per-file evidence is generated at `dist/windows/build_manifest.json` and
+`dist/windows/smoke_test.json`. `dist/` and `release/` are ignored mutable
+outputs. A smoke-validated archive is still not evidence of UX acceptance.
 
-PyInstaller is not a cross-compiler. The macOS ARM64 path is implemented and
-contract-tested in `.github/workflows/release-desktop.yml`, following LMA
-Studio's `macos-14` native-runner pattern. A genuine `.app` candidate still
-must be produced by GitHub Actions and exercised on Apple Silicon:
+The current dev3 Windows package correctly has no `.exe.config`: it uses Tk and
+does not load CLR. Phase 2R changes that rule. Its pywebview/Windows bundle must
+ship and test `MS-Event-Studio.exe.config` next to the executable, following the
+LMA WebView2/pythonnet packaging pattern.
+
+## macOS status
+
+The existing workflow and shell script implement a native `macos-14` ARM64
+path, but no remote workflow run or genuine `.app` UAT is claimed because this
+repository currently has no Git remote. The Phase 2R WebView migration must
+first update the macOS dependencies/spec/smoke path, then build on GitHub
+Actions and test on Apple Silicon. The old dev3 command is historical only:
 
 ```bash
 MS_EVENT_STUDIO_VERSION=0.2.0-dev3 bash desktop_bundle/build_macos.sh
 ```
 
-The local repository currently has no Git remote, so no workflow run is claimed
-yet. See `docs/github_actions_builds.md` for the first push and manual-run path.
+## UAT status
 
-## Mouse UAT checklist
-
-Keep the entire Windows bundle together, run the executable, and click **开始
-引导测试**. The application creates a uniquely named disposable source and
-prefills the project form. A Chinese step-by-step version is maintained in
-`docs/guided_test_zh.md`.
-
-1. Confirm the welcome screen shows 新建项目 and 打开项目, with no internal
-   schema/version/hash terminology.
-2. Click 开始引导测试 and choose a disposable parent directory. Click
-   分析源文件; confirm the available closed range becomes 0–2 min,
-   the count is 1,201 scans, and 创建项目 becomes available.
-3. Create range 0–2 min. Confirm three automatic apexes at 0.5, 1.0, and 1.5
-   min; the weak local apex at 0.75 min is intentionally below auto threshold.
-4. Pan, change window width, switch linear/log scale, toggle labels, and try all
-   filters. These actions must not change review state.
-5. Select each automatic event. Confirm scan IDs 100300, 100600, and 100900 and
-   that PC34, MS782, TIC, m/z/ppm, support, and quality evidence are visible.
-6. Apply 接受, 排除, 待定, and 恢复原始. Close and reopen the project;
-   confirm persistence. Exercise Ctrl+Z/Ctrl+Y and reopen again.
-7. Focus the 操作理由 field and type `a r p u`; confirm typing does not trigger any
-   review action. Move focus to the canvas and confirm A/R/P/U shortcuts work.
-8. Enter 补充事件 mode and click near 0.75 min. Confirm a real scan is added as
-   accepted with a displayed snap offset. Clicking within an existing automatic
-   support must navigate to it rather than create a duplicate.
-9. Select an automatic event, enter 调整峰顶 mode, and click near its apex.
-   Confirm snapping stays inside immutable support; a click outside support must
-   fail without changing the event.
-10. Export human CSV with pending off/on and inspect its six columns. Export a
-    machine contract to a new directory and confirm it contains manifest,
-    Parquet, and checksum sidecar.
-11. Use 修改范围 to set 0.6–2 min. Inspect the diff before confirmation, then
-    apply. Confirm the 0.5-min automatic review becomes stale/history while
-    mapped events retain EventID. Repeat exports and confirm stale history is
-    absent from active outputs.
-12. Close and reopen once more. The project must validate and retain the active
-    range, reviews, manual event, and audit-backed undo/redo state.
-
-Record pass/fail, unexpected messages, and screenshots for any visual defect.
-Mouse UAT must not use or modify an LMA Studio project; the generated source and
-project are disposable.
-
-The deterministic guided source is a reproducible interaction smoke fixture,
-not a substitute for real-data acceptance. Windows Phase 2 UAT must additionally
-open the packaged application against read-only `HSC1_data/Lin-_MPP.txt`
-(approximately 7.38 GiB), stream the complete source through New Project, and
-write only to a separate disposable UAT project outside `HSC1_data` and this
-repository. The detailed sequence is in `docs/guided_test_zh.md`.
+The old mouse checklist is preserved only in
+[`guided_test_zh.md`](guided_test_zh.md) as a reproducible dev3 interaction
+regression. User UX testing is paused. Before the next user UAT, Phase 2R must
+pass its Playwright interaction suite, standard screenshot matrix, Windows and
+macOS packaged smoke, real 7.38-GiB read-only file run, and the three independent
+agent reviews defined in the rebuild handoff.
