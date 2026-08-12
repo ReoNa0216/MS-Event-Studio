@@ -469,6 +469,72 @@ class ReviewStore:
             mutate=mutate,
         )
 
+    def restore_automatic_apex(
+        self,
+        event_id: str,
+        *,
+        expected_revision: int,
+        actor: str,
+        session_id: str,
+        reason: str = "",
+    ) -> dict[str, Any]:
+        """Restore only immutable automatic apex evidence, preserving review status.
+
+        The legacy :meth:`restore` operation intentionally retains its original
+        combined semantics for existing callers.  The WebView review workflow
+        needs a narrower domain action: returning an adjusted automatic event
+        to its detected apex must not silently clear or otherwise change the
+        scientist's review decision.
+        """
+
+        def mutate(state: dict[str, Any]) -> None:
+            if not state.get("original_auto_event_id"):
+                raise ValueError("manual events do not have an automatic apex")
+            if (
+                int(state["current_apex_time_ns"]) == int(state["original_apex_time_ns"])
+                and int(state["current_scan_row_index"])
+                == int(state["original_scan_row_index"])
+            ):
+                raise ValueError("the automatic apex is already active")
+            status = state["status"]
+            state.update(
+                current_scan_id=state["original_scan_id"],
+                current_scan_row_index=state["original_scan_row_index"],
+                current_spectrum_index=state["original_spectrum_index"],
+                current_apex_time_ns=state["original_apex_time_ns"],
+                current_apex_time_sec=state["original_apex_time_sec"],
+                current_apex_intensity=state["original_apex_intensity"],
+                status=status,
+                origin="automatic",
+                snap_offset_sec=0.0,
+            )
+
+        return self._normal_update(
+            event_id=event_id,
+            expected_revision=expected_revision,
+            action="restore_automatic_apex",
+            actor=actor,
+            session_id=session_id,
+            reason=reason,
+            mutate=mutate,
+        )
+
+    def history_state(self) -> dict[str, bool]:
+        """Return whether the durable command history can move backward/forward."""
+
+        connection = self._new_connection(self.path)
+        try:
+            connection.execute("BEGIN")
+            can_undo = connection.execute(
+                "SELECT 1 FROM commands WHERE applied = 1 AND redoable = 1 LIMIT 1"
+            ).fetchone()
+            can_redo = connection.execute(
+                "SELECT 1 FROM commands WHERE applied = 0 AND redoable = 1 LIMIT 1"
+            ).fetchone()
+        finally:
+            connection.close()
+        return {"can_undo": can_undo is not None, "can_redo": can_redo is not None}
+
     @staticmethod
     def _snap(
         *,

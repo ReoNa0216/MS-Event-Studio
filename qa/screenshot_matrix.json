@@ -1,0 +1,64 @@
+{
+  "schema": "ms-event-studio-screenshot-matrix-v1",
+  "renderer": "pywebview-html-css-svg",
+  "browser": {
+    "engine": "chromium",
+    "color_scheme": "light",
+    "locale": "zh-CN",
+    "ready_expression": "window.__MS_EVENT_STUDIO__?.getState?.().ready === true",
+    "viewports": [
+      {"id": "compact", "width": 960, "height": 640},
+      {"id": "standard", "width": 1366, "height": 768},
+      {"id": "large", "width": 1920, "height": 1080}
+    ]
+  },
+  "native_samples": {
+    "windows": [
+      {"scale_percent": 100, "status": "captured", "evidence": "build/qa/windows-native-r7-dpi-final-agent/report.json"},
+      {"scale_percent": 125, "status": "planned"},
+      {"scale_percent": 150, "status": "captured", "evidence": "build/qa/windows-native-r7-dpi-final-agent/report.json"},
+      {"scale_percent": 200, "status": "planned"}
+    ],
+    "macos": [
+      {"scale": "retina-native", "status": "planned"}
+    ]
+  },
+  "scenarios": [
+    {"id": "welcome", "stage": "UX-R1", "automation": "browser", "path": "/?fixture=welcome"},
+    {"id": "create-idle", "stage": "UX-R1", "automation": "browser", "path": "/?fixture=create-idle"},
+    {"id": "create-running", "stage": "UX-R1", "automation": "browser", "path": "/?fixture=create-running"},
+    {"id": "create-cancelling", "stage": "UX-R1", "automation": "browser", "path": "/?fixture=create-cancelling"},
+    {"id": "create-cancelled", "stage": "UX-R1", "automation": "browser", "path": "/?fixture=create-cancelled"},
+    {"id": "create-error", "stage": "UX-R1", "automation": "browser", "path": "/?fixture=create-error"},
+    {"id": "create-ready", "stage": "UX-R1", "automation": "browser", "path": "/?fixture=create-ready"},
+    {"id": "open", "stage": "UX-R1", "automation": "browser", "path": "/?fixture=open"},
+    {"id": "review-no-selection", "stage": "UX-R2", "automation": "browser", "path": "/?fixture=review-no-selection"},
+    {"id": "review-unreviewed-auto", "stage": "UX-R3", "automation": "browser", "path": "/?fixture=review-unreviewed-auto"},
+    {"id": "review-accepted-auto", "stage": "UX-R3", "automation": "browser", "path": "/?fixture=review-accepted-auto"},
+    {"id": "review-rejected-auto", "stage": "UX-R3", "automation": "browser", "path": "/?fixture=review-rejected-auto"},
+    {"id": "review-pending-auto", "stage": "UX-R3", "automation": "browser", "path": "/?fixture=review-pending-auto"},
+    {"id": "review-manual", "stage": "UX-R3", "automation": "browser", "path": "/?fixture=review-manual"},
+    {"id": "save-in-progress", "stage": "UX-R3", "automation": "browser", "path": "/?fixture=save-in-progress"},
+    {"id": "save-failed", "stage": "UX-R3", "automation": "browser", "path": "/?fixture=save-failed"},
+    {"id": "add-aim", "stage": "UX-R4", "automation": "browser", "path": "/?fixture=add-aim"},
+    {"id": "add-preview", "stage": "UX-R4", "automation": "browser", "path": "/?fixture=add-preview"},
+    {"id": "adjust-aim", "stage": "UX-R4", "automation": "browser", "path": "/?fixture=adjust-aim"},
+    {"id": "adjust-preview", "stage": "UX-R4", "automation": "browser", "path": "/?fixture=adjust-preview"},
+    {"id": "edit-out-of-range", "stage": "UX-R4", "automation": "browser", "path": "/?fixture=edit-out-of-range"},
+    {"id": "undo-empty", "stage": "UX-R4", "automation": "browser", "path": "/?fixture=undo-empty"},
+    {"id": "undo-redo-ready", "stage": "UX-R4", "automation": "browser", "path": "/?fixture=undo-redo-ready"},
+    {"id": "range-input", "stage": "UX-R5", "automation": "browser", "path": "/?fixture=range-input"},
+    {"id": "range-calculating", "stage": "UX-R5", "automation": "browser", "path": "/?fixture=range-calculating"},
+    {"id": "range-preview", "stage": "UX-R5", "automation": "browser", "path": "/?fixture=range-preview"},
+    {"id": "range-applying", "stage": "UX-R5", "automation": "browser", "path": "/?fixture=range-applying"},
+    {"id": "range-error", "stage": "UX-R5", "automation": "browser", "path": "/?fixture=range-error"},
+    {"id": "export-review-results", "stage": "UX-R5", "automation": "browser", "path": "/?fixture=export-review-results"},
+    {"id": "export-audit-package", "stage": "UX-R5", "automation": "browser", "path": "/?fixture=export-audit-package"},
+    {"id": "exporting", "stage": "UX-R5", "automation": "browser", "path": "/?fixture=exporting"},
+    {"id": "export-error", "stage": "UX-R5", "automation": "browser", "path": "/?fixture=export-error"},
+    {"id": "chart-highest-peak", "stage": "UX-R2", "automation": "browser", "fixture": "review-highest", "path": "/?fixture=review-highest"},
+    {"id": "chart-edge-peak", "stage": "UX-R2", "automation": "browser", "fixture": "review-edge", "path": "/?fixture=review-edge"},
+    {"id": "chart-dense-peaks", "stage": "UX-R2", "automation": "browser", "fixture": "review-dense", "path": "/?fixture=review-dense"},
+    {"id": "long-chinese-copy", "stage": "UX-R6", "automation": "browser", "path": "/?fixture=long-chinese-copy"}
+  ]
+}

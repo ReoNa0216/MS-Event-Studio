@@ -15,7 +15,8 @@ def _smoke_report_path() -> Path | None:
 
 
 try:
-    from ms_event_studio.desktop import main
+    # Phase 2R has one production renderer and no legacy GUI fallback.
+    from ms_event_studio.web_desktop import main
 except BaseException as exc:
     report = _smoke_report_path()
     if report is not None:

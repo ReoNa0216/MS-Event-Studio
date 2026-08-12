@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-version="${MS_EVENT_STUDIO_VERSION:-dev-candidate}"
+version="${MS_EVENT_STUDIO_VERSION:-0.3.0-dev1}"
 
 if [[ ! "$version" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
   echo "Version may contain only letters, digits, period, underscore, and hyphen (maximum 64 characters)." >&2
@@ -31,8 +31,10 @@ if [[ "$machine" != "arm64" ]]; then
 fi
 
 "$python_bin" -m pip install --upgrade pip wheel setuptools
-"$python_bin" -m pip install -e '.[packaging]'
+"$python_bin" -m pip install -e . -r packaging/macos/requirements-macos.txt
 PYTHONPATH="src:tests:." "$python_bin" -m unittest discover -s tests -q
+"$python_bin" scripts/capture_ui_matrix.py --validate-only
+export MS_EVENT_STUDIO_VERSION="$version"
 "$python_bin" -m desktop_bundle.build_desktop
 
 dist_root="$repo_root/dist/macos"
@@ -44,9 +46,24 @@ if [[ ! -x "$executable" ]]; then
 fi
 
 codesign --force --deep --sign - "$app_path"
-codesign --verify --deep --strict "$app_path"
 plutil -lint "$app_path/Contents/Info.plist"
 file "$executable" | grep -q "arm64"
+"$executable" --webview-smoke --smoke-report "$dist_root/smoke_test.json"
+PYTHONPATH="src:." "$python_bin" - "$dist_root/smoke_test.json" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+from desktop_bundle.webview_smoke import validate_webview_smoke_payload
+
+validate_webview_smoke_payload(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")))
+PY
+# The executable smoke may create WebKit-owned files inside the bundle on some
+# macOS versions. Seal and verify the exact tree that will be archived only
+# after that probe, then hash the finalized bundle.
+codesign --force --deep --sign - "$app_path"
+codesign --verify --deep --strict "$app_path"
+"$python_bin" -m desktop_bundle.build_desktop --refresh-manifest --dist-root "$dist_root"
 
 release_root="$repo_root/release"
 archive="$release_root/MS-Event-Studio-${version}-macos-arm64.zip"

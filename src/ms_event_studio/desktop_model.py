@@ -1,4 +1,4 @@
-"""Headless desktop state primitives shared by Tk and automated UI tests."""
+"""Renderer-independent desktop state primitives for services and tests."""
 
 from __future__ import annotations
 
@@ -24,6 +24,20 @@ FILTERS = (
     "manual_adjusted",
     "stale",
 )
+
+FILTER_LABELS = {
+    "all": "全部活动事件",
+    "unreviewed": "未审阅",
+    "accepted": "已接受",
+    "rejected": "已排除",
+    "pending": "待定",
+    "manual_added": "人工补充",
+    "manual_adjusted": "人工调整",
+    "stale": "历史失效事件",
+}
+FILTER_VALUES = {label: value for value, label in FILTER_LABELS.items()}
+SCALE_LABELS = {"linear": "线性", "log1p": "对数 log1p"}
+SCALE_VALUES = {label: value for value, label in SCALE_LABELS.items()}
 
 STATUS_LABELS = {
     "unreviewed": "未审阅",

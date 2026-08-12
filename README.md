@@ -1,119 +1,91 @@
 # MS Event Studio
 
-Independent MS-only event extraction and auditable review. This repository does
-not import LIF, UMAP coordinates, cell labels, expected event counts, or LMA
-Studio project state.
+MS Event Studio 是一个独立的 MS-only 事件提取、审阅与导出工具。它只处理质谱信号，
+不会导入 LIF、UMAP 坐标、细胞标签、预期事件数量或 LMA Studio 项目状态；原始 MS
+文件在桌面流程中始终只读。
 
-Phase 1 scientific and CLI gates passed on 2026-08-12. The `0.2.0.dev3`
-Windows bundle also passed its scientific, persistence, performance, and
-packaged-smoke gates, but its desktop UX was rejected on 2026-08-13. It is a
-regression baseline, not a release candidate. Phase 2R now rebuilds the UI with
-the same WebView design system as frozen LMA Studio v0.4.4 while preserving the
-tested MS core. See the
-[Phase 2R UI rebuild handoff](docs/MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md).
+## 当前候选状态
 
-## Desktop status
+当前 WebView 候选版本为 `0.3.0.dev1`。桌面界面已经迁移为单一的
+pywebview + HTML/CSS/SVG 渲染器，不会回退到旧 Tk 审阅页。候选包含从新建项目到
+审阅、事件编辑、范围调整和导出的完整用户流程。
 
-The current source entry point and local `0.2.0.dev3` bundle still launch the
-legacy native Tk workbench. It remains useful for backend regression and
-packaged-smoke testing, but it must not be presented for UX acceptance. In
-particular, its unstructured evidence panel, ambiguous peak-edit modes, range
-dialog sequence, marker overflow, and mixed Tk/Canvas component language are
-known failures.
+已经完成的 pre-UAT 证据包括：
 
-The tested baseline provides:
+- 完整 Python 与前端单元测试、浏览器交互门禁和打包隐藏冒烟；
+- 960×640、1366×768、1920×1080 的 36 个确定性场景截图；
+- Windows 原生 100% 与 150% 缩放下的任务、DPI、焦点和视觉检查；
+- 科学/API 边界、交互与可访问性、LMA v0.4.4 视觉一致性的独立审查；
+- 大型只读 MS 源的创建、审阅、重开和两类导出整链验证。
 
-- a Chinese-first legacy welcome/review interface, a cross-platform application
-  icon, and a disposable regression fixture;
-- one-pass source inspection with byte progress, cancellation, and reuse of the
-  parsed scan table during atomic project creation;
-- min/max display pyramids, bounded 1/10-minute windows, event apex overlays,
-  support intervals, deterministic dense labels, linear/log scale, and pan;
-- evidence for the selected real scan, including PC34, MS782, TIC, m/z/ppm,
-  prominence, physical width, and quality flags;
-- accepted/rejected/pending/unreviewed review, real-scan Add/Adjust, Restore,
-  durable Undo/Redo, non-color-only encodings, filters, and keyboard access;
-- immediate optimistic status display with asynchronous persistence and failure
-  rollback;
-- previewed analysis-range recalculation with stable-ID reconciliation, stale
-  history retention, and one atomic manifest switch;
-- accepted-only review-result CSV and all-active-status versioned audit/data
-  export.
+这仍是候选版，不代表 Phase 2R 已退出。Windows 原生 125% 与 200% 缩放、macOS
+ARM64/Retina 仍需在对应真实环境中验证，最终用户 UAT 也尚未签收。`0.2.0.dev3`
+仅作为冻结的科学回归基线，不再是 UX 候选。
 
-Run from source:
+## 主要能力
+
+- 一次读取源文件，显示字节与扫描进度，支持取消，并复用检查结果创建原子项目；
+- 在 SVG 信号图中查看 PC34 信号、事件标记、窗口、筛选、线性/对数刻度和标签；
+- 显示所选事件的核心与更多物理证据，并以保留、排除、待定或未审阅记录结论；
+- 保存操作备注，支持恢复自动峰顶、撤销、重做以及关闭后重开；
+- 通过明确的瞄准、预览和应用步骤补充遗漏峰或重新定位峰顶；
+- 先预览影响，再安全应用分析范围变化；
+- 导出默认仅含已保留事件的审阅结果，可选择包含待定事件，或导出完整审计数据包。
+
+界面沿用冻结的 LMA Studio v0.4.4 视觉语言，但不修改、不导入也不运行时依赖 LMA
+Studio。正式 LMA 导入属于 Phase 3，必须走单独验证的合同路径。不要用任何导出覆盖
+LMA Studio 的 `ms_events.parquet`。
+
+## 运行
+
+从源码启动：
 
 ```powershell
-python -m pip install -e .
+python -m pip install -e ".[packaging]"
 ms-event-studio-gui
 ```
 
-The historical local Windows regression bundle is:
+Windows 候选采用 `onedir` 形式。解压后必须保留整个 `MS-Event-Studio` 文件夹，
+从文件夹内运行 `MS-Event-Studio.exe`；单独复制 EXE 无法运行。正式验收只使用交付记录
+中版本和 SHA-256 完全匹配的候选包，不要把 `dist/` 中的中间构建当作交付包。
 
-```text
-dist/windows/MS-Event-Studio/MS-Event-Studio.exe
-```
-
-It is an `onedir` application: keep the whole `MS-Event-Studio` directory
-together. The executable alone is not portable.
-
-`dist/` contains mutable native builds under test. Passing packaged smoke allows
-a regression archive to be written under `release/`; it does not by itself make
-that archive an accepted UX or release candidate.
-
-Do not use the legacy guided test as UX acceptance. It is retained only to
-reproduce the dev3 interaction chain; its scope and candidate hashes are
-recorded in [the historical Phase 2 evidence](docs/phase2_desktop_and_uat.md).
-The next user UAT begins only after the WebView candidate passes the automated
-screenshot matrix and three independent agent reviews described in the Phase
-2R handoff.
-
-Native macOS ARM64 and Windows x64 candidates are built on GitHub's matching
-runners. See [GitHub Actions desktop builds](docs/github_actions_builds.md).
-
-## Scientific core and CLI
-
-- strict one-pass ASCII parser with complete SHA-256, byte progress,
-  cancellation, input-mutation checks, and fixed-point nanosecond time;
-- versioned PC34/760.5851 detector using a closed ±12 ppm window and the frozen
-  v0.4.4 adaptive threshold behavior, with corrected bin ownership and physical
-  width on irregular time axes;
-- atomic portable project creation and hash-checked preflight;
-- SQLite review overlay with stable EventID, immutable automatic evidence,
-  optimistic revision checks, append-only audit, and durable undo/redo;
-- accepted-only six-column review-result CSV (`pending` is opt-in) and a
-  versioned audit/data contract with Parquet and SHA-256 sidecar.
+命令行仍可独立使用：
 
 ```powershell
 ms-event-studio create --source "D:\data\run.txt" --project "D:\projects\run" `
   --name "Run" --start-min 10 --end-min 60
 ms-event-studio verify --project "D:\projects\run"
 ms-event-studio export --project "D:\projects\run" --output accepted.csv
-ms-event-studio export-machine --project "D:\projects\run" --output-dir machine-contract
+ms-event-studio export-machine --project "D:\projects\run" --output-dir audit-package
 ```
 
-Never overwrite an LMA Studio `ms_events.parquet` with either export. Formal LMA
-import is Phase 3 and requires a separate validated contract path.
+## 用户验收
 
-## Verification
+正式验收前请阅读[中文引导验收指南](docs/guided_test_zh.md)。指南要求使用一次性项目或
+项目副本，并把项目、导出目标与 LMA Studio 目录分开；不要在真实源文件所在目录直接
+创建测试项目。
+
+验收问题至少应附带：候选版本与 SHA-256、操作系统和显示缩放、复现步骤、期望与实际
+结果，以及一张完整窗口截图。若问题发生在写入操作之后，还要说明界面是否提示保存
+完成，以及关闭重开后的状态。
+
+## 开发验证
 
 ```powershell
 $env:PYTHONPATH = "src;tests;."
 python -m unittest discover -s tests -v
-python scripts/run_real_regression.py
-python scripts/run_phase2_performance.py
+npm --prefix src/ms_event_studio/web test
+python scripts/lint_ui_copy.py
+python scripts/capture_ui_matrix.py --validate-only --require-all
 ```
 
-The dev3 Phase 2 baseline discovered 84 tests: 83 passed and one symlink-escape
-test was skipped because this Windows account cannot create a symlink. These
-results establish scientific and infrastructure behavior, not UI usability.
-All lexical Windows/UNC/drive/ADS/traversal attacks passed. Four read-only
-real-MS regressions passed with canonical summary SHA-256
-`c03232a6153ba48a1f12d1e69c26bbad33d43b2d069f428d2e2ea074616f0b30`.
+真实数据回归和原生截图必须在受控资产与对应真实平台上运行；浏览器缩放或响应式代理
+不能替代 Windows 125%/200% 或 macOS Retina 的原生证据。
 
-Further contracts:
+进一步资料：
 
-- [Scientific rules](docs/scientific_contract.md)
-- [Project and export schemas](docs/project_and_export_contracts.md)
-- [Phase 1 real-data regression](docs/phase1_real_regression_summary.md)
-- [Historical dev3 desktop, performance, and packaging evidence](docs/phase2_desktop_and_uat.md)
-- [Phase 2R WebView UI rebuild handoff](docs/MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md)
+- [科学规则](docs/scientific_contract.md)
+- [项目与导出合同](docs/project_and_export_contracts.md)
+- [Phase 1 真实数据回归](docs/phase1_real_regression_summary.md)
+- [历史 dev3 桌面、性能与打包证据](docs/phase2_desktop_and_uat.md)
+- [Phase 2R WebView 重建交接](docs/MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ms-event-studio"
-version = "0.2.0.dev3"
+version = "0.3.0.dev1"
 description = "MS-only event extraction, review, and versioned export"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,11 +16,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-packaging = ["pyinstaller==6.21.0", "Pillow>=10,<12"]
+packaging = [
+  "pyinstaller==6.21.0",
+  "Pillow>=10,<12",
+  "pywebview==6.2.1",
+]
+qa = ["playwright>=1.49,<2"]
 
 [project.scripts]
 ms-event-studio = "ms_event_studio.cli:main"
-ms-event-studio-gui = "ms_event_studio.desktop:main"
+ms-event-studio-gui = "ms_event_studio.web_desktop:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -29,4 +34,10 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-ms_event_studio = ["assets/*.png"]
+ms_event_studio = [
+  "assets/*.png",
+  "web/*.html",
+  "web/*.css",
+  "web/*.js",
+  "web/icons/*.svg",
+]

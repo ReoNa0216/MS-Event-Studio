@@ -9,20 +9,18 @@ from pathlib import Path
 
 from ms_event_studio.desktop_model import (
     CreationState,
+    FILTER_LABELS,
+    FILTER_VALUES,
     OptimisticReviewModel,
     PlotTransform,
     RecentProjects,
+    SCALE_LABELS,
+    SCALE_VALUES,
     Viewport,
     evidence_lines,
     event_visual_encoding,
     filter_events,
     keyboard_command,
-)
-from ms_event_studio.desktop import (
-    FILTER_LABELS,
-    FILTER_VALUES,
-    SCALE_LABELS,
-    SCALE_VALUES,
 )
 
 

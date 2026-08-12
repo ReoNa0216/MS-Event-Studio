@@ -15,7 +15,7 @@ on:
       version:
         description: Artifact version for a manual candidate build
         required: true
-        default: dev-candidate
+        default: 0.3.0-dev1
         type: string
       publish_prerelease:
         description: Publish successful manual-build artifacts as a candidate prerelease
@@ -40,7 +40,9 @@ jobs:
           python-version: "3.12"
           architecture: x64
           cache: pip
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: |
+            pyproject.toml
+            packaging/windows/requirements-windows.txt
       - name: Resolve package version
         env:
           INPUT_VERSION: ${{ inputs.version }}
@@ -76,7 +78,9 @@ jobs:
           python-version: "3.12"
           architecture: arm64
           cache: pip
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: |
+            pyproject.toml
+            packaging/macos/requirements-macos.txt
       - name: Resolve package version
         env:
           INPUT_VERSION: ${{ inputs.version }}

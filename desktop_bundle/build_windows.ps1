@@ -11,7 +11,7 @@ $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
 
 if (!$Version) {
-    $Version = if ($env:MS_EVENT_STUDIO_VERSION) { $env:MS_EVENT_STUDIO_VERSION } else { "dev-candidate" }
+    $Version = if ($env:MS_EVENT_STUDIO_VERSION) { $env:MS_EVENT_STUDIO_VERSION } else { "0.3.0-dev1" }
 }
 if ($Version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$') {
     throw "Version may contain only letters, digits, period, underscore, and hyphen (maximum 64 characters)."
@@ -34,12 +34,15 @@ Write-Host "Using Python: $Python"
 
 & $Python -m pip install --upgrade pip wheel setuptools
 if ($LASTEXITCODE -ne 0) { throw "Failed to update the Windows build toolchain." }
-& $Python -m pip install -e ".[packaging]"
+& $Python -m pip install -e . -r (Join-Path $RepoRoot "packaging\windows\requirements-windows.txt")
 if ($LASTEXITCODE -ne 0) { throw "Failed to install MS Event Studio build dependencies." }
 
 $env:PYTHONPATH = "src;tests;."
+$env:MS_EVENT_STUDIO_VERSION = $Version
 & $Python -m unittest discover -s tests -q
 if ($LASTEXITCODE -ne 0) { throw "Tests failed; refusing to create a Windows candidate." }
+& $Python scripts/capture_ui_matrix.py --validate-only
+if ($LASTEXITCODE -ne 0) { throw "The standard screenshot matrix is invalid." }
 & $Python -m desktop_bundle.build_desktop
 if ($LASTEXITCODE -ne 0) { throw "Windows desktop packaging failed." }
 
@@ -47,6 +50,17 @@ $DistRoot = Join-Path $RepoRoot "dist\windows"
 $Executable = Join-Path $DistRoot "MS-Event-Studio\MS-Event-Studio.exe"
 if (!(Test-Path -LiteralPath $Executable -PathType Leaf)) {
     throw "The packaged executable is missing: $Executable"
+}
+$RuntimeConfig = Join-Path $DistRoot "MS-Event-Studio\MS-Event-Studio.exe.config"
+if (!(Test-Path -LiteralPath $RuntimeConfig -PathType Leaf)) {
+    throw "The packaged Windows runtime config is missing: $RuntimeConfig"
+}
+[xml]$RuntimeConfigXml = Get-Content -LiteralPath $RuntimeConfig -Raw
+$RemoteSourcePolicy = $RuntimeConfigXml.SelectSingleNode(
+    "/configuration/runtime/loadFromRemoteSources"
+)
+if ($null -eq $RemoteSourcePolicy -or $RemoteSourcePolicy.enabled -ne "true") {
+    throw "The packaged Windows runtime config does not enable loadFromRemoteSources."
 }
 
 $ReleaseRoot = Join-Path $RepoRoot "release"
@@ -69,6 +83,7 @@ try {
         $Entries = @($Zip.Entries | ForEach-Object { $_.FullName.Replace("\", "/") })
         foreach ($RequiredEntry in @(
             "MS-Event-Studio/MS-Event-Studio.exe",
+            "MS-Event-Studio/MS-Event-Studio.exe.config",
             "build_manifest.json",
             "smoke_test.json"
         )) {

@@ -1,0 +1,83 @@
+:root {
+  color-scheme: light;
+
+  /* Shared LMA-family foundations. Components must consume these tokens. */
+  --font-family-sans: Arial, Helvetica, sans-serif;
+  --font-size-compact: 10px;
+  --font-size-caption: 11px;
+  --font-size-secondary: 12px;
+  --font-size-section: 13px;
+  --font-size-body: 14px;
+  --font-size-modal: 16px;
+  --font-size-header: 17px;
+  --font-size-welcome: 20px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 600;
+  --font-weight-bold: 700;
+  --line-height-body: 1.45;
+  --line-height-copy: 1.55;
+  --line-height-tight: 1.25;
+
+  --color-background: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-text: #1b1f27;
+  --color-text-muted: #667085;
+  --color-text-subtle: #8a94a6;
+  --color-border: #d7dce3;
+  --color-border-strong: #aab3c2;
+  --color-divider: #edf0f4;
+  --color-surface-subtle: #f8fafc;
+  --color-control-track: #f2f4f7;
+  --color-header: #111827;
+  --color-header-control: #1f2937;
+  --color-header-border: #475467;
+  --color-header-muted: #cbd5e1;
+  --color-accent: #0b7674;
+  --color-accent-hover: #075e5d;
+  --color-accent-soft: #e8f7f6;
+  --color-signal: #23a7a2;
+  --color-signal-soft: #c8eeeb;
+  --color-focus: #2e90fa;
+  --color-selection: #dff4f2;
+  --color-overlay: rgba(17, 24, 39, 0.46);
+  --color-shadow: rgba(20, 26, 36, 0.08);
+  --color-shadow-strong: rgba(15, 23, 42, 0.22);
+  --color-success: #067647;
+  --color-success-soft: #ecfdf3;
+  --color-danger: #b42318;
+  --color-danger-soft: #fef3f2;
+  --color-warning: #b54708;
+  --color-warning-soft: #fffaeb;
+  --color-event-unreviewed: #5f6b7a;
+  --color-event-accepted: #12805c;
+  --color-event-rejected: #c2382b;
+  --color-event-pending: #b26a00;
+  --color-plot-grid: #e7ebf0;
+  --color-plot-axis: #98a2b3;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 10px;
+  --space-4: 12px;
+  --space-5: 14px;
+  --space-6: 16px;
+  --space-7: 18px;
+  --space-8: 22px;
+  --space-9: 28px;
+  --space-10: 36px;
+
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-pill: 999px;
+  --border-width: 1px;
+  --control-height: 34px;
+  --header-height: 64px;
+  --sidebar-width: 300px;
+  --workspace-padding: 14px;
+  --workspace-gap: 14px;
+  --shadow-card: 0 10px 26px var(--color-shadow);
+  --shadow-modal: 0 18px 46px var(--color-shadow-strong);
+  --shadow-control: 0 1px 3px var(--color-shadow);
+  --transition-fast: 140ms ease;
+  --transition-standard: 180ms ease;
+}

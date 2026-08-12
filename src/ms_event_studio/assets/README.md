@@ -22,6 +22,6 @@ Generation prompt:
 > chroma-key background and nowhere in the icon.
 
 `app_icon_master.png` is the source asset. Run
-`python -m desktop_bundle.generate_icons --runtime-assets` for committed Tk PNG
-sizes. Native packaging invokes the same module to derive `.ico` or `.icns`
-files in the ignored `build/icons/` directory.
+`python -m desktop_bundle.generate_icons --runtime-assets` to refresh the
+committed runtime PNG sizes. Native packaging invokes the same module to derive
+`.ico` or `.icns` files in the ignored `build/icons/` directory.

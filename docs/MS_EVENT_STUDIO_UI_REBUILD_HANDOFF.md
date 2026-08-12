@@ -404,9 +404,9 @@ Phase 2R exit。
 ## 12. 当前证据与文档角色
 
 - `phase2_desktop_and_uat.md`：dev3 科学/性能/打包历史证据，不是当前 UX 验收结论。
-- `guided_test_zh.md`：dev3 遗留交互回归步骤；Phase 2R 候选形成后必须重写。
+- `guided_test_zh.md`：当前 `0.3.0.dev1` WebView 候选的最终用户 UAT 指南。
 - `github_actions_builds.md`：当前 native-runner 政策；WebView 迁移后需同步依赖和 smoke。
 - `dist/`、`release/`：忽略的本地产物，可用于回归，但不构成当前源代码的发布证明。
 
-下一 Session 的可复制开头语见
-[`MS_EVENT_STUDIO_UI_REBUILD_NEXT_SESSION.md`](MS_EVENT_STUDIO_UI_REBUILD_NEXT_SESSION.md)。
+`MS_EVENT_STUDIO_UI_REBUILD_NEXT_SESSION.md` 是启动本轮迁移时使用的历史指令，当前执行状态
+以本 handoff、README、截图矩阵和候选清单为准，不应再从 UX-R0 重新开始。

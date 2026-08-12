@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>MS Event Studio</title>
+  <link rel="stylesheet" href="./tokens.css">
+  <link rel="stylesheet" href="./app.css">
+</head>
+<body data-view="loading">
+  <a class="skip-link" href="#appMain">跳到主要内容</a>
+
+  <header class="app-header" aria-label="应用栏">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div class="brand-copy">
+        <span class="brand-name">MS Event Studio</span>
+        <span class="brand-tagline">质谱事件审阅</span>
+      </div>
+    </div>
+
+    <div id="projectContext" class="project-context" hidden>
+      <strong id="headerProjectName" data-qa="project-name"></strong>
+      <span id="headerProjectRange"></span>
+    </div>
+
+    <nav id="headerActions" class="app-header__actions" aria-label="项目操作" hidden>
+      <button id="headerNew" class="button button--header" type="button">新建 / 打开</button>
+      <button id="changeRange" class="button button--header" type="button" disabled data-qa="change-range">项目设置</button>
+      <button id="openExport" class="button button--header-primary" type="button" disabled data-qa="export-review-results">导出结果</button>
+    </nav>
+  </header>
+
+  <main id="appMain" tabindex="-1">
+    <section id="loadingView" class="loading-view" aria-label="正在启动">
+      <div class="startup-indicator" role="status" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <span>正在准备工作区…</span>
+      </div>
+    </section>
+
+    <section id="welcomeView" class="welcome-view" aria-labelledby="welcomeTitle" hidden>
+      <div class="welcome-card">
+        <div class="welcome-card__copy">
+          <span class="eyebrow">MS EVENT STUDIO</span>
+          <h1 id="welcomeTitle">从清晰的信号开始审阅</h1>
+          <p class="welcome-lead">分析 PC34 信号，逐个核对事件，并在一个项目中保留完整的审阅过程。</p>
+
+          <div class="welcome-actions" aria-label="开始使用">
+            <button id="welcomeCreate" class="button button--primary button--large" type="button">
+              新建项目
+            </button>
+            <button id="welcomeOpen" class="button button--secondary button--large" type="button">
+              打开项目
+            </button>
+          </div>
+
+          <p class="read-only-note">
+            <span class="read-only-note__icon" aria-hidden="true"></span>
+            原始 MS 文件始终保持只读
+          </p>
+        </div>
+
+        <div class="signal-preview" aria-hidden="true">
+          <div class="signal-preview__head">
+            <span>PC34 信号</span>
+            <span class="signal-preview__badge">待审阅</span>
+          </div>
+          <svg class="signal-preview__chart" viewBox="0 0 520 236" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="signalFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" class="signal-fill-start"></stop>
+                <stop offset="1" class="signal-fill-end"></stop>
+              </linearGradient>
+            </defs>
+            <g class="signal-grid">
+              <path d="M28 44H500M28 92H500M28 140H500M28 188H500"></path>
+              <path d="M92 28V204M188 28V204M284 28V204M380 28V204M476 28V204"></path>
+            </g>
+            <path class="signal-area" d="M28 188C50 187 60 184 75 186C94 188 103 181 117 184C131 187 141 177 154 181C169 185 177 174 188 180C204 188 218 182 232 179C245 176 252 156 260 112C266 77 271 47 278 44C285 47 291 80 298 119C307 164 315 179 329 181C344 183 356 175 368 181C383 187 394 179 408 183C423 187 433 181 446 185C461 189 478 184 500 188V204H28Z"></path>
+            <path class="signal-line" d="M28 188C50 187 60 184 75 186C94 188 103 181 117 184C131 187 141 177 154 181C169 185 177 174 188 180C204 188 218 182 232 179C245 176 252 156 260 112C266 77 271 47 278 44C285 47 291 80 298 119C307 164 315 179 329 181C344 183 356 175 368 181C383 187 394 179 408 183C423 187 433 181 446 185C461 189 478 184 500 188"></path>
+            <path class="signal-marker" d="M278 34l-7 12h14z"></path>
+            <circle class="signal-point" cx="278" cy="44" r="4"></circle>
+          </svg>
+          <dl class="signal-preview__metrics">
+            <div><dt>峰顶时间</dt><dd>32.418 min</dd></div>
+            <div><dt>实测 m/z</dt><dd>760.5853</dd></div>
+            <div><dt>质量误差</dt><dd>+0.3 ppm</dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <section id="recentProjects" class="recent-projects" aria-labelledby="recentProjectsTitle" hidden>
+        <div class="section-heading">
+          <div>
+            <h2 id="recentProjectsTitle">最近项目</h2>
+            <p>继续上次的审阅，不显示原始文件位置。</p>
+          </div>
+          <button id="welcomeBrowse" class="button button--text" type="button">浏览其他项目</button>
+        </div>
+        <div id="welcomeRecentList" class="recent-list"></div>
+      </section>
+    </section>
+
+    <section id="projectView" class="project-view" aria-labelledby="projectViewTitle" hidden data-qa="workbench">
+      <h1 id="projectViewTitle" class="visually-hidden">事件审阅工作区</h1>
+
+      <aside class="panel review-sidebar" aria-label="事件审阅任务栏">
+        <section class="review-progress" aria-labelledby="reviewProgressTitle">
+          <div class="review-progress__heading">
+            <div>
+              <p class="section-kicker">审阅进度</p>
+              <h2 id="reviewProgressTitle"><span id="reviewedCount">0</span> / <span id="reviewTotal">0</span></h2>
+            </div>
+            <span id="reviewProgressPercent" class="status-badge">0%</span>
+          </div>
+          <progress id="reviewProgressBar" max="1" value="0">0%</progress>
+          <div class="event-navigation" aria-label="事件导航">
+            <button id="previousEvent" class="button button--secondary" type="button" data-qa="previous-event">
+              上一事件
+            </button>
+            <button id="nextEvent" class="button button--secondary" type="button" data-qa="next-event">
+              下一事件
+            </button>
+          </div>
+        </section>
+
+        <section id="noSelectionCard" class="no-selection-card" aria-live="polite">
+          <span class="no-selection-card__icon" aria-hidden="true"></span>
+          <h2>选择一个事件开始审阅</h2>
+          <p>可从图中或事件列表选择，物理证据会显示在这里。</p>
+        </section>
+
+        <div id="selectedEventPanel" class="selected-event-panel" hidden>
+          <section class="event-heading" aria-labelledby="selectedEventTitle">
+            <p class="section-kicker">当前事件</p>
+            <div class="event-heading__time-row">
+              <h2 id="selectedEventTitle"><span id="selectedApexTime">—</span><small> min</small></h2>
+              <span id="selectedStatusBadge" class="status-badge">未审阅</span>
+            </div>
+            <p id="selectedOrigin" class="event-origin">自动识别</p>
+          </section>
+
+          <section class="review-decision" aria-labelledby="reviewDecisionTitle">
+            <div class="sidebar-section-heading">
+              <h3 id="reviewDecisionTitle">保留这个事件吗？</h3>
+              <button id="clearReview" class="button button--text" type="button" disabled data-qa="review-clear">
+                清除审阅
+              </button>
+            </div>
+            <div id="reviewSegmented" class="segmented-control" role="radiogroup" aria-labelledby="reviewDecisionTitle" data-qa="review-segmented">
+              <button type="button" role="radio" aria-checked="false" disabled data-decision="accepted" data-qa="review-accept">保留</button>
+              <button type="button" role="radio" aria-checked="false" disabled data-decision="rejected" data-qa="review-reject">排除</button>
+              <button type="button" role="radio" aria-checked="false" disabled data-decision="pending" data-qa="review-pending">待定</button>
+            </div>
+            <div id="reviewSaveFeedback" class="review-save-feedback" role="status" aria-live="polite" hidden>
+              <span class="review-save-feedback__spinner" aria-hidden="true"></span>
+              <span>正在保存审阅…</span>
+            </div>
+            <p id="reviewError" class="review-error" role="alert" data-qa="review-error" hidden></p>
+            <p class="interaction-hint">快捷键：A 保留、R 排除、P 待定、U 撤销；填写备注时停用。</p>
+          </section>
+
+          <section class="core-evidence" aria-labelledby="coreEvidenceTitle" data-qa="core-evidence">
+            <h3 id="coreEvidenceTitle">核心证据</h3>
+            <dl class="evidence-grid">
+              <div><dt>PC34 强度</dt><dd id="evidencePc34">—</dd></div>
+              <div><dt>实测 m/z</dt><dd id="evidenceMz">—</dd></div>
+              <div><dt>质量误差</dt><dd id="evidencePpm">—</dd></div>
+              <div><dt>质量结论</dt><dd id="evidenceQuality">—</dd></div>
+            </dl>
+            <ul id="qualityNotes" class="quality-notes" hidden></ul>
+          </section>
+
+          <section class="more-evidence-section">
+            <button id="evidenceToggle" class="evidence-toggle" type="button" aria-expanded="false" aria-controls="moreEvidence" data-qa="evidence-toggle">
+              <span>更多证据</span><span aria-hidden="true">⌄</span>
+            </button>
+            <div id="moreEvidence" class="more-evidence" hidden data-qa="more-evidence">
+              <dl class="key-values key-values--evidence">
+                <div><dt>扫描编号</dt><dd id="evidenceScan">—</dd></div>
+                <div><dt>MS782</dt><dd id="evidenceMs782">—</dd></div>
+                <div><dt>TIC</dt><dd id="evidenceTic">—</dd></div>
+                <div><dt>显著度</dt><dd id="evidenceProminence">—</dd></div>
+                <div><dt>物理峰宽</dt><dd id="evidenceWidth">—</dd></div>
+                <div><dt>可调整区间</dt><dd id="evidenceRange">—</dd></div>
+              </dl>
+            </div>
+          </section>
+
+          <section id="restoreAutomaticSection" class="conditional-action" hidden>
+            <button id="restoreAutomatic" class="button button--secondary" type="button" disabled data-qa="restore-automatic">恢复自动峰顶</button>
+            <p>只恢复自动识别位置，不改变审阅状态。</p>
+          </section>
+
+          <section class="conditional-action adjust-apex-section">
+            <button id="adjustApex" class="button button--secondary" type="button" aria-pressed="false" disabled data-qa="adjust-apex">重新定位峰顶</button>
+            <p>先在信号图中预览候选位置，再明确应用。</p>
+          </section>
+
+          <section class="review-note-section" aria-labelledby="reviewNoteTitle">
+            <label id="reviewNoteTitle" for="reviewNote">操作备注</label>
+            <textarea id="reviewNote" rows="2" maxlength="500" placeholder="可选：记录判断依据" data-qa="review-note"></textarea>
+            <small>备注会随下一次审阅操作保存；输入时不会触发快捷键。</small>
+          </section>
+        </div>
+      </aside>
+
+      <section class="workspace-main" aria-label="PC34 信号工作区">
+        <div class="panel plot-toolbar" aria-label="信号图查看工具">
+          <div class="toolbar-group toolbar-window" aria-label="显示窗口">
+            <label for="windowStart">起点 min</label>
+            <input id="windowStart" type="number" step="0.001" inputmode="decimal">
+            <label for="windowWidth">窗宽 min</label>
+            <input id="windowWidth" type="number" step="0.001" inputmode="decimal">
+            <button id="previousWindow" class="button button--secondary button--compact" type="button" aria-label="上一窗口">←</button>
+            <button id="nextWindow" class="button button--secondary button--compact" type="button" aria-label="下一窗口">→</button>
+          </div>
+
+          <label class="toolbar-field" for="eventFilter">事件筛选
+            <select id="eventFilter" data-qa="event-filter">
+              <option value="all" data-qa="filter-all">全部事件</option>
+              <option value="unreviewed" data-qa="filter-unreviewed">未审阅</option>
+              <option value="accepted" data-qa="filter-accepted">已保留</option>
+              <option value="rejected" data-qa="filter-rejected">已排除</option>
+              <option value="pending" data-qa="filter-pending">待定</option>
+              <option value="manual_added" data-qa="filter-manual-added">人工补充</option>
+              <option value="manual_adjusted" data-qa="filter-manual-adjusted">人工调整</option>
+            </select>
+          </label>
+
+          <div class="toolbar-segmented" role="group" aria-label="信号刻度">
+            <button id="scaleLinear" class="button" type="button" aria-pressed="true" data-qa="scale-linear">线性</button>
+            <button id="scaleLog" class="button" type="button" aria-pressed="false" data-qa="scale-log">对数</button>
+          </div>
+
+          <button id="toggleLabels" class="button button--secondary" type="button" aria-pressed="true" data-qa="toggle-labels">标签</button>
+          <div class="toolbar-history" role="group" aria-label="操作历史">
+            <button id="undoAction" class="button button--secondary button--compact" type="button" disabled data-qa="undo">撤销</button>
+            <button id="redoAction" class="button button--secondary button--compact" type="button" disabled data-qa="redo">重做</button>
+          </div>
+          <button id="addEvent" class="button button--secondary" type="button" aria-pressed="false" disabled data-qa="add-event">添加遗漏峰</button>
+        </div>
+
+        <section id="editModeBar" class="panel edit-mode-bar" aria-labelledby="editModeTitle" data-qa="edit-mode-bar" hidden>
+          <div class="edit-mode-bar__copy">
+            <p class="section-kicker">事件编辑</p>
+            <h2 id="editModeTitle">在图中选择候选位置</h2>
+            <p id="editModeDescription">移动指针瞄准，单击后只生成预览，不会立即修改项目。</p>
+          </div>
+          <dl class="edit-mode-bar__facts">
+            <div data-qa="edit-allowed-range-copy"><dt>允许区间</dt><dd id="editAllowedRange">—</dd></div>
+            <div id="editPositionFact" class="edit-position-fact">
+              <dt><label for="editPosition">键盘瞄准位置</label></dt>
+              <dd>
+                <input id="editPosition" type="range" min="0" max="1" step="0.01" value="0.5" data-qa="edit-position" aria-describedby="editPositionHelp editPositionValue">
+                <output id="editPositionValue" for="editPosition">—</output>
+                <span id="editPositionHelp">方向键微调，Enter 生成预览</span>
+              </dd>
+            </div>
+            <div id="editCandidateFact" data-qa="edit-candidate" hidden><dt>候选峰顶</dt><dd id="editCandidate">—</dd></div>
+            <div id="editChangeFact" data-qa="edit-change" hidden><dt>位置变化</dt><dd id="editChange">—</dd></div>
+          </dl>
+          <div class="edit-mode-bar__actions">
+            <button id="applyEventEdit" class="button button--primary" type="button" disabled data-qa="edit-apply">应用候选</button>
+            <button id="cancelEventEdit" class="button button--secondary" type="button" data-qa="edit-cancel">取消</button>
+          </div>
+          <p id="editError" class="edit-error" role="alert" data-qa="edit-error" hidden></p>
+        </section>
+
+        <section class="panel plot-panel" aria-labelledby="plotTitle">
+          <header class="plot-panel__header">
+            <div>
+              <p class="section-kicker">PC34 / MS760</p>
+              <h2 id="plotTitle">信号与事件</h2>
+            </div>
+            <p id="plotWindowSummary">—</p>
+          </header>
+
+          <div id="plotFrame" class="plot-frame">
+            <svg id="signalPlot" class="signal-plot" viewBox="0 0 1000 600" role="img" aria-labelledby="plotTitle plotDescription" data-qa="plot-svg">
+              <desc id="plotDescription">PC34 信号曲线与事件标记；使用事件列表或图中标记选择事件。</desc>
+              <defs>
+                <clipPath id="plotContentClip">
+                  <rect x="62" y="26" width="918" height="516" rx="2"></rect>
+                </clipPath>
+              </defs>
+              <rect class="plot-content" x="62" y="26" width="918" height="516" rx="2" data-qa="plot-content"></rect>
+              <g id="plotGrid" class="plot-grid" aria-hidden="true"></g>
+              <g class="plot-axis" aria-hidden="true">
+                <text x="62" y="578">时间（min）</text>
+                <text x="20" y="286" transform="rotate(-90 20 286)">PC34 强度</text>
+              </g>
+              <g id="traceLayer" class="trace-layer" clip-path="url(#plotContentClip)" aria-hidden="true"></g>
+              <g id="editOverlayLayer" class="edit-overlay-layer" clip-path="url(#plotContentClip)" aria-hidden="true">
+                <rect id="editAllowedOverlay" class="edit-allowed-overlay" y="26" height="516" data-qa="edit-allowed-range" hidden></rect>
+                <line id="editAimLine" class="edit-aim-line" y1="26" y2="542" hidden></line>
+                <g id="editCandidateMarker" class="edit-candidate-marker" data-qa="edit-candidate-marker" hidden>
+                  <circle r="8"></circle><line x1="-12" x2="12"></line><line y1="-12" y2="12"></line>
+                </g>
+              </g>
+              <g id="eventLayer" class="event-layer" clip-path="url(#plotContentClip)" aria-label="窗口内事件"></g>
+              <g id="labelLayer" class="label-layer" clip-path="url(#plotContentClip)" aria-hidden="true"></g>
+              <g id="plotLegend" class="plot-legend" transform="translate(72 38)" aria-label="事件状态图例" data-qa="plot-legend"></g>
+              <rect id="editAllowedHit" class="edit-allowed-hit" y="26" height="516" clip-path="url(#plotContentClip)" data-qa="edit-allowed-hit" aria-hidden="true" hidden></rect>
+            </svg>
+            <p id="plotEmpty" class="plot-empty" role="status" hidden>当前筛选和窗口中没有事件。</p>
+          </div>
+        </section>
+
+        <section class="panel event-strip" aria-labelledby="eventListTitle">
+          <div class="event-strip__heading">
+            <h2 id="eventListTitle">窗口内事件</h2>
+            <span id="visibleEventCount">0 个</span>
+          </div>
+          <div id="eventList" class="event-list" role="listbox" aria-label="选择事件"></div>
+        </section>
+
+        <footer class="workspace-status" role="status" aria-live="polite">
+          <span id="workspaceStatusDot" aria-hidden="true"></span>
+          <span id="workspaceStatus">已准备好</span>
+        </footer>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="createDialog" class="modal" aria-modal="true" aria-labelledby="createTitle" aria-describedby="createDescription">
+    <div class="modal__surface modal__surface--create" tabindex="-1">
+      <header class="modal__header">
+        <div>
+          <p class="modal__eyebrow">新建项目</p>
+          <h2 id="createTitle">分析一个 MS 原始文件</h2>
+          <p id="createDescription">先检查文件可用范围，再决定项目名称和保存位置。</p>
+        </div>
+        <button id="closeCreate" class="icon-button" type="button" aria-label="关闭新建项目窗口">×</button>
+      </header>
+
+      <ol id="createSteps" class="step-list" aria-label="新建项目步骤">
+        <li data-step="source" aria-current="step"><span>1</span>选择源文件</li>
+        <li data-step="range"><span>2</span>确认范围</li>
+        <li data-step="target"><span>3</span>创建项目</li>
+      </ol>
+
+      <div class="modal__body">
+        <section class="form-section" aria-labelledby="sourceSectionTitle">
+          <div class="form-section__heading">
+            <div>
+              <h3 id="sourceSectionTitle">MS 原始文件</h3>
+              <p>只读取文件内容，不会改名、移动或写入。</p>
+            </div>
+            <button id="selectSource" class="button button--secondary" type="button">选择文件…</button>
+          </div>
+          <div class="selection-readout">
+            <span class="selection-readout__icon selection-readout__icon--file" aria-hidden="true"></span>
+            <div>
+              <span class="selection-readout__label">已选择</span>
+              <strong id="sourceDisplayName">尚未选择文件</strong>
+            </div>
+          </div>
+        </section>
+
+        <section id="analysisCard" class="analysis-card" data-state="idle" aria-labelledby="analysisTitle" aria-live="polite" aria-atomic="true">
+          <div class="analysis-card__status-icon" aria-hidden="true">
+            <span class="analysis-card__spinner"></span>
+          </div>
+          <div class="analysis-card__content">
+            <div class="analysis-card__heading">
+              <div>
+                <h3 id="analysisTitle">尚未分析源文件</h3>
+                <p id="analysisMessage">选择文件后会自动检查时间范围和扫描数量。</p>
+              </div>
+              <span id="analysisBadge" class="status-badge">等待选择</span>
+            </div>
+
+            <div id="progressRegion" class="progress-region" hidden>
+              <div class="progress-copy">
+                <span id="analysisPhase">正在检查源文件</span>
+                <strong id="analysisPercent">0%</strong>
+              </div>
+              <progress id="analysisProgress" max="1" value="0">0%</progress>
+              <div class="progress-meta">
+                <span id="analysisBytes">已读取 0 B</span>
+                <span id="analysisScans">0 个扫描</span>
+              </div>
+            </div>
+
+            <dl id="inspectionSummary" class="inspection-summary" hidden>
+              <div><dt>可用范围</dt><dd id="availableRange">—</dd></div>
+              <div><dt>扫描数量</dt><dd id="availableScans">—</dd></div>
+              <div><dt>文件大小</dt><dd id="sourceSize">—</dd></div>
+            </dl>
+
+            <div id="analysisActions" class="inline-actions" hidden>
+              <button id="cancelAnalysis" class="button button--secondary" type="button">取消分析</button>
+              <button id="retryAnalysis" class="button button--secondary" type="button" hidden>重新分析</button>
+            </div>
+          </div>
+        </section>
+
+        <fieldset id="projectFields" class="project-fields" disabled>
+          <legend>项目信息</legend>
+          <div class="field-grid">
+            <label class="field field--wide" for="projectName">
+              <span>项目名称</span>
+              <input id="projectName" name="project_name" type="text" maxlength="80" autocomplete="off" placeholder="例如：Lin− 样本 01">
+              <small>用于在应用中识别项目。</small>
+            </label>
+            <label class="field" for="rangeStart">
+              <span>起点（min）</span>
+              <input id="rangeStart" name="range_start" type="number" inputmode="decimal" step="0.001">
+            </label>
+            <label class="field" for="rangeEnd">
+              <span>终点（min）</span>
+              <input id="rangeEnd" name="range_end" type="number" inputmode="decimal" step="0.001">
+            </label>
+          </div>
+          <p id="rangeError" class="field-error" role="alert" hidden></p>
+
+          <div class="target-picker">
+            <div>
+              <span class="field-label">项目保存位置</span>
+              <div class="selection-readout selection-readout--target">
+                <span class="selection-readout__icon selection-readout__icon--folder" aria-hidden="true"></span>
+                <div>
+                  <span class="selection-readout__label">已选择</span>
+                  <strong id="targetDisplayName">尚未选择位置</strong>
+                </div>
+              </div>
+            </div>
+            <button id="selectTarget" class="button button--secondary" type="button">选择位置…</button>
+          </div>
+        </fieldset>
+      </div>
+
+      <footer class="modal__footer">
+        <p id="createFooterHint">选择源文件即可开始。</p>
+        <div class="modal__actions">
+          <button id="cancelCreate" class="button button--secondary" type="button">取消</button>
+          <button id="createProject" class="button button--primary" type="button" disabled>创建项目</button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
+  <dialog id="openDialog" class="modal" aria-modal="true" aria-labelledby="openTitle" aria-describedby="openDescription">
+    <div class="modal__surface modal__surface--open" tabindex="-1">
+      <header class="modal__header">
+        <div>
+          <p class="modal__eyebrow">打开项目</p>
+          <h2 id="openTitle">继续事件审阅</h2>
+          <p id="openDescription">选择最近项目，或从电脑中选择其他项目文件夹。</p>
+        </div>
+        <button id="closeOpen" class="icon-button" type="button" aria-label="关闭打开项目窗口">×</button>
+      </header>
+      <div class="modal__body modal__body--open">
+        <section aria-labelledby="openRecentTitle">
+          <h3 id="openRecentTitle" class="list-heading">最近项目</h3>
+          <div id="openRecentList" class="open-project-list"></div>
+          <p id="noRecentProjects" class="empty-state" hidden>还没有最近打开的项目。</p>
+        </section>
+        <div class="browse-project-card">
+          <span class="browse-project-card__icon" aria-hidden="true"></span>
+          <div>
+            <strong>从电脑中选择</strong>
+            <span>打开一个由 MS Event Studio 创建的项目文件夹。</span>
+          </div>
+          <button id="browseProject" class="button button--secondary" type="button">选择文件夹…</button>
+        </div>
+      </div>
+      <footer class="modal__footer modal__footer--compact">
+        <p id="openStatus" role="status" aria-live="polite">项目原始路径不会显示在页面中。</p>
+        <div class="modal__actions">
+          <button id="openNewProject" class="button button--text" type="button">新建项目</button>
+          <button id="cancelOpen" class="button button--secondary" type="button">取消</button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
+  <dialog id="rangeDialog" class="modal" aria-modal="true" aria-labelledby="rangeChangeTitle" aria-describedby="rangeChangeDescription" data-qa="range-dialog">
+    <div class="modal__surface modal__surface--operation" tabindex="-1">
+      <header class="modal__header">
+        <div>
+          <p class="modal__eyebrow">项目设置</p>
+          <h2 id="rangeChangeTitle">修改分析范围</h2>
+          <p id="rangeChangeDescription">先计算影响预览，确认后才会安全更新项目范围。</p>
+        </div>
+        <button id="closeRange" class="icon-button" type="button" aria-label="关闭修改范围窗口">×</button>
+      </header>
+      <div class="modal__body operation-modal__body">
+        <section class="operation-summary" aria-labelledby="currentRangeTitle">
+          <div><span id="currentRangeTitle">当前范围</span><strong id="rangeCurrent">—</strong></div>
+          <p>预览和取消都不会改变当前项目；应用完成后工作区会刷新。</p>
+        </section>
+        <fieldset id="rangeFields" class="operation-fields">
+          <legend>新的分析范围</legend>
+          <label class="field" for="rangeChangeStart"><span>起点（min）</span><input id="rangeChangeStart" type="number" inputmode="decimal" step="0.001" data-qa="range-start"></label>
+          <label class="field" for="rangeChangeEnd"><span>终点（min）</span><input id="rangeChangeEnd" type="number" inputmode="decimal" step="0.001" data-qa="range-end"></label>
+        </fieldset>
+        <p id="rangeChangeError" class="operation-error" role="alert" data-qa="range-error" hidden></p>
+        <section id="rangeProgressRegion" class="operation-progress" role="status" aria-live="polite" data-qa="range-progress" hidden>
+          <div class="progress-copy"><span id="rangeProgressText">正在计算影响…</span><strong id="rangeProgressPercent">0%</strong></div>
+          <progress id="rangeProgress" max="1" value="0">0%</progress>
+        </section>
+        <section id="rangePreviewPanel" class="range-preview-panel" aria-labelledby="rangePreviewTitle" hidden>
+          <div class="operation-heading"><div><p class="section-kicker">影响预览</p><h3 id="rangePreviewTitle">确认范围变化</h3></div><span class="status-badge">尚未应用</span></div>
+          <dl class="range-comparison">
+            <div data-qa="range-old"><dt>原范围</dt><dd id="rangeOld">—</dd></div>
+            <div data-qa="range-new"><dt>新范围</dt><dd id="rangeNew">—</dd></div>
+          </dl>
+          <dl class="impact-grid" aria-label="范围变化影响">
+            <div data-qa="impact-reusable"><dt>可直接沿用</dt><dd id="impactReusable">0</dd></div>
+            <div data-qa="impact-moved-out"><dt>移出范围</dt><dd id="impactMovedOut">0</dd></div>
+            <div data-qa="impact-reconfirm"><dt>需要再确认</dt><dd id="impactReconfirm">0</dd></div>
+            <div data-qa="impact-newly-detected"><dt>新识别</dt><dd id="impactNewlyDetected">0</dd></div>
+            <div data-qa="impact-retained-manual"><dt>保留人工事件</dt><dd id="impactRetainedManual">0</dd></div>
+          </dl>
+          <label class="field" for="rangeNote"><span>操作备注（可选）</span><textarea id="rangeNote" rows="2" maxlength="500" placeholder="记录修改范围的原因"></textarea></label>
+        </section>
+      </div>
+      <footer class="modal__footer">
+        <p id="rangeFooterHint">填写范围后先计算影响预览。</p>
+        <div class="modal__actions">
+          <button id="cancelRange" class="button button--secondary" type="button" data-qa="range-cancel">取消</button>
+          <button id="submitRangePreview" class="button button--primary" type="button" data-qa="range-submit-preview">计算影响</button>
+          <button id="applyRange" class="button button--primary" type="button" data-qa="range-apply" hidden>应用新范围</button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
+  <dialog id="exportDialog" class="modal" aria-modal="true" aria-labelledby="exportTitle" aria-describedby="exportDescription" data-qa="export-dialog">
+    <div class="modal__surface modal__surface--operation" tabindex="-1">
+      <header class="modal__header">
+        <div>
+          <p class="modal__eyebrow">导出结果</p>
+          <h2 id="exportTitle">导出审阅结果</h2>
+          <p id="exportDescription">先确认内容和目标，完成前不会改变项目或原始文件。</p>
+        </div>
+        <button id="closeExport" class="icon-button" type="button" aria-label="关闭导出窗口">×</button>
+      </header>
+      <div class="modal__body operation-modal__body">
+        <div class="export-kind-switch" role="radiogroup" aria-label="导出类型">
+          <button id="reviewExportKind" type="button" role="radio" aria-checked="true">审阅结果</button>
+          <button id="auditExportKind" type="button" role="radio" aria-checked="false" data-qa="export-audit-package">完整审计数据包</button>
+        </div>
+        <section class="export-overview" aria-labelledby="exportOverviewTitle">
+          <div class="operation-heading"><div><p class="section-kicker">即将导出</p><h3 id="exportOverviewTitle">审阅结果</h3></div><strong id="exportEstimatedRows">0 行</strong></div>
+          <dl class="range-comparison">
+            <div><dt>当前范围</dt><dd id="exportCurrentRange">—</dd></div>
+            <div><dt>事件状态</dt><dd id="exportStatusFilter">仅已保留</dd></div>
+          </dl>
+          <label id="includePendingField" class="check-field" for="includePending"><input id="includePending" type="checkbox" data-qa="export-include-pending"><span>同时包含待定事件</span></label>
+          <p id="exportKindHelp">适合继续分析或交付已确认的审阅结果。</p>
+        </section>
+        <section class="export-target" aria-labelledby="exportTargetTitle">
+          <div class="operation-heading"><div><h3 id="exportTargetTitle">保存目标</h3><p>页面只显示名称，不显示本机路径。</p></div><button id="chooseExportTarget" class="button button--secondary" type="button" data-qa="export-choose-target">选择文件…</button></div>
+          <div class="selection-readout"><span class="selection-readout__icon selection-readout__icon--folder" aria-hidden="true"></span><div><span class="selection-readout__label">已选择</span><strong id="exportTargetName" data-qa="export-target-name">尚未选择</strong></div></div>
+        </section>
+        <label class="field" for="exportNote"><span>导出备注（可选）</span><textarea id="exportNote" rows="2" maxlength="500" placeholder="记录本次导出的用途"></textarea></label>
+        <section id="exportProgressRegion" class="operation-progress" role="status" aria-live="polite" data-qa="export-progress" hidden>
+          <div class="progress-copy"><span>正在准备导出…</span><strong id="exportProgressPercent">0%</strong></div>
+          <progress id="exportProgress" max="1" value="0">0%</progress>
+        </section>
+        <section id="exportResultPanel" class="export-result" role="status" aria-live="polite" data-qa="export-result" hidden><span class="export-result__icon" aria-hidden="true">✓</span><div><strong id="exportResultTitle">导出完成</strong><p id="exportResultMessage"></p></div></section>
+        <p id="exportError" class="operation-error" role="alert" data-qa="export-error" hidden></p>
+      </div>
+      <footer class="modal__footer">
+        <p id="exportFooterHint">选择保存目标后即可导出。</p>
+        <div class="modal__actions">
+          <button id="cancelExport" class="button button--secondary" type="button" data-qa="export-cancel">取消</button>
+          <button id="submitExport" class="button button--primary" type="button" data-qa="export-submit" disabled>导出审阅结果</button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true" hidden>
+    <span id="toastIcon" class="toast__icon" aria-hidden="true"></span>
+    <span id="toastMessage"></span>
+  </div>
+
+  <noscript>MS Event Studio 需要启用 JavaScript 才能运行。</noscript>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
