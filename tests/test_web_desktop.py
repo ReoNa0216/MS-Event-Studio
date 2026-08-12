@@ -142,6 +142,39 @@ class WebDesktopLifecycleTest(unittest.TestCase):
         self.assertEqual(desktop.minimum_window_size_for_dpi(144), (1440, 960))
         self.assertEqual(desktop.minimum_window_size_for_dpi(192), (1920, 1280))
 
+    def test_moved_dpi_sync_retries_after_native_transition(self):
+        window = mock.Mock(uid="dpi-window")
+        timers = []
+
+        class _Timer:
+            def __init__(self, delay, callback):
+                self.delay = delay
+                self.callback = callback
+                self.daemon = False
+                self.cancelled = False
+                timers.append(self)
+
+            def start(self):
+                return None
+
+            def cancel(self):
+                self.cancelled = True
+
+        with mock.patch.object(desktop.sys, "platform", "win32"), mock.patch.object(
+            desktop, "synchronize_per_monitor_minimum"
+        ) as synchronize, mock.patch.object(desktop.threading, "Timer", _Timer):
+            desktop.schedule_per_monitor_minimum_sync(window)
+            self.assertEqual(synchronize.call_count, 1)
+            self.assertEqual([timer.delay for timer in timers], [0.1, 0.35])
+            self.assertTrue(all(timer.daemon for timer in timers))
+            for timer in timers:
+                timer.callback()
+            self.assertEqual(synchronize.call_count, 3)
+
+            desktop.schedule_per_monitor_minimum_sync(window)
+            self.assertTrue(all(timer.cancelled for timer in timers[:2]))
+            self.assertEqual([timer.delay for timer in timers[2:]], [0.1, 0.35])
+
     def test_main_enables_per_monitor_dpi_before_runtime_or_window_setup(self):
         calls = []
         with mock.patch.object(
@@ -175,8 +208,10 @@ class WebDesktopLifecycleTest(unittest.TestCase):
             desktop, "synchronize_per_monitor_minimum"
         ) as synchronize_minimum:
             desktop.run_desktop(args, webview_module=webview)
-            webview.window.events.moved.fire()
-            self.assertEqual(synchronize_minimum.call_count, 2)
+            with mock.patch.object(desktop, "schedule_per_monitor_minimum_sync") as scheduled:
+                webview.window.events.moved.fire()
+                scheduled.assert_called_once_with(webview.window)
+            self.assertEqual(synchronize_minimum.call_count, 1)
 
         self.assertEqual(len(webview.create_calls), 1)
         call_args, call_kwargs = webview.create_calls[0]

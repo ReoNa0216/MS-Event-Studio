@@ -39,6 +39,7 @@ WEBVIEW2_CLIENT_IDS = (
 _DPI_AWARENESS: str | None = None
 WINDOW_MINIMUM_CSS_SIZE = (960, 640)
 _DPI_WINDOW_HANDLERS: dict[str, Any] = {}
+_DPI_SYNC_TIMERS: dict[str, list[Any]] = {}
 
 
 def enable_per_monitor_dpi_awareness() -> str:
@@ -180,6 +181,37 @@ def synchronize_per_monitor_minimum(window: Any) -> None:
     # so a synchronous UI-thread hop is safe and removes a resize race from
     # native DPI QA and ordinary drag-to-monitor use.
     native.Invoke(Action(synchronize))
+
+
+def schedule_per_monitor_minimum_sync(window: Any) -> None:
+    """Recheck monitor DPI after native move/autoscale messages have settled.
+
+    pywebview can dispatch ``moved`` before every WinForms/Windows DPI
+    transition has completed. The immediate synchronization handles ordinary
+    moves; two short daemon retries close that cross-monitor timing window
+    without blocking the UI thread.
+    """
+
+    synchronize_per_monitor_minimum(window)
+    if sys.platform != "win32":
+        return
+    key = str(getattr(window, "uid", id(window)))
+    for timer in _DPI_SYNC_TIMERS.pop(key, []):
+        timer.cancel()
+    pending: list[Any] = []
+
+    def retry() -> None:
+        try:
+            synchronize_per_monitor_minimum(window)
+        except Exception:
+            LOGGER.debug("Deferred DPI minimum synchronization skipped", exc_info=True)
+
+    for delay in (0.1, 0.35):
+        timer = threading.Timer(delay, retry)
+        timer.daemon = True
+        timer.start()
+        pending.append(timer)
+    _DPI_SYNC_TIMERS[key] = pending
 
 
 def user_state_dir() -> Path:
@@ -548,7 +580,7 @@ def run_desktop(
         synchronize_per_monitor_minimum(window)
 
     window.events.shown += initialize_native_dpi_hooks
-    window.events.moved += lambda *_args: synchronize_per_monitor_minimum(window)
+    window.events.moved += lambda *_args: schedule_per_monitor_minimum_sync(window)
 
     def block_unsafe_close() -> bool | None:
         if not server.busy:
