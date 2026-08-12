@@ -7,7 +7,8 @@ native macOS build/UAT**.
 
 ## Implemented surface
 
-The desktop application opens in a native Tk window with New, Open, and
+The desktop application opens in a branded, responsive native Tk window with a
+cross-platform peak/apex icon, New, Open, a disposable guided test, and
 friendly-name Recent project actions. New-project inspection performs the one
 large source parse, complete stream hash, target-ion extraction, real byte
 progress, and cancellation. Project creation reuses that prepared scan table,
@@ -42,7 +43,7 @@ status in the active generation and requires downstream status filtering.
 
 ## Automated gates
 
-The final source run discovered 75 tests: 74 passed and one symlink test was
+The polished source run discovered 81 tests: 80 passed and one symlink test was
 skipped solely because the Windows account lacks symlink creation privilege.
 Covered failure paths include corrupt display-cache rebuild, optimistic-write
 rollback, stale range previews, mutation of a previewed detection table,
@@ -89,49 +90,49 @@ review interaction gates.
 ## Windows candidate
 
 Built natively on Windows 11 with Python 3.12.3 and PyInstaller 6.21.0 at
-2026-08-12 20:01 CST. This is a local unsigned development candidate, not a
+2026-08-12 20:37 CST. This is a local unsigned development candidate, not a
 published or code-signed release.
 
 | Field | Value |
 |---|---|
-| Application version | `0.2.0.dev0` |
+| Application version | `0.2.0.dev1` |
 | Bundle mode | `onedir-windowed` |
-| Executable | `release/windows/MS-Event-Studio/MS-Event-Studio.exe` |
-| Executable SHA-256 | `f2e72b134a4ce7b7576b094640422156bccb4a3997d1ddce5579dc66ef618d9c` |
-| Bundle file count | 2,545 |
-| Bundle bytes | 528,694,140 |
-| Bundle tree SHA-256 | `a9eb540c1eab951ef70f18506ef992ae1b29f6d08d15dd972401006bd7f960d0` |
+| Executable | `release/windows-dev1/MS-Event-Studio/MS-Event-Studio.exe` |
+| Executable SHA-256 | `bf48bfc788a20eeff9b7b3e031515072f1274a03b835794d35a4fda4bf160b66` |
+| Bundle file count | 2,550 |
+| Bundle bytes | 529,273,379 |
+| Bundle tree SHA-256 | `fe257d1392589bb1d84e1bf79eb65006c57ed90ff561e118ef4d309f97aabb1d` |
 | Packaged smoke | exit 0, `status=ok`, `window_system=win32` |
+| Embedded icon | extracted from EXE and visually verified at small size |
 
 The complete per-file manifest and smoke payload are generated at
-`release/windows/build_manifest.json` and `release/windows/smoke_test.json`.
+`release/windows-dev1/build_manifest.json` and
+`release/windows-dev1/smoke_test.json`.
 `release/` is intentionally ignored by Git.
 
-PyInstaller is not a cross-compiler. The macOS build path is implemented and
-contract-tested, but a genuine `.app` candidate must be produced and exercised
-on macOS:
+PyInstaller is not a cross-compiler. The macOS ARM64 path is implemented and
+contract-tested in `.github/workflows/release-desktop.yml`, following LMA
+Studio's `macos-14` native-runner pattern. A genuine `.app` candidate still
+must be produced by GitHub Actions and exercised on Apple Silicon:
 
 ```bash
-python -m pip install -e '.[packaging]'
-python -m desktop_bundle.build_desktop
+MS_EVENT_STUDIO_VERSION=0.2.0-dev1 bash desktop_bundle/build_macos.sh
 ```
+
+The local repository currently has no Git remote, so no workflow run is claimed
+yet. See `docs/github_actions_builds.md` for the first push and manual-run path.
 
 ## Mouse UAT checklist
 
-Generate a disposable deterministic source; the command refuses to overwrite
-an existing file:
-
-```powershell
-python scripts/create_phase2_uat_source.py `
-  --output "$env:TEMP\ms-event-studio-phase2-uat.txt"
-```
-
-Then keep the entire Windows bundle together and run the executable.
+Keep the entire Windows bundle together, run the executable, and click **Start
+guided test**. The application creates a uniquely named disposable source and
+prefills the project form. A Chinese step-by-step version is maintained in
+`docs/guided_test_zh.md`.
 
 1. Confirm the Welcome screen shows New project, Open project, and no internal
    schema/version text in Recent projects.
-2. Choose the generated source and a new/empty disposable project directory.
-   Click Analyze source; confirm the available closed range becomes 0–2 min,
+2. Click Start guided test and choose a disposable parent directory. Click
+   Analyze source; confirm the available closed range becomes 0–2 min,
    the count is 1,201 scans, and Create project becomes available.
 3. Create range 0–2 min. Confirm three automatic apexes at 0.5, 1.0, and 1.5
    min; the weak local apex at 0.75 min is intentionally below auto threshold.

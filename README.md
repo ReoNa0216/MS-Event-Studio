@@ -4,14 +4,17 @@ Independent MS-only event extraction and auditable review. This repository does
 not import LIF, UMAP coordinates, cell labels, expected event counts, or LMA
 Studio project state.
 
-Phase 1 scientific and CLI gates passed on 2026-08-12. The Phase 2 Windows
-implementation candidate is ready; Phase 2 is not declared exited until mouse
-UAT and a native macOS candidate pass. LMA Studio remains frozen at v0.4.4.
+Phase 1 scientific and CLI gates passed on 2026-08-12. The polished Phase 2
+Windows implementation candidate is being validated; Phase 2 is not declared
+exited until mouse UAT and a native macOS candidate pass. LMA Studio remains
+frozen at v0.4.4.
 
 ## Desktop candidate
 
 The native Tk desktop application provides:
 
+- a branded, responsive welcome and review interface with a cross-platform
+  application icon and a built-in disposable guided test;
 - one-pass source inspection with byte progress, cancellation, and reuse of the
   parsed scan table during atomic project creation;
 - min/max display pyramids, bounded 1/10-minute windows, event apex overlays,
@@ -36,21 +39,19 @@ ms-event-studio-gui
 The current local Windows candidate is:
 
 ```text
-release/windows/MS-Event-Studio/MS-Event-Studio.exe
+release/windows-dev1/MS-Event-Studio/MS-Event-Studio.exe
 ```
 
 It is an `onedir` application: keep the whole `MS-Event-Studio` directory
 together. The executable alone is not portable.
 
-To create a small, deterministic two-minute source for mouse UAT:
-
-```powershell
-python scripts/create_phase2_uat_source.py `
-  --output "$env:TEMP\ms-event-studio-phase2-uat.txt"
-```
-
-The UAT and candidate hashes are recorded in
+For a first test, click **Start guided test** on the welcome page and follow the
+[Chinese guided test](docs/guided_test_zh.md). Candidate hashes and the formal
+exit checklist are recorded in
 [docs/phase2_desktop_and_uat.md](docs/phase2_desktop_and_uat.md).
+
+Native macOS ARM64 and Windows x64 candidates are built on GitHub's matching
+runners. See [GitHub Actions desktop builds](docs/github_actions_builds.md).
 
 ## Scientific core and CLI
 
@@ -85,7 +86,7 @@ python scripts/run_real_regression.py
 python scripts/run_phase2_performance.py
 ```
 
-The final Phase 2 implementation run discovered 75 tests: 74 passed and one
+The polished Phase 2 implementation run discovered 81 tests: 80 passed and one
 symlink-escape test was skipped because this Windows account cannot create a
 symlink. All lexical Windows/UNC/drive/ADS/traversal attacks passed. Four
 read-only real-MS regressions passed with canonical summary SHA-256

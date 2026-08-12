@@ -12,7 +12,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 APP_NAME = "MS-Event-Studio"
 
 
@@ -34,15 +33,29 @@ def _within_repository(repository: Path, path: Path) -> Path:
     return resolved
 
 
-def build_arguments(repository: Path, *, platform_name: str) -> list[str]:
+def build_arguments(
+    repository: Path,
+    *,
+    platform_name: str,
+    dist_root: Path | None = None,
+) -> list[str]:
     repository = repository.resolve()
     if platform_name not in {"windows", "macos"}:
         raise ValueError("PyInstaller is not a cross-compiler; build on Windows or macOS")
-    dist = _within_repository(repository, repository / "release" / platform_name)
+    dist = _within_repository(
+        repository,
+        dist_root if dist_root is not None else repository / "release" / platform_name,
+    )
     work = _within_repository(repository, repository / "build/pyinstaller" / platform_name)
     spec = _within_repository(repository, repository / "build/pyinstaller/spec")
     entry = _within_repository(repository, repository / "desktop_bundle/ms_event_studio_gui.py")
     source = _within_repository(repository, repository / "src")
+    assets = _within_repository(repository, source / "ms_event_studio/assets")
+    icon_suffix = ".ico" if platform_name == "windows" else ".icns"
+    icon = _within_repository(
+        repository,
+        repository / "build/icons" / f"{APP_NAME}{icon_suffix}",
+    )
     arguments = [
         "--name",
         APP_NAME,
@@ -54,6 +67,10 @@ def build_arguments(repository: Path, *, platform_name: str) -> list[str]:
         "WARN",
         "--paths",
         str(source),
+        "--add-data",
+        f"{assets}{os.pathsep}ms_event_studio/assets",
+        "--icon",
+        str(icon),
         "--distpath",
         str(dist),
         "--workpath",
@@ -80,6 +97,13 @@ def build_arguments(repository: Path, *, platform_name: str) -> list[str]:
         "conda",
         str(entry),
     ]
+    if platform_name == "macos":
+        arguments[-1:-1] = [
+            "--osx-bundle-identifier",
+            "org.hulab.ms-event-studio",
+            "--target-architecture",
+            "arm64",
+        ]
     if platform_name == "windows":
         binary_root = Path(sys.prefix) / "Library/bin"
         # Conda's MKL runtime loads these by name at runtime; static import
@@ -125,7 +149,9 @@ def _tree_manifest(root: Path) -> tuple[list[dict[str, object]], str]:
     return rows, aggregate.hexdigest()
 
 
-def build(repository: Path) -> dict[str, object]:
+def build(repository: Path, *, dist_root: Path | None = None) -> dict[str, object]:
+    from desktop_bundle.generate_icons import generate_packaging_icon
+
     try:
         import PyInstaller
         import PyInstaller.__main__
@@ -134,9 +160,24 @@ def build(repository: Path) -> dict[str, object]:
 
     repository = repository.resolve()
     platform_name = host_platform()
-    arguments = build_arguments(repository, platform_name=platform_name)
-    PyInstaller.__main__.run(arguments)
-    dist_root = repository / "release" / platform_name
+    generate_packaging_icon(repository, platform_name)
+    resolved_dist_root = _within_repository(
+        repository,
+        dist_root if dist_root is not None else repository / "release" / platform_name,
+    )
+    arguments = build_arguments(
+        repository,
+        platform_name=platform_name,
+        dist_root=resolved_dist_root,
+    )
+    try:
+        PyInstaller.__main__.run(arguments)
+    except PermissionError as exc:
+        raise RuntimeError(
+            "The previous desktop candidate is in use. Close every running "
+            "MS Event Studio window or build to a separate --dist-root."
+        ) from exc
+    dist_root = resolved_dist_root
     executable = locate_executable(dist_root, platform_name)
     if not executable.is_file():
         raise RuntimeError(f"PyInstaller candidate executable is missing: {executable}")
@@ -193,8 +234,13 @@ def build(repository: Path) -> dict[str, object]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument(
+        "--dist-root",
+        type=Path,
+        help="optional repository-contained candidate root (useful while an older EXE is open)",
+    )
     args = parser.parse_args(argv)
-    report = build(args.repository)
+    report = build(args.repository, dist_root=args.dist_root)
     summary_keys = (
         "platform",
         "application_version",

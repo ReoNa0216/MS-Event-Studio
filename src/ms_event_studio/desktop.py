@@ -30,6 +30,7 @@ from .desktop_model import (
     filter_events,
     keyboard_command,
 )
+from .demo import create_guided_test_assets
 from .display import WindowRequest
 from .errors import ExistingEventNavigation, MSEventStudioError
 from .export import export_human_csv, export_machine_contract
@@ -43,6 +44,7 @@ from .project import (
 )
 from .range_change import apply_range_change, preview_range_change
 from .timebase import NANOSECONDS_PER_MINUTE, minutes_to_ns
+from .theme import PALETTE, configure_theme, font_family, icon_photo
 from .window_service import ProjectWindowService
 
 
@@ -224,7 +226,15 @@ class _AsyncJobs:
 
 
 class NewProjectDialog:
-    def __init__(self, app: "MSDesktopApp") -> None:
+    def __init__(
+        self,
+        app: "MSDesktopApp",
+        *,
+        initial_source: str | Path | None = None,
+        initial_target: str | Path | None = None,
+        initial_name: str | None = None,
+        guided: bool = False,
+    ) -> None:
         import tkinter as tk
         from tkinter import filedialog, messagebox, ttk
 
@@ -233,10 +243,13 @@ class NewProjectDialog:
         self.filedialog = filedialog
         self.messagebox = messagebox
         self.app = app
+        self.guided = bool(guided)
         self.window = tk.Toplevel(app.root)
         self.window.title("New MS Event Studio project")
-        self.window.geometry("720x490")
-        self.window.minsize(640, 440)
+        self.window.geometry("820x720")
+        self.window.minsize(740, 680)
+        self.window.configure(background=PALETTE.canvas)
+        self.window.iconphoto(False, app.app_icon_64)
         self.window.transient(app.root)
         self.window.protocol("WM_DELETE_WINDOW", self._close)
         self.prepared: PreparedProjectSource | None = None
@@ -246,62 +259,123 @@ class NewProjectDialog:
         self.worker: threading.Thread | None = None
         self.closing = False
 
-        outer = ttk.Frame(self.window, padding=18)
+        outer = ttk.Frame(self.window, padding=22, style="Page.TFrame")
         outer.pack(fill="both", expand=True)
-        ttk.Label(outer, text="Create a project", font=("TkDefaultFont", 16, "bold")).grid(
-            row=0, column=0, columnspan=3, sticky="w", pady=(0, 14)
-        )
-        outer.columnconfigure(1, weight=1)
+        outer.columnconfigure(0, weight=1)
+        outer.rowconfigure(1, weight=1)
 
-        self.source_var = tk.StringVar()
-        self.target_var = tk.StringVar()
-        self.name_var = tk.StringVar()
+        header = ttk.Frame(outer, style="Hero.TFrame", padding=(24, 18))
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 14))
+        ttk.Label(header, image=app.app_icon_64, style="HeroBody.TLabel").pack(
+            side="left", padx=(0, 16)
+        )
+        heading = ttk.Frame(header, style="Hero.TFrame")
+        heading.pack(side="left", fill="x", expand=True)
+        ttk.Label(heading, text="CREATE A PORTABLE PROJECT", style="HeroSubtitle.TLabel").pack(
+            anchor="w"
+        )
+        ttk.Label(heading, text="Inspect once. Review with confidence.", style="HeroTitle.TLabel").pack(
+            anchor="w", pady=(2, 0)
+        )
+
+        form = ttk.Frame(outer, padding=20, style="Card.TFrame")
+        form.grid(row=1, column=0, sticky="nsew")
+        form.columnconfigure(1, weight=1)
+
+        if self.guided:
+            ttk.Label(
+                form,
+                text="GUIDED TEST  ·  Analyze the prepared 2-minute source, then create range 0–2 min.",
+                style="InfoPill.TLabel",
+            ).grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 12))
+
+        self.source_var = tk.StringVar(value=str(initial_source or ""))
+        self.target_var = tk.StringVar(value=str(initial_target or ""))
+        self.name_var = tk.StringVar(value=str(initial_name or ""))
         self.start_var = tk.StringVar(value="0")
-        self.end_var = tk.StringVar(value="60")
+        self.end_var = tk.StringVar(value="2" if self.guided else "60")
         fields = (
             ("Raw MS text", self.source_var, self._browse_source),
             ("Project directory", self.target_var, self._browse_target),
         )
-        for row, (label, variable, command) in enumerate(fields, start=1):
-            ttk.Label(outer, text=label).grid(row=row, column=0, sticky="w", pady=6)
-            ttk.Entry(outer, textvariable=variable).grid(row=row, column=1, sticky="ew", padx=8)
-            ttk.Button(outer, text="Browse…", command=command).grid(row=row, column=2)
-        ttk.Label(outer, text="Display name").grid(row=3, column=0, sticky="w", pady=6)
-        ttk.Entry(outer, textvariable=self.name_var).grid(row=3, column=1, columnspan=2, sticky="ew", padx=8)
+        row_offset = 1 if self.guided else 0
+        for row, (label, variable, command) in enumerate(fields, start=row_offset):
+            ttk.Label(form, text=label, style="SurfaceMuted.TLabel").grid(
+                row=row, column=0, sticky="w", pady=7
+            )
+            ttk.Entry(form, textvariable=variable).grid(
+                row=row, column=1, sticky="ew", padx=10, pady=4
+            )
+            ttk.Button(
+                form, text="Browse…", command=command, style="Secondary.TButton"
+            ).grid(row=row, column=2, pady=4)
+        display_row = row_offset + 2
+        ttk.Label(form, text="Display name", style="SurfaceMuted.TLabel").grid(
+            row=display_row, column=0, sticky="w", pady=7
+        )
+        ttk.Entry(form, textvariable=self.name_var).grid(
+            row=display_row, column=1, columnspan=2, sticky="ew", padx=(10, 0), pady=4
+        )
 
-        range_frame = ttk.LabelFrame(outer, text="Closed analysis range (minutes)", padding=10)
-        range_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(12, 5))
+        range_frame = ttk.LabelFrame(form, text="Closed analysis range (minutes)", padding=12)
+        range_frame.grid(
+            row=display_row + 1,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(14, 7),
+        )
         range_frame.columnconfigure(1, weight=1)
         range_frame.columnconfigure(3, weight=1)
-        ttk.Label(range_frame, text="Start").grid(row=0, column=0)
+        ttk.Label(range_frame, text="Start", style="SurfaceMuted.TLabel").grid(row=0, column=0)
         self.start_entry = ttk.Entry(range_frame, textvariable=self.start_var, width=14)
         self.start_entry.grid(row=0, column=1, sticky="ew", padx=(7, 18))
-        ttk.Label(range_frame, text="End").grid(row=0, column=2)
+        ttk.Label(range_frame, text="End", style="SurfaceMuted.TLabel").grid(row=0, column=2)
         self.end_entry = ttk.Entry(range_frame, textvariable=self.end_var, width=14)
         self.end_entry.grid(row=0, column=3, sticky="ew", padx=(7, 0))
         self.extent_var = tk.StringVar(value="Analyze the source once to reveal its available range.")
-        ttk.Label(range_frame, textvariable=self.extent_var, foreground="#465568").grid(
+        ttk.Label(range_frame, textvariable=self.extent_var, style="SurfaceMuted.TLabel").grid(
             row=1, column=0, columnspan=4, sticky="w", pady=(8, 0)
         )
 
-        advanced = ttk.LabelFrame(outer, text="Scientific configuration (read only)", padding=10)
-        advanced.grid(row=5, column=0, columnspan=3, sticky="ew", pady=8)
+        advanced = ttk.LabelFrame(form, text="Scientific configuration · read only", padding=11)
+        advanced.grid(
+            row=display_row + 2, column=0, columnspan=3, sticky="ew", pady=7
+        )
         ttk.Label(
             advanced,
             text="PC34 760.5851 / QC 782.5616 · closed ±12 ppm · adaptive v0.4.4 baseline",
+            style="Surface.TLabel",
         ).pack(anchor="w")
         ttk.Label(
             advanced,
-            text="Changing scientific parameters is not available in Phase 2 without a versioned recomputation.",
-            foreground="#59677a",
+            text="Scientific parameters remain version-bound; range changes use a previewed new generation.",
+            style="SurfaceMuted.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
-        self.progress = ttk.Progressbar(outer, maximum=1.0, mode="determinate")
-        self.progress.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(12, 4))
-        self.status_var = tk.StringVar(value="Ready")
-        ttk.Label(outer, textvariable=self.status_var).grid(row=7, column=0, columnspan=2, sticky="w")
-        self.primary = ttk.Button(outer, text="Analyze source", command=self._primary)
-        self.primary.grid(row=7, column=2, sticky="e")
+        self.progress = ttk.Progressbar(
+            form, maximum=1.0, mode="determinate", style="Accent.Horizontal.TProgressbar"
+        )
+        self.progress.grid(
+            row=display_row + 3,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(16, 7),
+        )
+        self.status_var = tk.StringVar(
+            value="Guided source ready · begin with Analyze source." if self.guided else "Ready"
+        )
+        ttk.Label(form, textvariable=self.status_var, style="SurfaceMuted.TLabel").grid(
+            row=display_row + 4, column=0, columnspan=2, sticky="w"
+        )
+        self.primary = ttk.Button(
+            form,
+            text="Analyze source",
+            command=self._primary,
+            style="Primary.TButton",
+        )
+        self.primary.grid(row=display_row + 4, column=2, sticky="e")
 
         self.source_var.trace_add("write", self._source_changed)
         self.window.after(50, self._poll)
@@ -515,7 +589,7 @@ class ReviewView:
         self.viewport = Viewport(start, end, start, max(1, default_window))
         self.model = OptimisticReviewModel(self.service.all_events())
 
-        self.frame = ttk.Frame(app.root)
+        self.frame = ttk.Frame(app.root, style="Page.TFrame")
         self.frame.pack(fill="both", expand=True)
         self._build_controls()
         self._build_body()
@@ -524,8 +598,35 @@ class ReviewView:
 
     def _build_controls(self) -> None:
         tk, ttk = self.tk, self.ttk
-        toolbar = ttk.Frame(self.frame, padding=(8, 7))
-        toolbar.pack(fill="x")
+        appbar = ttk.Frame(self.frame, style="Hero.TFrame", padding=(14, 9))
+        appbar.pack(fill="x")
+        ttk.Label(appbar, image=self.app.app_icon_32, style="HeroBody.TLabel").pack(
+            side="left", padx=(0, 10)
+        )
+        brand = ttk.Frame(appbar, style="Hero.TFrame")
+        brand.pack(side="left", fill="x", expand=True)
+        ttk.Label(
+            brand,
+            text="MS EVENT STUDIO",
+            style="HeroSubtitle.TLabel",
+            font=(font_family(), 9, "bold"),
+        ).pack(anchor="w")
+        ttk.Label(
+            brand,
+            text=str(self.service.project.manifest["display_name"]),
+            style="HeroBody.TLabel",
+            font=(font_family(), 12, "bold"),
+        ).pack(anchor="w")
+        ttk.Button(
+            appbar,
+            text="Home",
+            command=self.app.show_welcome,
+            style="Ghost.TButton",
+        ).pack(side="right")
+
+        toolbar = ttk.Frame(self.frame, padding=(12, 9), style="Card.TFrame")
+        toolbar.pack(fill="x", padx=12, pady=(12, 8))
+        toolbar.columnconfigure(7, weight=1)
         self.start_var = tk.StringVar(value=_minutes_text(self.viewport.start_ns))
         self.window_var = tk.StringVar(
             value=_minutes_text(self.viewport.window_ns)
@@ -535,56 +636,111 @@ class ReviewView:
         self.labels_var = tk.BooleanVar(value=True)
         self.include_pending_var = tk.BooleanVar(value=False)
 
-        ttk.Label(toolbar, text="Start min").pack(side="left")
-        ttk.Entry(toolbar, textvariable=self.start_var, width=10).pack(side="left", padx=(4, 10))
-        ttk.Label(toolbar, text="Window min").pack(side="left")
-        ttk.Entry(toolbar, textvariable=self.window_var, width=8).pack(side="left", padx=(4, 6))
-        ttk.Button(toolbar, text="Go", command=self.apply_viewport).pack(side="left")
-        ttk.Button(toolbar, text="◀", width=3, command=lambda: self.pan(-1)).pack(side="left", padx=(10, 2))
-        ttk.Button(toolbar, text="▶", width=3, command=lambda: self.pan(1)).pack(side="left")
-
-        ttk.Label(toolbar, text="Filter").pack(side="left", padx=(14, 4))
-        filter_box = ttk.Combobox(
+        ttk.Label(toolbar, text="VIEW WINDOW", style="Eyebrow.TLabel").grid(
+            row=0, column=0, columnspan=7, sticky="w", pady=(0, 5)
+        )
+        ttk.Label(toolbar, text="Start min", style="SurfaceMuted.TLabel").grid(
+            row=1, column=0, sticky="w"
+        )
+        ttk.Entry(toolbar, textvariable=self.start_var, width=10).grid(
+            row=1, column=1, padx=(5, 11)
+        )
+        ttk.Label(toolbar, text="Window min", style="SurfaceMuted.TLabel").grid(
+            row=1, column=2, sticky="w"
+        )
+        ttk.Entry(toolbar, textvariable=self.window_var, width=9).grid(
+            row=1, column=3, padx=(5, 7)
+        )
+        ttk.Button(
+            toolbar, text="Apply", command=self.apply_viewport, style="Primary.TButton"
+        ).grid(row=1, column=4, padx=(0, 9))
+        ttk.Button(
             toolbar,
+            text="◀",
+            width=3,
+            command=lambda: self.pan(-1),
+            style="Toolbar.TButton",
+        ).grid(row=1, column=5, padx=(0, 3))
+        ttk.Button(
+            toolbar,
+            text="▶",
+            width=3,
+            command=lambda: self.pan(1),
+            style="Toolbar.TButton",
+        ).grid(row=1, column=6)
+
+        settings = ttk.Frame(toolbar, style="Surface.TFrame")
+        settings.grid(row=0, column=8, rowspan=2, sticky="e")
+        ttk.Label(settings, text="Filter", style="SurfaceMuted.TLabel").grid(
+            row=0, column=0, sticky="w", padx=(0, 5)
+        )
+        filter_box = ttk.Combobox(
+            settings,
             textvariable=self.filter_var,
             values=FILTERS,
-            width=16,
+            width=15,
             state="readonly",
         )
-        filter_box.pack(side="left")
+        filter_box.grid(row=0, column=1, padx=(0, 10))
         filter_box.bind("<<ComboboxSelected>>", lambda _event: self.reload_window())
-        ttk.Label(toolbar, text="Y").pack(side="left", padx=(14, 4))
+        ttk.Label(settings, text="Y scale", style="SurfaceMuted.TLabel").grid(
+            row=0, column=2, sticky="w", padx=(0, 5)
+        )
         scale_box = ttk.Combobox(
-            toolbar,
+            settings,
             textvariable=self.scale_var,
             values=("linear", "log1p"),
             width=8,
             state="readonly",
         )
-        scale_box.pack(side="left")
+        scale_box.grid(row=0, column=3, padx=(0, 9))
         scale_box.bind("<<ComboboxSelected>>", lambda _event: self.render())
-        ttk.Checkbutton(toolbar, text="Labels", variable=self.labels_var, command=self.render).pack(
-            side="left", padx=(10, 0)
-        )
-        ttk.Button(toolbar, text="Change range…", command=self.change_range).pack(
-            side="left", padx=(12, 0)
-        )
-        ttk.Button(toolbar, text="Home", command=self.app.show_welcome).pack(side="right")
+        ttk.Checkbutton(
+            settings, text="Labels", variable=self.labels_var, command=self.render
+        ).grid(row=0, column=4, padx=(0, 9))
+        ttk.Button(
+            settings,
+            text="Change range…",
+            command=self.change_range,
+            style="Warning.TButton",
+        ).grid(row=0, column=5)
+
+        if str(self.service.project.manifest["display_name"]).startswith("Guided test"):
+            ttk.Label(
+                self.frame,
+                text=(
+                    "GUIDED TEST  ·  Expect automatic apexes at 0.5 / 1.0 / 1.5 min. "
+                    "Use Add near 0.75 min, then test status, Undo/Redo, exports, and range 0.6–2 min."
+                ),
+                style="InfoPill.TLabel",
+            ).pack(fill="x", padx=12, pady=(0, 7))
 
     def _build_body(self) -> None:
         tk, ttk = self.tk, self.ttk
         pane = ttk.Panedwindow(self.frame, orient="horizontal")
-        pane.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-        plot_frame = ttk.Frame(pane)
-        side = ttk.Frame(pane, width=320)
+        pane.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+        plot_frame = ttk.Frame(pane, padding=10, style="Card.TFrame")
+        side = ttk.Frame(pane, width=340, padding=14, style="Card.TFrame")
         pane.add(plot_frame, weight=4)
         pane.add(side, weight=1)
 
+        plot_heading = ttk.Frame(plot_frame, style="Surface.TFrame")
+        plot_heading.pack(fill="x", pady=(0, 8))
+        ttk.Label(plot_heading, text="PC34 / MS760 TRACE", style="Eyebrow.TLabel").pack(
+            side="left"
+        )
+        ttk.Label(
+            plot_heading,
+            text="Apex overlays are never removed by display downsampling",
+            style="SurfaceMuted.TLabel",
+        ).pack(side="right")
+
         self.canvas = tk.Canvas(
             plot_frame,
-            background="#ffffff",
+            background=PALETTE.plot,
             highlightthickness=1,
-            highlightbackground="#b8c1cc",
+            highlightbackground=PALETTE.border,
+            highlightcolor=PALETTE.cyan,
             takefocus=True,
         )
         self.canvas.pack(fill="both", expand=True)
@@ -593,61 +749,178 @@ class ReviewView:
         self.canvas.bind("<Motion>", self._canvas_motion)
 
         self.hover_var = tk.StringVar(value="Ready")
-        ttk.Label(plot_frame, textvariable=self.hover_var, anchor="w").pack(fill="x", pady=(4, 0))
+        ttk.Label(
+            plot_frame,
+            textvariable=self.hover_var,
+            anchor="w",
+            style="SurfaceMuted.TLabel",
+        ).pack(fill="x", pady=(6, 0))
 
-        ttk.Label(side, text="Selected event evidence", font=("TkDefaultFont", 12, "bold")).pack(
-            anchor="w", pady=(0, 6)
+        ttk.Label(side, text="EVENT INSPECTOR", style="Eyebrow.TLabel").pack(anchor="w")
+        ttk.Label(side, text="Selected event evidence", style="SurfaceTitle.TLabel").pack(
+            anchor="w", pady=(2, 8)
         )
-        self.details = tk.Text(side, height=18, width=42, wrap="word", state="disabled")
-        self.details.pack(fill="both", expand=True)
+        evidence_frame = ttk.Frame(side, style="Surface.TFrame")
+        evidence_frame.pack(fill="x")
+        self.details = tk.Text(
+            evidence_frame,
+            height=7,
+            width=42,
+            wrap="word",
+            state="disabled",
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=1,
+            highlightbackground=PALETTE.border,
+            padx=10,
+            pady=9,
+        )
+        evidence_scroll = ttk.Scrollbar(
+            evidence_frame,
+            orient="vertical",
+            command=self.details.yview,
+        )
+        self.details.configure(yscrollcommand=evidence_scroll.set)
+        self.details.pack(side="left", fill="both", expand=True)
+        evidence_scroll.pack(side="right", fill="y")
 
-        status = ttk.LabelFrame(side, text="Review status", padding=6)
+        tabs = ttk.Notebook(side)
+        tabs.pack(fill="both", expand=True, pady=(9, 0))
+        review_tab = ttk.Frame(tabs, padding=6, style="Surface.TFrame")
+        export_tab = ttk.Frame(tabs, padding=10, style="Surface.TFrame")
+        tabs.add(review_tab, text="Review & edit")
+        tabs.add(export_tab, text="Export")
+
+        status = ttk.LabelFrame(review_tab, text="Review status", padding=6)
         status.pack(fill="x", pady=(8, 4))
         for column, (label, value) in enumerate(
             (("Accept [A]", "accepted"), ("Reject [R]", "rejected"), ("Pending [P]", "pending"))
         ):
-            ttk.Button(status, text=label, command=lambda value=value: self.set_status(value)).grid(
+            style = {
+                "accepted": "Success.TButton",
+                "rejected": "Danger.TButton",
+                "pending": "Warning.TButton",
+            }[value]
+            ttk.Button(
+                status,
+                text=label,
+                command=lambda value=value: self.set_status(value),
+                style=style,
+                padding=(6, 5),
+            ).grid(
                 row=0, column=column, sticky="ew", padx=2
             )
             status.columnconfigure(column, weight=1)
-        ttk.Button(status, text="Unreviewed [U]", command=lambda: self.set_status("unreviewed")).grid(
+        ttk.Button(
+            status,
+            text="Unreviewed [U]",
+            command=lambda: self.set_status("unreviewed"),
+            style="Secondary.TButton",
+            padding=(6, 5),
+        ).grid(
             row=1, column=0, sticky="ew", padx=2, pady=(5, 0)
         )
-        ttk.Button(status, text="Restore", command=self.restore).grid(
+        ttk.Button(
+            status,
+            text="Restore",
+            command=self.restore,
+            style="Secondary.TButton",
+            padding=(6, 5),
+        ).grid(
             row=1, column=1, columnspan=2, sticky="ew", padx=2, pady=(5, 0)
         )
 
-        edit = ttk.LabelFrame(side, text="Physical edit", padding=6)
+        edit = ttk.LabelFrame(review_tab, text="Physical edit", padding=6)
         edit.pack(fill="x", pady=4)
-        self.add_button = ttk.Button(edit, text="Add event [+]", command=lambda: self.set_mode("add"))
+        self.add_button = ttk.Button(
+            edit,
+            text="Add event [+]",
+            command=lambda: self.set_mode("add"),
+            style="Primary.TButton",
+            padding=(6, 5),
+        )
         self.add_button.grid(row=0, column=0, sticky="ew", padx=2)
         self.adjust_button = ttk.Button(
-            edit, text="Adjust apex [M]", command=lambda: self.set_mode("adjust")
+            edit,
+            text="Adjust apex [M]",
+            command=lambda: self.set_mode("adjust"),
+            style="Secondary.TButton",
+            padding=(6, 5),
         )
         self.adjust_button.grid(row=0, column=1, sticky="ew", padx=2)
         edit.columnconfigure(0, weight=1)
         edit.columnconfigure(1, weight=1)
-        ttk.Button(edit, text="Undo [Ctrl+Z]", command=self.undo).grid(
+        ttk.Button(
+            edit,
+            text="Undo [Ctrl+Z]",
+            command=self.undo,
+            style="Toolbar.TButton",
+            padding=(6, 4),
+        ).grid(
             row=1, column=0, sticky="ew", padx=2, pady=(5, 0)
         )
-        ttk.Button(edit, text="Redo [Ctrl+Y]", command=self.redo).grid(
+        ttk.Button(
+            edit,
+            text="Redo [Ctrl+Y]",
+            command=self.redo,
+            style="Toolbar.TButton",
+            padding=(6, 4),
+        ).grid(
             row=1, column=1, sticky="ew", padx=2, pady=(5, 0)
         )
 
-        ttk.Label(side, text="Reason (stored in audit)").pack(anchor="w", pady=(6, 2))
+        ttk.Label(review_tab, text="Reason · stored in audit", style="SurfaceMuted.TLabel").pack(
+            anchor="w", pady=(7, 3)
+        )
         self.reason_var = tk.StringVar()
-        ttk.Entry(side, textvariable=self.reason_var).pack(fill="x")
+        ttk.Entry(review_tab, textvariable=self.reason_var).pack(fill="x")
 
-        export = ttk.LabelFrame(side, text="Export", padding=6)
-        export.pack(fill="x", pady=(8, 0))
-        ttk.Checkbutton(export, text="Include pending in human CSV", variable=self.include_pending_var).pack(
+        ttk.Label(export_tab, text="ACTIVE GENERATION", style="Eyebrow.TLabel").pack(
             anchor="w"
         )
-        ttk.Button(export, text="Human CSV…", command=self.export_human).pack(fill="x", pady=(5, 2))
-        ttk.Button(export, text="Machine contract…", command=self.export_machine).pack(fill="x")
+        ttk.Label(
+            export_tab,
+            text="Stale generation history remains in the project and is excluded from active exports.",
+            style="SurfaceMuted.TLabel",
+            wraplength=300,
+            justify="left",
+        ).pack(anchor="w", fill="x", pady=(3, 12))
+        export = ttk.LabelFrame(export_tab, text="Human CSV", padding=8)
+        export.pack(fill="x")
+        ttk.Checkbutton(
+            export,
+            text="Include pending (accepted is always included)",
+            variable=self.include_pending_var,
+        ).pack(anchor="w")
+        ttk.Button(
+            export,
+            text="Export human CSV…",
+            command=self.export_human,
+            style="Primary.TButton",
+        ).pack(fill="x", pady=(7, 0))
+        machine = ttk.LabelFrame(export_tab, text="Downstream machine contract", padding=8)
+        machine.pack(fill="x", pady=(9, 0))
+        ttk.Label(
+            machine,
+            text="Versioned manifest + Parquet + SHA-256 sidecar.",
+            style="SurfaceMuted.TLabel",
+        ).pack(anchor="w", pady=(0, 6))
+        ttk.Button(
+            machine,
+            text="Export machine contract…",
+            command=self.export_machine,
+            style="Secondary.TButton",
+        ).pack(fill="x")
 
         self.status_var = tk.StringVar(value="Ready")
-        ttk.Label(self.frame, textvariable=self.status_var, anchor="w", padding=(8, 3)).pack(fill="x")
+        status_bar = ttk.Frame(self.frame, style="Status.TFrame", padding=(12, 5))
+        status_bar.pack(fill="x")
+        ttk.Label(
+            status_bar,
+            textvariable=self.status_var,
+            anchor="w",
+            style="Status.TLabel",
+        ).pack(fill="x")
 
     def _bind_keys(self) -> None:
         self.app.root.bind("<KeyPress>", self._key_press)
@@ -757,6 +1030,9 @@ class ReviewView:
             end_ns=max(self.viewport.start_ns + 1, self.viewport.end_ns),
             maximum_signal=maximum,
             log_scale=self.scale_var.get() == "log1p",
+            # Keep a dedicated legend lane above the scientific plot so a
+            # full-scale apex can never collide with the status key.
+            top=44,
         )
         self.transform = transform
         canvas.create_rectangle(
@@ -764,19 +1040,19 @@ class ReviewView:
             transform.top,
             width - transform.right,
             height - transform.bottom,
-            outline="#c7ced8",
-            fill="#fbfcfe",
+            outline=PALETTE.border,
+            fill=PALETTE.plot,
         )
         for index in range(6):
             fraction = index / 5
             x = transform.left + fraction * transform.plot_width
             time_ns = int(round(transform.start_ns + fraction * (transform.end_ns - transform.start_ns)))
-            canvas.create_line(x, transform.top, x, height - transform.bottom, fill="#edf0f4")
+            canvas.create_line(x, transform.top, x, height - transform.bottom, fill=PALETTE.grid)
             canvas.create_text(
                 x,
                 height - transform.bottom + 15,
                 text=f"{time_ns / NANOSECONDS_PER_MINUTE:.3f}",
-                fill="#526174",
+                fill=PALETTE.muted,
                 font=("TkDefaultFont", 8),
             )
         canvas.create_text(
@@ -784,7 +1060,7 @@ class ReviewView:
             transform.top,
             anchor="nw",
             text=("log1p " if transform.log_scale else "") + f"max {maximum:.4g}",
-            fill="#526174",
+            fill=PALETTE.muted,
             font=("TkDefaultFont", 8),
         )
         if len(trace):
@@ -794,7 +1070,7 @@ class ReviewView:
             ):
                 coordinates.extend((transform.x_for_time(int(time_ns)), transform.y_for_signal(float(intensity))))
             if len(coordinates) >= 4:
-                canvas.create_line(*coordinates, fill="#1769aa", width=1.25, tags=("trace",))
+                canvas.create_line(*coordinates, fill=PALETTE.trace, width=1.5, tags=("trace",))
 
         label_ids = set(self.snapshot.label_event_ids) if self.labels_var.get() else set()
         self.hit_events = []
@@ -819,11 +1095,18 @@ class ReviewView:
                     dash=encoding.dash or None,
                 )
             selected = str(row["event_id"]) == str(self.selected_event_id)
-            outline = "#111827" if selected else encoding.color
+            outline = PALETTE.navy if selected else encoding.color
             marker_size = 6 if selected else 5
             self._draw_marker(x, y, marker_size, encoding.shape, encoding.color, outline)
             if row.get("write_pending"):
-                canvas.create_oval(x - 10, y - 10, x + 10, y + 10, outline="#111827", dash=(2, 2))
+                canvas.create_oval(
+                    x - 10,
+                    y - 10,
+                    x + 10,
+                    y + 10,
+                    outline=PALETTE.navy,
+                    dash=(2, 2),
+                )
             if str(row["event_id"]) in label_ids:
                 canvas.create_text(
                     x + 4,
@@ -839,11 +1122,25 @@ class ReviewView:
         legend_x = transform.left + 8
         for token, status in legend:
             encoding = event_visual_encoding(status, "automatic")
-            canvas.create_text(legend_x, transform.top + 10, text=f"{token} {status}", anchor="w", fill=encoding.color)
+            canvas.create_text(
+                legend_x,
+                18,
+                text=f"{token} {status}",
+                anchor="w",
+                fill=encoding.color,
+            )
             legend_x += 92
         if self.pending_click_ns is not None:
             x = transform.x_for_time(self.pending_click_ns)
-            canvas.create_line(x, transform.top, x, height - transform.bottom, fill="#111827", dash=(4, 3), width=2)
+            canvas.create_line(
+                x,
+                transform.top,
+                x,
+                height - transform.bottom,
+                fill=PALETTE.navy,
+                dash=(4, 3),
+                width=2,
+            )
 
     def _draw_marker(self, x: float, y: float, size: int, shape: str, color: str, outline: str) -> None:
         c = self.canvas
@@ -1392,9 +1689,15 @@ class MSDesktopApp:
         self.filedialog = filedialog
         self.messagebox = messagebox
         self.root = root or tk.Tk()
+        self.style = configure_theme(self.root)
+        self.app_icon_32 = icon_photo(self.root, 32)
+        self.app_icon_64 = icon_photo(self.root, 64)
+        self.app_icon_128 = icon_photo(self.root, 128)
+        self.app_icon_256 = icon_photo(self.root, 256)
+        self.root.iconphoto(True, self.app_icon_256, self.app_icon_32)
         self.root.title(APP_TITLE)
-        self.root.geometry("1240x780")
-        self.root.minsize(900, 600)
+        self.root.geometry("1240x800")
+        self.root.minsize(1040, 680)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         self.recent = RecentProjects(recent_path or default_recent_path())
         self.current_view: ReviewView | None = None
@@ -1411,43 +1714,204 @@ class MSDesktopApp:
 
     def show_welcome(self) -> None:
         self._clear()
-        frame = self.ttk.Frame(self.root, padding=36)
+        self.root.title(APP_TITLE)
+        frame = self.ttk.Frame(self.root, style="Page.TFrame")
         frame.pack(fill="both", expand=True)
         self.welcome = frame
-        self.ttk.Label(frame, text=APP_TITLE, font=("TkDefaultFont", 24, "bold")).pack(pady=(60, 8))
+        frame.columnconfigure(0, weight=5, uniform="welcome")
+        frame.columnconfigure(1, weight=7, uniform="welcome")
+        frame.rowconfigure(0, weight=1)
+
+        hero = self.ttk.Frame(frame, style="Hero.TFrame", padding=(48, 46))
+        hero.grid(row=0, column=0, sticky="nsew")
+        self.ttk.Label(hero, image=self.app_icon_128, style="HeroBody.TLabel").pack(anchor="w")
         self.ttk.Label(
-            frame,
-            text="MS-only event extraction and auditable review",
-            foreground="#526174",
-        ).pack(pady=(0, 28))
-        actions = self.ttk.Frame(frame)
-        actions.pack()
-        self.ttk.Button(actions, text="New project", width=22, command=self.new_project).grid(
-            row=0, column=0, padx=7
-        )
-        self.ttk.Button(actions, text="Open project", width=22, command=self.choose_project).grid(
-            row=0, column=1, padx=7
-        )
-        recent = self.recent.load()
-        if recent:
-            self.ttk.Label(frame, text="Recent projects", font=("TkDefaultFont", 12, "bold")).pack(
-                pady=(42, 8)
+            hero,
+            text="MS EVENT STUDIO",
+            style="HeroSubtitle.TLabel",
+            font=(font_family(), 10, "bold"),
+        ).pack(anchor="w", pady=(24, 5))
+        self.ttk.Label(
+            hero,
+            text="Turn raw MS signal\ninto reviewable events.",
+            style="HeroTitle.TLabel",
+            justify="left",
+        ).pack(anchor="w")
+        self.ttk.Label(
+            hero,
+            text=(
+                "Inspect PC34 traces, keep immutable automatic evidence, "
+                "and add human decisions as an auditable layer."
+            ),
+            style="HeroSubtitle.TLabel",
+            justify="left",
+            wraplength=360,
+        ).pack(anchor="w", pady=(16, 26))
+        for text in (
+            "◆  Raw source remains read only",
+            "◆  Every event stays bound to a physical scan",
+            "◆  Review history survives reopen and undo",
+        ):
+            self.ttk.Label(hero, text=text, style="HeroBody.TLabel").pack(
+                anchor="w", pady=5
             )
-            for row in recent:
-                self.ttk.Button(
-                    frame,
-                    text=row.display_name,
-                    width=46,
-                    command=lambda path=row.path: self.open_project(path),
-                ).pack(pady=3)
+        hero_footer = self.ttk.Frame(hero, style="Hero.TFrame")
+        hero_footer.pack(side="bottom", fill="x")
         self.ttk.Label(
-            frame,
-            text="Recent-project buttons show friendly names only; scientific schema details stay inside the project.",
-            foreground="#64748b",
-        ).pack(side="bottom", pady=12)
+            hero_footer,
+            text=f"v{__version__}  ·  MS-only scientific workflow",
+            style="HeroSubtitle.TLabel",
+        ).pack(anchor="w")
+
+        content = self.ttk.Frame(frame, style="Page.TFrame", padding=(52, 46))
+        content.grid(row=0, column=1, sticky="nsew")
+        content.columnconfigure(0, weight=1)
+        content.rowconfigure(3, weight=1)
+        self.ttk.Label(content, text="WELCOME", style="Muted.TLabel").grid(
+            row=0, column=0, sticky="w"
+        )
+        self.ttk.Label(content, text="Start a scientific review", style="Title.TLabel").grid(
+            row=1, column=0, sticky="w", pady=(3, 20)
+        )
+
+        actions = self.ttk.Frame(content, style="Page.TFrame")
+        actions.grid(row=2, column=0, sticky="ew")
+        actions.columnconfigure(0, weight=1, uniform="action")
+        actions.columnconfigure(1, weight=1, uniform="action")
+        new_card = self.ttk.Frame(actions, style="Card.TFrame", padding=20)
+        new_card.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
+        self.ttk.Label(new_card, text="NEW PROJECT", style="Eyebrow.TLabel").pack(anchor="w")
+        self.ttk.Label(
+            new_card,
+            text="Analyze raw MS text",
+            style="SurfaceTitle.TLabel",
+        ).pack(anchor="w", pady=(3, 5))
+        self.ttk.Label(
+            new_card,
+            text="Inspect the source once, select a closed range, and publish atomically.",
+            style="SurfaceMuted.TLabel",
+            wraplength=270,
+            justify="left",
+        ).pack(anchor="w", fill="x", pady=(0, 14))
+        self.ttk.Button(
+            new_card,
+            text="Create project  →",
+            command=self.new_project,
+            style="Primary.TButton",
+        ).pack(anchor="w")
+
+        open_card = self.ttk.Frame(actions, style="Card.TFrame", padding=20)
+        open_card.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
+        self.ttk.Label(open_card, text="OPEN PROJECT", style="Eyebrow.TLabel").pack(anchor="w")
+        self.ttk.Label(
+            open_card,
+            text="Continue reviewing",
+            style="SurfaceTitle.TLabel",
+        ).pack(anchor="w", pady=(3, 5))
+        self.ttk.Label(
+            open_card,
+            text="Validate project bindings and resume the active generation and audit history.",
+            style="SurfaceMuted.TLabel",
+            wraplength=270,
+            justify="left",
+        ).pack(anchor="w", fill="x", pady=(0, 14))
+        self.ttk.Button(
+            open_card,
+            text="Choose project  →",
+            command=self.choose_project,
+            style="Secondary.TButton",
+        ).pack(anchor="w")
+
+        lower = self.ttk.Frame(content, style="Page.TFrame")
+        lower.grid(row=3, column=0, sticky="nsew", pady=(14, 0))
+        lower.columnconfigure(0, weight=1)
+        lower.rowconfigure(1, weight=1)
+        guide = self.ttk.Frame(lower, style="Card.TFrame", padding=(20, 15))
+        guide.grid(row=0, column=0, sticky="ew")
+        guide.columnconfigure(0, weight=1)
+        self.ttk.Label(guide, text="FIRST TIME HERE?", style="Eyebrow.TLabel").grid(
+            row=0, column=0, sticky="w"
+        )
+        self.ttk.Label(
+            guide,
+            text="Run a guided 2-minute test with three known automatic events and one Add-event target.",
+            style="SurfaceMuted.TLabel",
+            wraplength=540,
+            justify="left",
+        ).grid(row=1, column=0, sticky="w", pady=(3, 0))
+        guide_buttons = self.ttk.Frame(guide, style="Surface.TFrame")
+        guide_buttons.grid(row=2, column=0, sticky="w", pady=(12, 0))
+        self.ttk.Button(
+            guide_buttons,
+            text="Start guided test",
+            command=self.start_guided_test,
+            style="Primary.TButton",
+        ).pack(side="left")
+        self.ttk.Button(
+            guide_buttons,
+            text="What will I test?",
+            command=self.show_test_guide,
+            style="Secondary.TButton",
+        ).pack(side="left", padx=(7, 0))
+
+        recent = self.recent.load()
+        recent_card = self.ttk.Frame(lower, style="Card.TFrame", padding=18)
+        recent_card.grid(row=1, column=0, sticky="nsew", pady=(14, 0))
+        self.ttk.Label(recent_card, text="RECENT PROJECTS", style="Eyebrow.TLabel").pack(
+            anchor="w", pady=(0, 7)
+        )
+        if recent:
+            for row in recent[:4]:
+                self.ttk.Button(
+                    recent_card,
+                    text=f"{row.display_name}  →",
+                    command=lambda path=row.path: self.open_project(path),
+                    style="Secondary.TButton",
+                ).pack(fill="x", pady=3)
+        else:
+            self.ttk.Label(
+                recent_card,
+                text="No recent projects yet. Create one or start the guided test.",
+                style="SurfaceMuted.TLabel",
+            ).pack(anchor="w", pady=6)
 
     def new_project(self) -> None:
         NewProjectDialog(self)
+
+    def show_test_guide(self) -> None:
+        self.messagebox.showinfo(
+            "Guided test · about 10 minutes",
+            (
+                "1. Create and analyze a disposable 2-minute source.\n"
+                "2. Confirm three automatic apexes at 0.5, 1.0, and 1.5 min.\n"
+                "3. Test Accepted / Rejected / Pending / Restore and Undo / Redo.\n"
+                "4. Add the weak real peak near 0.75 min and adjust an automatic apex.\n"
+                "5. Export human CSV and the machine contract.\n"
+                "6. Change the range to 0.6–2 min and confirm stale history is excluded.\n\n"
+                "The guided source and project are disposable and never touch LMA Studio."
+            ),
+            parent=self.root,
+        )
+
+    def start_guided_test(self) -> None:
+        parent = self.filedialog.askdirectory(
+            parent=self.root,
+            title="Choose a folder for disposable guided-test files",
+        )
+        if not parent:
+            return
+        try:
+            assets = create_guided_test_assets(parent)
+        except Exception as exc:
+            self.messagebox.showerror(APP_TITLE, str(exc), parent=self.root)
+            return
+        NewProjectDialog(
+            self,
+            initial_source=assets.source_path,
+            initial_target=assets.project_path,
+            initial_name="Guided test: PC34 review",
+            guided=True,
+        )
 
     def choose_project(self) -> None:
         path = self.filedialog.askdirectory(parent=self.root, title="Open an MS Event Studio project")
