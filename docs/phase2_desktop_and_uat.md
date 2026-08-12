@@ -1,18 +1,20 @@
 # Phase 2 desktop candidate and UAT
 
-Run date: 2026-08-12 (Asia/Shanghai)
+Run date: 2026-08-13 (Asia/Shanghai)
 
 Status: **implementation candidate ready; Phase 2 exit pending mouse UAT and a
 native macOS build/UAT**.
 
 ## Implemented surface
 
-The desktop application opens in a Chinese-first, responsive native Tk window
-with the same dark-app-bar, neutral-workspace, compact-card family language as
-LMA Studio. MS Event Studio remains distinct through its cyan peak/apex icon,
-trace-first two-column workbench, and event-evidence inspector. The welcome page
-provides 新建项目, 打开已有项目, a disposable 引导测试, and friendly-name 最近项目
-actions. New-project inspection performs the one
+The desktop application opens in a Chinese-first, responsive native Tk window.
+Its welcome page directly ports LMA Studio's 64 px dark app bar, 520 px bootstrap
+panel, 8 px panel corners, 42 px actions, spacing, and visual hierarchy. The
+Windows build uses Microsoft YaHei UI for Chinese and enables Per-Monitor V2
+before creating Tk, preventing bitmap stretching. MS Event Studio remains
+distinct through its cyan peak/apex icon, trace-first two-column workbench, and
+event-evidence inspector. The welcome page provides 新建项目, 打开项目, and a
+disposable 引导测试. New-project inspection performs the one
 large source parse, complete stream hash, target-ion extraction, real byte
 progress, and cancellation. Project creation reuses that prepared scan table,
 rechecks source edge identity before and after creation, and publishes only a
@@ -46,7 +48,7 @@ status in the active generation and requires downstream status filtering.
 
 ## Automated gates
 
-The Chinese-first source run discovered 83 tests: 82 passed and one symlink test was
+The Chinese-first source run discovered 84 tests: 83 passed and one symlink test was
 skipped solely because the Windows account lacks symlink creation privilege.
 Covered failure paths include corrupt display-cache rebuild, optimistic-write
 rollback, stale range previews, mutation of a previewed detection table,
@@ -93,25 +95,26 @@ review interaction gates.
 ## Windows candidate
 
 Rebuilt natively on Windows 11 with Python 3.12.3 and PyInstaller 6.21.0 on
-2026-08-12 in the isolated `build/venv/windows` environment after the
-Chinese-first product-family UI refactor. This is a local unsigned development candidate, not a
-published or code-signed release.
+2026-08-13 in the isolated `build/venv/windows` environment after the
+LMA-aligned typography, rounded bootstrap controls, and Per-Monitor V2 UI
+refactor. This is a local unsigned development candidate, not a published or
+code-signed release.
 
 | Field | Value |
 |---|---|
-| Application version | `0.2.0.dev2` |
+| Application version | `0.2.0.dev3` |
 | Bundle mode | `onedir-windowed` |
 | Executable | `dist/windows/MS-Event-Studio/MS-Event-Studio.exe` |
 | Runtime versions | NumPy 2.5.2, pandas 2.3.3, PyArrow 21.0.0, SciPy 1.18.0, Pillow 11.3.0 |
-| Executable SHA-256 | `d2f7dbf5800dd75419cc4f9edac31b24540168fa0b90bad438a70de23ad09b4e` |
+| Executable SHA-256 | `e77432602bd027b5b03f6535bca04465d1d13311da54653783ef7e6e12ac78f4` |
 | Bundle file count | 2,427 |
-| Bundle bytes | 240,670,898 |
-| Bundle tree SHA-256 | `48d178beaf5b11151afe443205913c2f8968ae6cd26734fb5294f586774139be` |
+| Bundle bytes | 240,675,352 |
+| Bundle tree SHA-256 | `3a95ebc32a5d1af565061185a9137d1737a03b0ccf5e36e5b9fc61862175d75c` |
 | Packaged smoke | exit 0, `status=ok`, `window_system=win32` |
 | Embedded icon | extracted from EXE and visually verified at small size |
-| Validated archive | `release/MS-Event-Studio-0.2.0-dev2-windows-x64.zip` |
-| Archive bytes | 92,671,672 |
-| Archive SHA-256 | `882dce4251d4fbbfae214db6af215e15dd53d7acc474ad5a0eb831005789b05e` |
+| Validated archive | `release/MS-Event-Studio-0.2.0-dev3-windows-x64.zip` |
+| Archive bytes | 92,676,388 |
+| Archive SHA-256 | `f20dc43485742c24a681377520e12ba9ac1d2af8cbb445415d79f4fc4ebc855e` |
 
 The complete per-file manifest and smoke payload are generated at
 `dist/windows/build_manifest.json` and `dist/windows/smoke_test.json`.
@@ -125,7 +128,7 @@ Studio's `macos-14` native-runner pattern. A genuine `.app` candidate still
 must be produced by GitHub Actions and exercised on Apple Silicon:
 
 ```bash
-MS_EVENT_STUDIO_VERSION=0.2.0-dev2 bash desktop_bundle/build_macos.sh
+MS_EVENT_STUDIO_VERSION=0.2.0-dev3 bash desktop_bundle/build_macos.sh
 ```
 
 The local repository currently has no Git remote, so no workflow run is claimed
@@ -138,8 +141,8 @@ Keep the entire Windows bundle together, run the executable, and click **开始
 prefills the project form. A Chinese step-by-step version is maintained in
 `docs/guided_test_zh.md`.
 
-1. Confirm the welcome screen shows 新建项目, 打开已有项目, and no internal
-   schema/version text in Recent projects.
+1. Confirm the welcome screen shows 新建项目 and 打开项目, with no internal
+   schema/version/hash terminology.
 2. Click 开始引导测试 and choose a disposable parent directory. Click
    分析源文件; confirm the available closed range becomes 0–2 min,
    the count is 1,201 scans, and 创建项目 becomes available.

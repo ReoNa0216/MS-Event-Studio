@@ -147,16 +147,18 @@ class DesktopModelContractTest(unittest.TestCase):
         )
         text = "\n".join(lines)
         for required in (
-            "状态 / 来源",
+            "状态：",
             "已接受",
             "人工调整",
             "m/z",
             "ppm",
-            "Prominence",
-            "Width",
-            "collision_risk_high",
+            "峰形",
+            "允许调整范围",
+            "相邻事件距离较近",
         ):
             self.assertIn(required, text)
+        for hidden_internal in ("EventID", "审阅修订号", "collision_risk_high"):
+            self.assertNotIn(hidden_internal, text)
 
     def test_keyboard_map_exposes_review_and_navigation_without_mouse(self):
         self.assertEqual(keyboard_command("a", control=False), "accept")

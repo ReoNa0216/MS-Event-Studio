@@ -11,10 +11,12 @@ frozen at v0.4.4.
 
 ## Desktop candidate
 
-The native Tk desktop application now uses a Chinese-first interface and the
-same product-family structure as LMA Studio: a dark application bar, neutral
-workspace, compact bordered cards, and direct task-oriented entry. Its cyan
-peak identity, trace-first review canvas, and event inspector remain distinct.
+The native Tk desktop application now uses a Chinese-first interface and ports
+LMA Studio's bootstrap dimensions and hierarchy: a 64 px dark application bar,
+520 px project card, 8 px card corners, 42 px actions, and Windows-native
+Chinese UI typography. Its cyan peak identity, trace-first review canvas, and
+event inspector remain distinct. Windows Per-Monitor V2 awareness prevents
+bitmap stretching on scaled displays.
 It provides:
 
 - a branded, responsive welcome and review interface with a cross-platform
@@ -93,7 +95,7 @@ python scripts/run_real_regression.py
 python scripts/run_phase2_performance.py
 ```
 
-The Chinese-first Phase 2 implementation run discovered 83 tests: 82 passed and one
+The Chinese-first Phase 2 implementation run discovered 84 tests: 83 passed and one
 symlink-escape test was skipped because this Windows account cannot create a
 symlink. All lexical Windows/UNC/drive/ADS/traversal attacks passed. Four
 read-only real-MS regressions passed with canonical summary SHA-256

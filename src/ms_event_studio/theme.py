@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import ctypes
 import sys
 from dataclasses import dataclass
 from importlib import resources
@@ -36,13 +37,85 @@ class Palette:
 
 
 PALETTE = Palette()
+_DPI_MODE: str | None = None
+
+
+def enable_high_dpi() -> str:
+    """Enable crisp native rendering before Tk creates the first window."""
+
+    global _DPI_MODE
+    if _DPI_MODE is not None:
+        return _DPI_MODE
+    if sys.platform != "win32":
+        _DPI_MODE = "platform-native"
+        return _DPI_MODE
+
+    try:
+        user32 = ctypes.windll.user32
+        setter = user32.SetProcessDpiAwarenessContext
+        setter.argtypes = [ctypes.c_void_p]
+        setter.restype = ctypes.c_bool
+        # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+        if setter(ctypes.c_void_p(-4)):
+            _DPI_MODE = "per-monitor-v2"
+            return _DPI_MODE
+    except (AttributeError, OSError):
+        pass
+
+    try:
+        # PROCESS_PER_MONITOR_DPI_AWARE; available since Windows 8.1.
+        result = int(ctypes.windll.shcore.SetProcessDpiAwareness(2))
+        if result in {0, -2147024891}:  # S_OK or E_ACCESSDENIED (already declared)
+            _DPI_MODE = "per-monitor"
+            return _DPI_MODE
+    except (AttributeError, OSError):
+        pass
+
+    try:
+        if ctypes.windll.user32.SetProcessDPIAware():
+            _DPI_MODE = "system"
+            return _DPI_MODE
+    except (AttributeError, OSError):
+        pass
+    _DPI_MODE = "unavailable"
+    return _DPI_MODE
+
+
+def ui_scale(root: Any) -> float:
+    """Return the Windows device-pixel scale for layout dimensions."""
+
+    if sys.platform != "win32":
+        return 1.0
+    try:
+        # Tk's scaling is pixels per typographic point; 96-DPI Windows is 4/3.
+        return max(1.0, min(3.0, float(root.tk.call("tk", "scaling")) * 0.75))
+    except Exception:
+        return 1.0
+
+
+def px(root: Any, value: int | float) -> int:
+    return max(1, int(round(float(value) * ui_scale(root))))
+
+
+def window_geometry(root: Any, width: int, height: int) -> str:
+    scale = ui_scale(root)
+    requested_width = int(round(width * scale))
+    requested_height = int(round(height * scale))
+    margin = int(round(48 * scale))
+    maximum_width = max(640, int(root.winfo_screenwidth()) - margin)
+    maximum_height = max(480, int(root.winfo_screenheight()) - margin)
+    return f"{min(requested_width, maximum_width)}x{min(requested_height, maximum_height)}"
 
 
 def font_family() -> str:
     if sys.platform == "win32":
+        # LMA Studio declares Arial first, but WebView2 resolves Chinese glyphs
+        # through the modern Windows CJK fallback.  Tk's Arial fallback differs
+        # (and can look like an older, thinner face), so name that effective
+        # Chinese UI face explicitly for consistent native rendering.
         return "Microsoft YaHei UI"
     if sys.platform == "darwin":
-        return "PingFang SC"
+        return "Helvetica"
     return "DejaVu Sans"
 
 
@@ -112,6 +185,12 @@ def configure_theme(root: Any) -> Any:
     style.configure("TLabel", background=palette.canvas, foreground=palette.text)
     style.configure("Surface.TLabel", background=palette.surface, foreground=palette.text)
     style.configure("Muted.TLabel", background=palette.canvas, foreground=palette.muted)
+    style.configure(
+        "Link.TLabel",
+        background=palette.canvas,
+        foreground=palette.cyan_hover,
+        font=(family, 9, "bold"),
+    )
     style.configure("SurfaceMuted.TLabel", background=palette.surface, foreground=palette.muted)
     style.configure(
         "Eyebrow.TLabel",
@@ -123,31 +202,31 @@ def configure_theme(root: Any) -> Any:
         "Title.TLabel",
         background=palette.canvas,
         foreground=palette.navy,
-        font=(family, 24, "bold"),
+        font=(family, 20, "bold"),
     )
     style.configure(
         "SurfaceTitle.TLabel",
         background=palette.surface,
         foreground=palette.navy,
-        font=(family, 18, "bold"),
+        font=(family, 15, "bold"),
     )
     style.configure(
         "Section.TLabel",
         background=palette.surface,
         foreground=palette.navy,
-        font=(family, 12, "bold"),
+        font=(family, 11, "bold"),
     )
     style.configure(
         "HeroTitle.TLabel",
         background=palette.navy,
         foreground="#FFFFFF",
-        font=(family, 22, "bold"),
+        font=(family, 15, "bold"),
     )
     style.configure(
         "HeroSubtitle.TLabel",
         background=palette.navy,
         foreground="#BFD0E6",
-        font=(family, 11),
+        font=(family, 10),
     )
     style.configure(
         "HeroBody.TLabel",
@@ -166,20 +245,20 @@ def configure_theme(root: Any) -> Any:
         background="#DDF7ED",
         foreground="#0E684C",
         font=(family, 9, "bold"),
-        padding=(9, 4),
+        padding=(px(root, 10), px(root, 5)),
     )
     style.configure(
         "InfoPill.TLabel",
         background="#DFF5FB",
         foreground="#087D9F",
         font=(family, 9, "bold"),
-        padding=(9, 4),
+        padding=(px(root, 10), px(root, 5)),
     )
 
     style.configure(
         "TButton",
         font=(family, 10, "bold"),
-        padding=(13, 8),
+        padding=(px(root, 15), px(root, 9)),
         borderwidth=1,
         relief="flat",
         focuscolor=palette.focus,
@@ -195,6 +274,19 @@ def configure_theme(root: Any) -> Any:
         background=[("pressed", palette.cyan_hover), ("active", "#159AB7")],
         bordercolor=[("focus", palette.focus)],
         foreground=[("disabled", "#69788B")],
+    )
+    style.configure(
+        "Large.TButton",
+        background=palette.navy_soft,
+        foreground="#FFFFFF",
+        bordercolor=palette.navy_soft,
+        padding=(px(root, 24), px(root, 13)),
+        font=(family, 11, "bold"),
+    )
+    style.map(
+        "Large.TButton",
+        background=[("pressed", "#0B1220"), ("active", "#273449")],
+        bordercolor=[("focus", palette.cyan), ("active", palette.cyan_hover)],
     )
     style.configure(
         "Secondary.TButton",
@@ -244,7 +336,7 @@ def configure_theme(root: Any) -> Any:
         background=palette.surface_alt,
         foreground=palette.navy,
         bordercolor=palette.border,
-        padding=(9, 6),
+        padding=(px(root, 10), px(root, 7)),
         font=(family, 9, "bold"),
     )
     style.map("Toolbar.TButton", background=[("active", "#DDE8F2")])
@@ -257,7 +349,7 @@ def configure_theme(root: Any) -> Any:
         lightcolor=palette.border,
         darkcolor=palette.border,
         insertcolor=palette.text,
-        padding=(8, 7),
+        padding=(px(root, 9), px(root, 8)),
     )
     style.map(
         "TEntry",
@@ -272,7 +364,7 @@ def configure_theme(root: Any) -> Any:
         foreground=palette.text,
         arrowcolor=palette.navy,
         bordercolor=palette.border,
-        padding=(7, 5),
+        padding=(px(root, 8), px(root, 6)),
     )
     style.map("TCombobox", bordercolor=[("focus", palette.cyan)])
     style.configure("TCheckbutton", background=palette.surface, foreground=palette.text)
@@ -290,7 +382,7 @@ def configure_theme(root: Any) -> Any:
         "TLabelframe.Label",
         background=palette.surface,
         foreground=palette.navy,
-        font=(family, 10, "bold"),
+        font=(family, 9, "bold"),
     )
     style.configure("TPanedwindow", background=palette.canvas, sashwidth=8)
     style.configure(
@@ -305,8 +397,8 @@ def configure_theme(root: Any) -> Any:
         "TNotebook.Tab",
         background=palette.surface_alt,
         foreground=palette.muted,
-        padding=(13, 7),
-        font=(family, 9, "bold"),
+        padding=(px(root, 14), px(root, 8)),
+        font=(family, 10, "bold"),
         borderwidth=0,
     )
     style.map(
@@ -321,7 +413,7 @@ def configure_theme(root: Any) -> Any:
         bordercolor=palette.surface_alt,
         lightcolor=palette.cyan,
         darkcolor=palette.cyan,
-        thickness=9,
+        thickness=px(root, 10),
     )
     style.configure("TSeparator", background=palette.border)
     return style

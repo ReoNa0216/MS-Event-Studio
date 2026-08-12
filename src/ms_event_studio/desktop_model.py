@@ -37,12 +37,12 @@ ORIGIN_LABELS = {
     "manual_adjusted": "人工调整",
 }
 QUALITY_FLAG_LABELS = {
-    "collision_risk_high": "碰撞风险高（collision_risk_high）",
-    "broad_peak_width_gt_1p5_sec": "宽峰 > 1.5 s（broad_peak_width_gt_1p5_sec）",
-    "low_quality_scan_window": "扫描窗口质量低（low_quality_scan_window）",
-    "low_array_length_lt_6000_window": "数组长度偏低 < 6000（low_array_length_lt_6000_window）",
-    "low_array_length_lt_1000_window": "数组长度过低 < 1000（low_array_length_lt_1000_window）",
-    "low_tic_lt_1e6_window": "TIC 偏低 < 1e6（low_tic_lt_1e6_window）",
+    "collision_risk_high": "相邻事件距离较近",
+    "broad_peak_width_gt_1p5_sec": "峰形较宽（> 1.5 s）",
+    "low_quality_scan_window": "附近扫描质量偏低",
+    "low_array_length_lt_6000_window": "附近扫描数据点偏少",
+    "low_array_length_lt_1000_window": "附近扫描数据点过少",
+    "low_tic_lt_1e6_window": "附近 TIC 偏低",
 }
 
 
@@ -128,23 +128,40 @@ def evidence_lines(
     flags = [QUALITY_FLAG_LABELS[name] for name in quality_names if bool(automatic.get(name, False))]
     status = str(event.get("status", "—"))
     origin = str(event.get("origin", "—"))
-    return (
-        f"EventID: {event.get('event_id', '—')}",
-        f"状态 / 来源: {STATUS_LABELS.get(status, status)} / {ORIGIN_LABELS.get(origin, origin)}",
-        f"审阅修订号: {event.get('revision', '—')}",
-        f"扫描 ID: {event.get('current_scan_id', '—')}",
-        f"峰顶时间: {_fmt(event.get('current_apex_time_sec'))} s",
-        f"PC34 强度: {_fmt(event.get('current_apex_intensity'))}",
-        f"PC34 m/z: {_fmt(scan.get('pc34_760_mz_at_max_intensity'), 9)}",
-        f"PC34 ppm 误差: {_fmt(scan.get('pc34_760_ppm_error_at_max_intensity'))}",
-        f"MS782 强度: {_fmt(scan.get('qc_782_max_intensity'))}",
-        f"TIC: {_fmt(scan.get('tic'))}",
-        f"峰显著度 Prominence: {_fmt(automatic.get('peak_prominence'))}",
-        f"峰宽 Width: {_fmt(automatic.get('peak_width_sec'))} s",
-        f"原始 support: {_fmt(automatic.get('left_sec'))}–{_fmt(automatic.get('right_sec'))} s",
-        f"吸附偏移: {_fmt(event.get('snap_offset_sec'))} s",
-        "质量标记: " + ("；".join(flags) if flags else "无"),
-    )
+    apex_sec = event.get("current_apex_time_sec")
+    try:
+        apex_min = float(apex_sec) / 60.0
+    except (TypeError, ValueError):
+        apex_min = None
+    lines = [
+        f"状态：{STATUS_LABELS.get(status, status)}  ·  来源：{ORIGIN_LABELS.get(origin, origin)}",
+        f"扫描编号：{event.get('current_scan_id', '—')}",
+        f"峰顶时间：{_fmt(apex_min)} min  ({_fmt(apex_sec)} s)",
+        (
+            f"PC34：强度 {_fmt(event.get('current_apex_intensity'))}  ·  "
+            f"m/z {_fmt(scan.get('pc34_760_mz_at_max_intensity'), 9)}  ·  "
+            f"误差 {_fmt(scan.get('pc34_760_ppm_error_at_max_intensity'))} ppm"
+        ),
+        f"MS782：{_fmt(scan.get('qc_782_max_intensity'))}  ·  TIC：{_fmt(scan.get('tic'))}",
+    ]
+    if automatic:
+        lines.extend(
+            (
+                (
+                    f"峰形：显著度 {_fmt(automatic.get('peak_prominence'))}  ·  "
+                    f"宽度 {_fmt(automatic.get('peak_width_sec'))} s"
+                ),
+                (
+                    f"允许调整范围：{_fmt(automatic.get('left_sec'))}–"
+                    f"{_fmt(automatic.get('right_sec'))} s"
+                ),
+            )
+        )
+    snap_offset = event.get("snap_offset_sec")
+    if origin != "automatic" and snap_offset is not None:
+        lines.append(f"吸附偏移：{_fmt(snap_offset)} s")
+    lines.append("质量提示：" + ("；".join(flags) if flags else "未发现明显异常"))
+    return tuple(lines)
 
 
 TEXT_INPUT_WIDGET_CLASSES = frozenset(

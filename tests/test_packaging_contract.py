@@ -8,6 +8,7 @@ from pathlib import Path
 from desktop_bundle.build_desktop import build_arguments, locate_executable
 from ms_event_studio import __version__
 from ms_event_studio.desktop import _packaged_scientific_smoke
+from ms_event_studio.theme import enable_high_dpi
 
 
 class PackagingContractTest(unittest.TestCase):
@@ -18,7 +19,19 @@ class PackagingContractTest(unittest.TestCase):
         self.assertEqual(result["human_rows"], 1)
         self.assertEqual(result["machine_rows"], 3)
         self.assertGreater(result["display_points"], 0)
-        self.assertEqual(__version__, "0.2.0.dev2")
+        self.assertEqual(__version__, "0.2.0.dev3")
+
+    def test_native_ui_enables_dpi_awareness_without_dotnet_config(self):
+        mode = enable_high_dpi()
+        self.assertIn(
+            mode,
+            {"per-monitor-v2", "per-monitor", "system", "platform-native"},
+        )
+        repository = Path(__file__).resolve().parents[1]
+        self.assertFalse((repository / "desktop_bundle/MS-Event-Studio.exe.config").exists())
+        notes = (repository / "desktop_bundle/README.md").read_text(encoding="utf-8")
+        self.assertIn("Per-Monitor V2", notes)
+        self.assertIn("pywebview/pythonnet/CLR", notes)
 
     def test_build_is_native_windowed_onedir_and_source_root_is_explicit(self):
         repository = Path(__file__).resolve().parents[1]
