@@ -14,7 +14,7 @@ To run the same test/build/archive path as CI on Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File desktop_bundle/build_windows.ps1 `
-  -Version 0.2.0-dev1
+  -Version 0.2.0-dev2
 ```
 
 Without `-PythonExe`, the local script creates and reuses an ignored interpreter
@@ -24,7 +24,7 @@ system/base Python. CI may pass its disposable runner interpreter explicitly.
 On an Apple Silicon Mac:
 
 ```bash
-MS_EVENT_STUDIO_VERSION=0.2.0-dev1 bash desktop_bundle/build_macos.sh
+MS_EVENT_STUDIO_VERSION=0.2.0-dev2 bash desktop_bundle/build_macos.sh
 ```
 
 The macOS script likewise defaults to `build/venv/macos`; `PYTHON_BIN` is an

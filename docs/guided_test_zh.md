@@ -8,32 +8,32 @@
 
 1. 保持整个 `MS-Event-Studio` 文件夹不变，运行其中的
    `MS-Event-Studio.exe`。不要只复制单独的 EXE。
-2. 在欢迎页点击 **Start guided test**，选择一个专门放临时测试文件的目录。
-   程序会创建唯一命名的 Source TXT，并预填一个尚不存在的 Project 目录。
-3. 在 New project 窗口点击 **Analyze source**。预期结果是 1,201 scans，闭区间
-   0–2 min；随后点击 **Create project**。
+2. 在欢迎页点击 **开始引导测试**，选择一个专门放临时测试文件的目录。
+   程序会创建唯一命名的源 TXT，并预填一个尚不存在的项目目录。
+3. 在“新建项目”窗口点击 **分析源文件**。预期结果是 1,201 个谱图、闭区间
+   0–2 min；随后点击 **创建项目**。
 4. 主界面应显示三个自动顶点：0.5、1.0、1.5 min。0.75 min 附近的小峰故意低于
    自动阈值，因此此时不应有事件标记。
 5. 任意选择一个自动事件，确认右侧出现真实 scan、PC34、MS782、TIC、m/z/ppm、
-   prominence、width 与 quality flags。再依次试用 Accepted、Rejected、Pending、
-   Unreviewed；界面不应卡死，状态标记的形状和文字也应变化。
+   prominence、width 与质量标记。再依次试用 **接受**、**排除**、**待定**、
+   **未审阅**；界面不应卡死，状态标记的形状和文字也应变化。
 
 这五步通过后，安装包、解析、检测、绘图、选择与审阅写入的主链路已经可用。
 
 ## 第二轮：完整鼠标 UAT
 
-1. 在 **Reason** 输入框键入 `a r p u`，确认只是正常输入；焦点回到绘图区后，
+1. 在 **操作理由** 输入框键入 `a r p u`，确认只是正常输入；焦点回到绘图区后，
    A/R/P/U 快捷键才应改变状态。
-2. 点击 **Add event [+]**，再点 0.75 min 附近的小峰。预期新增一个绑定真实扫描、
-   默认 Accepted 的人工事件，并显示 snap offset；在已有自动事件 support 内点击时，
+2. 点击 **补充事件 [+]**，再点 0.75 min 附近的小峰。预期新增一个绑定真实扫描、
+   默认“已接受”的人工事件，并显示吸附偏移；在已有自动事件 support 内点击时，
    应定位已有事件而不是制造重复项。
-3. 选择自动事件，点击 **Adjust apex [M]**，在其 immutable support 内选择附近扫描；
+3. 选择自动事件，点击 **调整峰顶 [M]**，在其 immutable support 内选择附近扫描；
    support 外的点击必须失败且不能悄悄改动事件。
-4. 测试 **Undo [Ctrl+Z]** 与 **Redo [Ctrl+Y]**，关闭并重新打开项目，确认状态、
+4. 测试 **撤销 [Ctrl+Z]** 与 **重做 [Ctrl+Y]**，关闭并重新打开项目，确认状态、
    人工事件与撤销历史仍存在。
-5. 打开 **Export** 页签：导出 human CSV，分别检查 pending 关闭/开启；再导出 machine
+5. 打开 **导出** 页签：导出人用 CSV，分别检查“包含待定事件”关闭/开启；再导出机器
    contract 到一个新的空目录，确认有 manifest、Parquet 和 SHA-256 sidecar。
-6. 点击 **Change range...**，输入 0.6–2 min。先阅读 diff，再二次确认应用。0.5-min
+6. 点击 **修改范围…**，输入 0.6–2 min。先阅读差异预览，再二次确认应用。0.5-min
    旧事件应进入 stale/history；新导出不得混入 stale 历史。
 7. 再次关闭并打开项目，确认 active range、review、manual event 与 audit-backed
    Undo/Redo 状态均保留。
@@ -57,16 +57,16 @@ E:\ChenZhi\Tsinghua\Scientific_research\Hu Lab\MS_Event_Studio_UAT\Lin-_MPP
 ```
 
 1. 从 `dist/windows/MS-Event-Studio/MS-Event-Studio.exe` 启动待测包，点击
-   **New project**，选择上述真实 TXT 和一个尚不存在的 UAT 项目目录。
-2. 点击 **Analyze source**。这是对完整 7.38-GiB 源的真实流式读取，不是缓存回放；
-   验证进度持续更新、Cancel 可响应、界面没有假死。不要为了加速而中断正式通过轮次。
+   **新建项目**，选择上述真实 TXT 和一个尚不存在的 UAT 项目目录。
+2. 点击 **分析源文件**。这是对完整 7.38-GiB 源的真实流式读取，不是缓存回放；
+   验证进度持续更新、**取消**可响应、界面没有假死。不要为了加速而中断正式通过轮次。
 3. 记录总 scans、可用起止范围和耗时，再创建一个明确记录起止时间的真实项目。
    首次分析预计是分钟级，后续浏览不得再次读取巨型 TXT。
-4. 检查全图、1-min/10-min 窗口、密集标签、linear/log、筛选、上一/下一窗；自动 apex
+4. 检查全图、1-min/10-min 窗口、密集标签、线性/对数、筛选、上一/下一窗；自动 apex
    必须保持显示，缩放不得把窄峰平均掉。
 5. 抽查多个真实 event 的 scan ID、PC34/MS782/TIC、ppm、width、support 和 quality
-   evidence。至少完成一次 Accepted、Rejected、Pending、Restore、Add、Adjust、
-   Undo/Redo、关闭重开和两类导出。
+   evidence。至少完成一次接受、排除、待定、恢复原始、补充事件、调整峰顶、
+   撤销/重做、关闭重开和两类导出。
 6. 将源文件测试前后的 size、mtime 和 SHA-256 与项目输出记录保存下来；必须完全一致。
 
 合成引导测试回答“程序的已知操作是否按预期工作”；真实文件 UAT 回答“大文件、真实

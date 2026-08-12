@@ -7,9 +7,12 @@ native macOS build/UAT**.
 
 ## Implemented surface
 
-The desktop application opens in a branded, responsive native Tk window with a
-cross-platform peak/apex icon, New, Open, a disposable guided test, and
-friendly-name Recent project actions. New-project inspection performs the one
+The desktop application opens in a Chinese-first, responsive native Tk window
+with the same dark-app-bar, neutral-workspace, compact-card family language as
+LMA Studio. MS Event Studio remains distinct through its cyan peak/apex icon,
+trace-first two-column workbench, and event-evidence inspector. The welcome page
+provides 新建项目, 打开已有项目, a disposable 引导测试, and friendly-name 最近项目
+actions. New-project inspection performs the one
 large source parse, complete stream hash, target-ion extraction, real byte
 progress, and cancellation. Project creation reuses that prepared scan table,
 rechecks source edge identity before and after creation, and publishes only a
@@ -43,7 +46,7 @@ status in the active generation and requires downstream status filtering.
 
 ## Automated gates
 
-The polished source run discovered 82 tests: 81 passed and one symlink test was
+The Chinese-first source run discovered 83 tests: 82 passed and one symlink test was
 skipped solely because the Windows account lacks symlink creation privilege.
 Covered failure paths include corrupt display-cache rebuild, optimistic-write
 rollback, stale range previews, mutation of a previewed detection table,
@@ -89,26 +92,26 @@ review interaction gates.
 
 ## Windows candidate
 
-Built natively on Windows 11 with Python 3.12.3 and PyInstaller 6.21.0 at
-2026-08-12 22:06 CST in the isolated `build/venv/windows` environment. This is
-a local unsigned development candidate, not a
+Rebuilt natively on Windows 11 with Python 3.12.3 and PyInstaller 6.21.0 on
+2026-08-12 in the isolated `build/venv/windows` environment after the
+Chinese-first product-family UI refactor. This is a local unsigned development candidate, not a
 published or code-signed release.
 
 | Field | Value |
 |---|---|
-| Application version | `0.2.0.dev1` |
+| Application version | `0.2.0.dev2` |
 | Bundle mode | `onedir-windowed` |
 | Executable | `dist/windows/MS-Event-Studio/MS-Event-Studio.exe` |
 | Runtime versions | NumPy 2.5.2, pandas 2.3.3, PyArrow 21.0.0, SciPy 1.18.0, Pillow 11.3.0 |
-| Executable SHA-256 | `51f78b31cec4e216e630c08be2273c43771238fb2d328065d4748df97375e776` |
+| Executable SHA-256 | `d2f7dbf5800dd75419cc4f9edac31b24540168fa0b90bad438a70de23ad09b4e` |
 | Bundle file count | 2,427 |
-| Bundle bytes | 240,668,511 |
-| Bundle tree SHA-256 | `c8787b564684c2a9252d8c6200f3752ad2b34618e9c380d2c17142f750903a5f` |
+| Bundle bytes | 240,670,898 |
+| Bundle tree SHA-256 | `48d178beaf5b11151afe443205913c2f8968ae6cd26734fb5294f586774139be` |
 | Packaged smoke | exit 0, `status=ok`, `window_system=win32` |
 | Embedded icon | extracted from EXE and visually verified at small size |
-| Validated archive | `release/MS-Event-Studio-0.2.0-dev1-windows-x64.zip` |
-| Archive bytes | 92,668,750 |
-| Archive SHA-256 | `b904bad00f545e6ad910365c78af61c47551e9ddd3e6647d8904d939ab548065` |
+| Validated archive | `release/MS-Event-Studio-0.2.0-dev2-windows-x64.zip` |
+| Archive bytes | 92,671,672 |
+| Archive SHA-256 | `882dce4251d4fbbfae214db6af215e15dd53d7acc474ad5a0eb831005789b05e` |
 
 The complete per-file manifest and smoke payload are generated at
 `dist/windows/build_manifest.json` and `dist/windows/smoke_test.json`.
@@ -122,7 +125,7 @@ Studio's `macos-14` native-runner pattern. A genuine `.app` candidate still
 must be produced by GitHub Actions and exercised on Apple Silicon:
 
 ```bash
-MS_EVENT_STUDIO_VERSION=0.2.0-dev1 bash desktop_bundle/build_macos.sh
+MS_EVENT_STUDIO_VERSION=0.2.0-dev2 bash desktop_bundle/build_macos.sh
 ```
 
 The local repository currently has no Git remote, so no workflow run is claimed
@@ -130,36 +133,36 @@ yet. See `docs/github_actions_builds.md` for the first push and manual-run path.
 
 ## Mouse UAT checklist
 
-Keep the entire Windows bundle together, run the executable, and click **Start
-guided test**. The application creates a uniquely named disposable source and
+Keep the entire Windows bundle together, run the executable, and click **开始
+引导测试**. The application creates a uniquely named disposable source and
 prefills the project form. A Chinese step-by-step version is maintained in
 `docs/guided_test_zh.md`.
 
-1. Confirm the Welcome screen shows New project, Open project, and no internal
+1. Confirm the welcome screen shows 新建项目, 打开已有项目, and no internal
    schema/version text in Recent projects.
-2. Click Start guided test and choose a disposable parent directory. Click
-   Analyze source; confirm the available closed range becomes 0–2 min,
-   the count is 1,201 scans, and Create project becomes available.
+2. Click 开始引导测试 and choose a disposable parent directory. Click
+   分析源文件; confirm the available closed range becomes 0–2 min,
+   the count is 1,201 scans, and 创建项目 becomes available.
 3. Create range 0–2 min. Confirm three automatic apexes at 0.5, 1.0, and 1.5
    min; the weak local apex at 0.75 min is intentionally below auto threshold.
 4. Pan, change window width, switch linear/log scale, toggle labels, and try all
    filters. These actions must not change review state.
 5. Select each automatic event. Confirm scan IDs 100300, 100600, and 100900 and
    that PC34, MS782, TIC, m/z/ppm, support, and quality evidence are visible.
-6. Apply Accepted, Rejected, Pending, and Restore. Close and reopen the project;
+6. Apply 接受, 排除, 待定, and 恢复原始. Close and reopen the project;
    confirm persistence. Exercise Ctrl+Z/Ctrl+Y and reopen again.
-7. Focus the Reason field and type `a r p u`; confirm typing does not trigger any
+7. Focus the 操作理由 field and type `a r p u`; confirm typing does not trigger any
    review action. Move focus to the canvas and confirm A/R/P/U shortcuts work.
-8. Enter Add mode and click near 0.75 min. Confirm a real scan is added as
+8. Enter 补充事件 mode and click near 0.75 min. Confirm a real scan is added as
    accepted with a displayed snap offset. Clicking within an existing automatic
    support must navigate to it rather than create a duplicate.
-9. Select an automatic event, enter Adjust mode, and click near its apex.
+9. Select an automatic event, enter 调整峰顶 mode, and click near its apex.
    Confirm snapping stays inside immutable support; a click outside support must
    fail without changing the event.
 10. Export human CSV with pending off/on and inspect its six columns. Export a
     machine contract to a new directory and confirm it contains manifest,
     Parquet, and checksum sidecar.
-11. Change the range to 0.6–2 min. Inspect the diff before confirmation, then
+11. Use 修改范围 to set 0.6–2 min. Inspect the diff before confirmation, then
     apply. Confirm the 0.5-min automatic review becomes stale/history while
     mapped events retain EventID. Repeat exports and confirm stale history is
     absent from active outputs.

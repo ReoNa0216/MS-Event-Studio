@@ -11,7 +11,11 @@ frozen at v0.4.4.
 
 ## Desktop candidate
 
-The native Tk desktop application provides:
+The native Tk desktop application now uses a Chinese-first interface and the
+same product-family structure as LMA Studio: a dark application bar, neutral
+workspace, compact bordered cards, and direct task-oriented entry. Its cyan
+peak identity, trace-first review canvas, and event inspector remain distinct.
+It provides:
 
 - a branded, responsive welcome and review interface with a cross-platform
   application icon and a built-in disposable guided test;
@@ -48,7 +52,7 @@ together. The executable alone is not portable.
 `dist/` contains native candidates under test. Only a candidate that has passed
 the packaged smoke test is archived as a ZIP plus SHA-256 under `release/`.
 
-For a first test, click **Start guided test** on the welcome page and follow the
+For a first test, click **开始引导测试** on the welcome page and follow the
 [Chinese guided test](docs/guided_test_zh.md). Candidate hashes and the formal
 exit checklist are recorded in
 [docs/phase2_desktop_and_uat.md](docs/phase2_desktop_and_uat.md).
@@ -89,7 +93,7 @@ python scripts/run_real_regression.py
 python scripts/run_phase2_performance.py
 ```
 
-The polished Phase 2 implementation run discovered 82 tests: 81 passed and one
+The Chinese-first Phase 2 implementation run discovered 83 tests: 82 passed and one
 symlink-escape test was skipped because this Windows account cannot create a
 symlink. All lexical Windows/UNC/drive/ADS/traversal attacks passed. Four
 read-only real-MS regressions passed with canonical summary SHA-256

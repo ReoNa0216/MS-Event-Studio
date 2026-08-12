@@ -18,6 +18,12 @@ from ms_event_studio.desktop_model import (
     filter_events,
     keyboard_command,
 )
+from ms_event_studio.desktop import (
+    FILTER_LABELS,
+    FILTER_VALUES,
+    SCALE_LABELS,
+    SCALE_VALUES,
+)
 
 
 def event(event_id: str, status: str, origin: str, time_ns: int = 100) -> dict:
@@ -31,6 +37,13 @@ def event(event_id: str, status: str, origin: str, time_ns: int = 100) -> dict:
 
 
 class DesktopModelContractTest(unittest.TestCase):
+    def test_chinese_ui_labels_round_trip_to_internal_scientific_values(self):
+        self.assertEqual(FILTER_VALUES[FILTER_LABELS["accepted"]], "accepted")
+        self.assertEqual(FILTER_VALUES[FILTER_LABELS["manual_added"]], "manual_added")
+        self.assertEqual(SCALE_VALUES[SCALE_LABELS["log1p"]], "log1p")
+        for label in (*FILTER_LABELS.values(), *SCALE_LABELS.values()):
+            self.assertTrue(any("\u4e00" <= character <= "\u9fff" for character in label))
+
     def test_viewport_clamps_pan_and_resize_to_closed_analysis_range(self):
         viewport = Viewport(analysis_start_ns=0, analysis_end_ns=1_000, start_ns=100, window_ns=300)
         self.assertEqual(viewport.pan(-10_000).start_ns, 0)
@@ -133,7 +146,16 @@ class DesktopModelContractTest(unittest.TestCase):
             },
         )
         text = "\n".join(lines)
-        for required in ("m/z", "ppm", "Prominence", "Width", "collision_risk_high"):
+        for required in (
+            "状态 / 来源",
+            "已接受",
+            "人工调整",
+            "m/z",
+            "ppm",
+            "Prominence",
+            "Width",
+            "collision_risk_high",
+        ):
             self.assertIn(required, text)
 
     def test_keyboard_map_exposes_review_and_navigation_without_mouse(self):

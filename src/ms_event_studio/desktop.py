@@ -50,15 +50,25 @@ from .window_service import ProjectWindowService
 
 APP_TITLE = "MS Event Studio"
 FILTER_LABELS = {
-    "all": "All",
-    "unreviewed": "Unreviewed",
-    "accepted": "Accepted",
-    "rejected": "Rejected",
-    "pending": "Pending",
-    "manual_added": "Manual added",
-    "manual_adjusted": "Manual adjusted",
-    "stale": "Stale generation",
+    "all": "全部活动事件",
+    "unreviewed": "未审阅",
+    "accepted": "已接受",
+    "rejected": "已排除",
+    "pending": "待定",
+    "manual_added": "人工补充",
+    "manual_adjusted": "人工调整",
+    "stale": "历史失效事件",
 }
+FILTER_VALUES = {label: value for value, label in FILTER_LABELS.items()}
+SCALE_LABELS = {"linear": "线性", "log1p": "对数 log1p"}
+SCALE_VALUES = {label: value for value, label in SCALE_LABELS.items()}
+STATUS_LABELS = {
+    "unreviewed": "未审阅",
+    "accepted": "已接受",
+    "rejected": "已排除",
+    "pending": "待定",
+}
+PHASE_LABELS = {"parsing": "正在解析", "complete": "解析完成"}
 
 
 def default_recent_path() -> Path:
@@ -245,7 +255,7 @@ class NewProjectDialog:
         self.app = app
         self.guided = bool(guided)
         self.window = tk.Toplevel(app.root)
-        self.window.title("New MS Event Studio project")
+        self.window.title("新建项目 · MS Event Studio")
         self.window.geometry("820x720")
         self.window.minsize(740, 680)
         self.window.configure(background=PALETTE.canvas)
@@ -264,17 +274,17 @@ class NewProjectDialog:
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(1, weight=1)
 
-        header = ttk.Frame(outer, style="Hero.TFrame", padding=(24, 18))
+        header = ttk.Frame(outer, style="Hero.TFrame", padding=(22, 14))
         header.grid(row=0, column=0, sticky="ew", pady=(0, 14))
         ttk.Label(header, image=app.app_icon_64, style="HeroBody.TLabel").pack(
             side="left", padx=(0, 16)
         )
         heading = ttk.Frame(header, style="Hero.TFrame")
         heading.pack(side="left", fill="x", expand=True)
-        ttk.Label(heading, text="CREATE A PORTABLE PROJECT", style="HeroSubtitle.TLabel").pack(
+        ttk.Label(heading, text="MS Event Studio · 新建项目", style="HeroSubtitle.TLabel").pack(
             anchor="w"
         )
-        ttk.Label(heading, text="Inspect once. Review with confidence.", style="HeroTitle.TLabel").pack(
+        ttk.Label(heading, text="一次解析，建立可审计的事件项目", style="HeroTitle.TLabel").pack(
             anchor="w", pady=(2, 0)
         )
 
@@ -285,7 +295,7 @@ class NewProjectDialog:
         if self.guided:
             ttk.Label(
                 form,
-                text="GUIDED TEST  ·  Analyze the prepared 2-minute source, then create range 0–2 min.",
+                text="引导测试 · 已准备 2 分钟合成源；先分析，再创建 0–2 min 项目。",
                 style="InfoPill.TLabel",
             ).grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 12))
 
@@ -295,8 +305,8 @@ class NewProjectDialog:
         self.start_var = tk.StringVar(value="0")
         self.end_var = tk.StringVar(value="2" if self.guided else "60")
         fields = (
-            ("Raw MS text", self.source_var, self._browse_source),
-            ("Project directory", self.target_var, self._browse_target),
+            ("原始 MS 文本", self.source_var, self._browse_source),
+            ("项目目录", self.target_var, self._browse_target),
         )
         row_offset = 1 if self.guided else 0
         for row, (label, variable, command) in enumerate(fields, start=row_offset):
@@ -307,17 +317,17 @@ class NewProjectDialog:
                 row=row, column=1, sticky="ew", padx=10, pady=4
             )
             ttk.Button(
-                form, text="Browse…", command=command, style="Secondary.TButton"
+                form, text="浏览…", command=command, style="Secondary.TButton"
             ).grid(row=row, column=2, pady=4)
         display_row = row_offset + 2
-        ttk.Label(form, text="Display name", style="SurfaceMuted.TLabel").grid(
+        ttk.Label(form, text="项目名称", style="SurfaceMuted.TLabel").grid(
             row=display_row, column=0, sticky="w", pady=7
         )
         ttk.Entry(form, textvariable=self.name_var).grid(
             row=display_row, column=1, columnspan=2, sticky="ew", padx=(10, 0), pady=4
         )
 
-        range_frame = ttk.LabelFrame(form, text="Closed analysis range (minutes)", padding=12)
+        range_frame = ttk.LabelFrame(form, text="分析范围 · 闭区间（分钟）", padding=12)
         range_frame.grid(
             row=display_row + 1,
             column=0,
@@ -327,29 +337,29 @@ class NewProjectDialog:
         )
         range_frame.columnconfigure(1, weight=1)
         range_frame.columnconfigure(3, weight=1)
-        ttk.Label(range_frame, text="Start", style="SurfaceMuted.TLabel").grid(row=0, column=0)
+        ttk.Label(range_frame, text="起点", style="SurfaceMuted.TLabel").grid(row=0, column=0)
         self.start_entry = ttk.Entry(range_frame, textvariable=self.start_var, width=14)
         self.start_entry.grid(row=0, column=1, sticky="ew", padx=(7, 18))
-        ttk.Label(range_frame, text="End", style="SurfaceMuted.TLabel").grid(row=0, column=2)
+        ttk.Label(range_frame, text="终点", style="SurfaceMuted.TLabel").grid(row=0, column=2)
         self.end_entry = ttk.Entry(range_frame, textvariable=self.end_var, width=14)
         self.end_entry.grid(row=0, column=3, sticky="ew", padx=(7, 0))
-        self.extent_var = tk.StringVar(value="Analyze the source once to reveal its available range.")
+        self.extent_var = tk.StringVar(value="分析源文件后，将在此显示可用时间范围。")
         ttk.Label(range_frame, textvariable=self.extent_var, style="SurfaceMuted.TLabel").grid(
             row=1, column=0, columnspan=4, sticky="w", pady=(8, 0)
         )
 
-        advanced = ttk.LabelFrame(form, text="Scientific configuration · read only", padding=11)
+        advanced = ttk.LabelFrame(form, text="科学配置 · 只读", padding=11)
         advanced.grid(
             row=display_row + 2, column=0, columnspan=3, sticky="ew", pady=7
         )
         ttk.Label(
             advanced,
-            text="PC34 760.5851 / QC 782.5616 · closed ±12 ppm · adaptive v0.4.4 baseline",
+            text="PC34 760.5851 / QC 782.5616 · 闭区间 ±12 ppm · 自适应 v0.4.4 基线",
             style="Surface.TLabel",
         ).pack(anchor="w")
         ttk.Label(
             advanced,
-            text="Scientific parameters remain version-bound; range changes use a previewed new generation.",
+            text="科学参数与版本绑定；修改范围时会先预览差异，再生成新的检测代次。",
             style="SurfaceMuted.TLabel",
         ).pack(anchor="w", pady=(4, 0))
 
@@ -364,14 +374,14 @@ class NewProjectDialog:
             pady=(16, 7),
         )
         self.status_var = tk.StringVar(
-            value="Guided source ready · begin with Analyze source." if self.guided else "Ready"
+            value="引导源已就绪 · 请先分析源文件。" if self.guided else "准备就绪"
         )
         ttk.Label(form, textvariable=self.status_var, style="SurfaceMuted.TLabel").grid(
             row=display_row + 4, column=0, columnspan=2, sticky="w"
         )
         self.primary = ttk.Button(
             form,
-            text="Analyze source",
+            text="分析源文件",
             command=self._primary,
             style="Primary.TButton",
         )
@@ -391,14 +401,14 @@ class NewProjectDialog:
         if self.prepared_path is not None and current != self.prepared_path:
             self.prepared = None
             self.prepared_path = None
-            self.extent_var.set("Source changed; analyze it before project creation.")
-            self.primary.configure(text="Analyze source")
+            self.extent_var.set("源文件已更改；创建项目之前请重新分析。")
+            self.primary.configure(text="分析源文件")
 
     def _browse_source(self) -> None:
         chosen = self.filedialog.askopenfilename(
             parent=self.window,
-            title="Select raw MS text export",
-            filetypes=(("MS text exports", "*.txt"), ("All files", "*.*")),
+            title="选择原始 MS 文本导出",
+            filetypes=(("MS 文本导出", "*.txt"), ("所有文件", "*.*")),
         )
         if chosen:
             self.source_var.set(chosen)
@@ -408,14 +418,14 @@ class NewProjectDialog:
     def _browse_target(self) -> None:
         chosen = self.filedialog.askdirectory(
             parent=self.window,
-            title="Select an empty project directory or its new location",
+            title="选择空项目目录，或选择新项目的保存位置",
             mustexist=False,
         )
         if chosen:
             self.target_var.set(chosen)
 
     def _set_running(self, text: str) -> None:
-        self.primary.configure(text="Cancel")
+        self.primary.configure(text="取消")
         self.status_var.set(text)
         self.progress.configure(value=0.0)
 
@@ -446,15 +456,15 @@ class NewProjectDialog:
     def _primary(self) -> None:
         if self.state.running:
             self.state.cancel()
-            self.status_var.set("Cancellation requested…")
+            self.status_var.set("已请求取消…")
             return
         source_text = self.source_var.get().strip()
         if not source_text:
-            self.messagebox.showerror(APP_TITLE, "Choose a raw MS text file.", parent=self.window)
+            self.messagebox.showerror(APP_TITLE, "请选择原始 MS 文本文件。", parent=self.window)
             return
         source = Path(source_text).resolve()
         if self.prepared is None or self.prepared_path != source:
-            self._set_running("Reading, hashing, and extracting the MS source…")
+            self._set_running("正在读取、校验并提取 MS 源文件…")
             self._start_thread(
                 lambda: inspect_project_source(
                     source,
@@ -469,7 +479,7 @@ class NewProjectDialog:
         if not target or not name:
             self.messagebox.showerror(
                 APP_TITLE,
-                "Choose a project directory and display name.",
+                "请选择项目目录，并填写项目名称。",
                 parent=self.window,
             )
             return
@@ -482,7 +492,7 @@ class NewProjectDialog:
         if not self.prepared.start_ns <= start_ns <= end_ns <= self.prepared.end_ns:
             self.messagebox.showerror(
                 APP_TITLE,
-                "The closed analysis range must stay inside the inspected source extent.",
+                "分析闭区间必须位于已解析源文件的可用范围内。",
                 parent=self.window,
             )
             return
@@ -496,7 +506,7 @@ class NewProjectDialog:
             progress_callback=self._progress_callback,
         )
         prepared = self.prepared
-        self._set_running("Detecting events and atomically publishing the project…")
+        self._set_running("正在识别事件并原子发布项目…")
         self._start_thread(
             lambda: create_project(request, prepared_source=prepared),
             "created",
@@ -514,8 +524,8 @@ class NewProjectDialog:
                 gib = progress.bytes_read / (1024**3)
                 total_gib = progress.total_bytes / (1024**3)
                 self.status_var.set(
-                    f"{progress.phase}: {gib:.2f}/{total_gib:.2f} GiB · "
-                    f"{progress.parsed_spectra:,} spectra"
+                    f"{PHASE_LABELS.get(progress.phase, progress.phase)}："
+                    f"{gib:.2f}/{total_gib:.2f} GiB · {progress.parsed_spectra:,} 个谱图"
                 )
             elif kind == "inspected":
                 self.prepared = payload
@@ -523,22 +533,22 @@ class NewProjectDialog:
                 self.start_var.set(_minutes_text(payload.start_ns))
                 self.end_var.set(_minutes_text(payload.end_ns))
                 self.extent_var.set(
-                    f"Available closed range: {_minutes_text(payload.start_ns)}–"
-                    f"{_minutes_text(payload.end_ns)} min · {len(payload.parsed.scans):,} spectra"
+                    f"可用闭区间：{_minutes_text(payload.start_ns)}–"
+                    f"{_minutes_text(payload.end_ns)} min · {len(payload.parsed.scans):,} 个谱图"
                 )
                 self.progress.configure(value=1.0)
-                self.status_var.set("Source inspection complete; choose the desired range and create.")
-                self.primary.configure(text="Create project")
+                self.status_var.set("源文件分析完成；请选择范围并创建项目。")
+                self.primary.configure(text="创建项目")
             elif kind == "created":
                 self.progress.configure(value=1.0)
-                self.status_var.set("Project created.")
+                self.status_var.set("项目已创建。")
                 self.window.grab_release()
                 self.window.destroy()
                 self.app.open_project(payload.project_dir)
                 return
             elif kind == "error":
-                self.primary.configure(text="Create project" if self.prepared else "Analyze source")
-                self.status_var.set("Cancelled" if self.state.cancel_requested else "Operation failed")
+                self.primary.configure(text="创建项目" if self.prepared else "分析源文件")
+                self.status_var.set("已取消" if self.state.cancel_requested else "操作失败")
                 if not self.state.cancel_requested:
                     self.messagebox.showerror(APP_TITLE, str(payload), parent=self.window)
             if self.closing and not self.state.running:
@@ -552,7 +562,7 @@ class NewProjectDialog:
         if self.state.running:
             self.closing = True
             self.state.cancel()
-            self.status_var.set("Cancellation requested; waiting for a safe parser boundary…")
+            self.status_var.set("已请求取消；正在等待安全的谱图边界…")
         else:
             self.window.grab_release()
             self.window.destroy()
@@ -607,7 +617,7 @@ class ReviewView:
         brand.pack(side="left", fill="x", expand=True)
         ttk.Label(
             brand,
-            text="MS EVENT STUDIO",
+            text="MS Event Studio · 事件审阅",
             style="HeroSubtitle.TLabel",
             font=(font_family(), 9, "bold"),
         ).pack(anchor="w")
@@ -619,7 +629,7 @@ class ReviewView:
         ).pack(anchor="w")
         ttk.Button(
             appbar,
-            text="Home",
+            text="返回首页",
             command=self.app.show_welcome,
             style="Ghost.TButton",
         ).pack(side="right")
@@ -631,28 +641,28 @@ class ReviewView:
         self.window_var = tk.StringVar(
             value=_minutes_text(self.viewport.window_ns)
         )
-        self.filter_var = tk.StringVar(value="all")
-        self.scale_var = tk.StringVar(value="linear")
+        self.filter_var = tk.StringVar(value=FILTER_LABELS["all"])
+        self.scale_var = tk.StringVar(value=SCALE_LABELS["linear"])
         self.labels_var = tk.BooleanVar(value=True)
         self.include_pending_var = tk.BooleanVar(value=False)
 
-        ttk.Label(toolbar, text="VIEW WINDOW", style="Eyebrow.TLabel").grid(
+        ttk.Label(toolbar, text="信号窗口", style="Eyebrow.TLabel").grid(
             row=0, column=0, columnspan=7, sticky="w", pady=(0, 5)
         )
-        ttk.Label(toolbar, text="Start min", style="SurfaceMuted.TLabel").grid(
+        ttk.Label(toolbar, text="起点 min", style="SurfaceMuted.TLabel").grid(
             row=1, column=0, sticky="w"
         )
         ttk.Entry(toolbar, textvariable=self.start_var, width=10).grid(
             row=1, column=1, padx=(5, 11)
         )
-        ttk.Label(toolbar, text="Window min", style="SurfaceMuted.TLabel").grid(
+        ttk.Label(toolbar, text="窗宽 min", style="SurfaceMuted.TLabel").grid(
             row=1, column=2, sticky="w"
         )
         ttk.Entry(toolbar, textvariable=self.window_var, width=9).grid(
             row=1, column=3, padx=(5, 7)
         )
         ttk.Button(
-            toolbar, text="Apply", command=self.apply_viewport, style="Primary.TButton"
+            toolbar, text="应用", command=self.apply_viewport, style="Primary.TButton"
         ).grid(row=1, column=4, padx=(0, 9))
         ttk.Button(
             toolbar,
@@ -671,46 +681,46 @@ class ReviewView:
 
         settings = ttk.Frame(toolbar, style="Surface.TFrame")
         settings.grid(row=0, column=8, rowspan=2, sticky="e")
-        ttk.Label(settings, text="Filter", style="SurfaceMuted.TLabel").grid(
+        ttk.Label(settings, text="筛选", style="SurfaceMuted.TLabel").grid(
             row=0, column=0, sticky="w", padx=(0, 5)
         )
         filter_box = ttk.Combobox(
             settings,
             textvariable=self.filter_var,
-            values=FILTERS,
+            values=tuple(FILTER_LABELS[value] for value in FILTERS),
             width=15,
             state="readonly",
         )
         filter_box.grid(row=0, column=1, padx=(0, 10))
         filter_box.bind("<<ComboboxSelected>>", lambda _event: self.reload_window())
-        ttk.Label(settings, text="Y scale", style="SurfaceMuted.TLabel").grid(
+        ttk.Label(settings, text="Y 轴", style="SurfaceMuted.TLabel").grid(
             row=0, column=2, sticky="w", padx=(0, 5)
         )
         scale_box = ttk.Combobox(
             settings,
             textvariable=self.scale_var,
-            values=("linear", "log1p"),
+            values=tuple(SCALE_LABELS.values()),
             width=8,
             state="readonly",
         )
         scale_box.grid(row=0, column=3, padx=(0, 9))
         scale_box.bind("<<ComboboxSelected>>", lambda _event: self.render())
         ttk.Checkbutton(
-            settings, text="Labels", variable=self.labels_var, command=self.render
+            settings, text="标签", variable=self.labels_var, command=self.render
         ).grid(row=0, column=4, padx=(0, 9))
         ttk.Button(
             settings,
-            text="Change range…",
+            text="修改范围…",
             command=self.change_range,
             style="Warning.TButton",
         ).grid(row=0, column=5)
 
-        if str(self.service.project.manifest["display_name"]).startswith("Guided test"):
+        if str(self.service.project.manifest["display_name"]).startswith(("Guided test", "引导测试")):
             ttk.Label(
                 self.frame,
                 text=(
-                    "GUIDED TEST  ·  Expect automatic apexes at 0.5 / 1.0 / 1.5 min. "
-                    "Use Add near 0.75 min, then test status, Undo/Redo, exports, and range 0.6–2 min."
+                    "引导测试 · 自动峰顶应位于 0.5 / 1.0 / 1.5 min；在 0.75 min 附近补峰，"
+                    "再测试状态、撤销/重做、导出和 0.6–2 min 范围变更。"
                 ),
                 style="InfoPill.TLabel",
             ).pack(fill="x", padx=12, pady=(0, 7))
@@ -726,12 +736,12 @@ class ReviewView:
 
         plot_heading = ttk.Frame(plot_frame, style="Surface.TFrame")
         plot_heading.pack(fill="x", pady=(0, 8))
-        ttk.Label(plot_heading, text="PC34 / MS760 TRACE", style="Eyebrow.TLabel").pack(
+        ttk.Label(plot_heading, text="PC34 / MS760 信号", style="Eyebrow.TLabel").pack(
             side="left"
         )
         ttk.Label(
             plot_heading,
-            text="Apex overlays are never removed by display downsampling",
+            text="显示降采样不会移除事件峰顶",
             style="SurfaceMuted.TLabel",
         ).pack(side="right")
 
@@ -748,7 +758,7 @@ class ReviewView:
         self.canvas.bind("<Button-1>", self._canvas_click)
         self.canvas.bind("<Motion>", self._canvas_motion)
 
-        self.hover_var = tk.StringVar(value="Ready")
+        self.hover_var = tk.StringVar(value="准备就绪")
         ttk.Label(
             plot_frame,
             textvariable=self.hover_var,
@@ -756,8 +766,8 @@ class ReviewView:
             style="SurfaceMuted.TLabel",
         ).pack(fill="x", pady=(6, 0))
 
-        ttk.Label(side, text="EVENT INSPECTOR", style="Eyebrow.TLabel").pack(anchor="w")
-        ttk.Label(side, text="Selected event evidence", style="SurfaceTitle.TLabel").pack(
+        ttk.Label(side, text="事件检查器", style="Eyebrow.TLabel").pack(anchor="w")
+        ttk.Label(side, text="所选事件证据", style="SurfaceTitle.TLabel").pack(
             anchor="w", pady=(2, 8)
         )
         evidence_frame = ttk.Frame(side, style="Surface.TFrame")
@@ -788,13 +798,13 @@ class ReviewView:
         tabs.pack(fill="both", expand=True, pady=(9, 0))
         review_tab = ttk.Frame(tabs, padding=6, style="Surface.TFrame")
         export_tab = ttk.Frame(tabs, padding=10, style="Surface.TFrame")
-        tabs.add(review_tab, text="Review & edit")
-        tabs.add(export_tab, text="Export")
+        tabs.add(review_tab, text="审阅与编辑")
+        tabs.add(export_tab, text="导出")
 
-        status = ttk.LabelFrame(review_tab, text="Review status", padding=6)
+        status = ttk.LabelFrame(review_tab, text="审阅状态", padding=6)
         status.pack(fill="x", pady=(8, 4))
         for column, (label, value) in enumerate(
-            (("Accept [A]", "accepted"), ("Reject [R]", "rejected"), ("Pending [P]", "pending"))
+            (("接受 [A]", "accepted"), ("排除 [R]", "rejected"), ("待定 [P]", "pending"))
         ):
             style = {
                 "accepted": "Success.TButton",
@@ -813,7 +823,7 @@ class ReviewView:
             status.columnconfigure(column, weight=1)
         ttk.Button(
             status,
-            text="Unreviewed [U]",
+            text="未审阅 [U]",
             command=lambda: self.set_status("unreviewed"),
             style="Secondary.TButton",
             padding=(6, 5),
@@ -822,7 +832,7 @@ class ReviewView:
         )
         ttk.Button(
             status,
-            text="Restore",
+            text="恢复原始",
             command=self.restore,
             style="Secondary.TButton",
             padding=(6, 5),
@@ -830,11 +840,11 @@ class ReviewView:
             row=1, column=1, columnspan=2, sticky="ew", padx=2, pady=(5, 0)
         )
 
-        edit = ttk.LabelFrame(review_tab, text="Physical edit", padding=6)
+        edit = ttk.LabelFrame(review_tab, text="物理峰编辑", padding=6)
         edit.pack(fill="x", pady=4)
         self.add_button = ttk.Button(
             edit,
-            text="Add event [+]",
+            text="补充事件 [+]",
             command=lambda: self.set_mode("add"),
             style="Primary.TButton",
             padding=(6, 5),
@@ -842,7 +852,7 @@ class ReviewView:
         self.add_button.grid(row=0, column=0, sticky="ew", padx=2)
         self.adjust_button = ttk.Button(
             edit,
-            text="Adjust apex [M]",
+            text="调整峰顶 [M]",
             command=lambda: self.set_mode("adjust"),
             style="Secondary.TButton",
             padding=(6, 5),
@@ -852,7 +862,7 @@ class ReviewView:
         edit.columnconfigure(1, weight=1)
         ttk.Button(
             edit,
-            text="Undo [Ctrl+Z]",
+            text="撤销 [Ctrl+Z]",
             command=self.undo,
             style="Toolbar.TButton",
             padding=(6, 4),
@@ -861,7 +871,7 @@ class ReviewView:
         )
         ttk.Button(
             edit,
-            text="Redo [Ctrl+Y]",
+            text="重做 [Ctrl+Y]",
             command=self.redo,
             style="Toolbar.TButton",
             padding=(6, 4),
@@ -869,50 +879,50 @@ class ReviewView:
             row=1, column=1, sticky="ew", padx=2, pady=(5, 0)
         )
 
-        ttk.Label(review_tab, text="Reason · stored in audit", style="SurfaceMuted.TLabel").pack(
+        ttk.Label(review_tab, text="操作理由 · 写入审计历史", style="SurfaceMuted.TLabel").pack(
             anchor="w", pady=(7, 3)
         )
         self.reason_var = tk.StringVar()
         ttk.Entry(review_tab, textvariable=self.reason_var).pack(fill="x")
 
-        ttk.Label(export_tab, text="ACTIVE GENERATION", style="Eyebrow.TLabel").pack(
+        ttk.Label(export_tab, text="当前活动代次", style="Eyebrow.TLabel").pack(
             anchor="w"
         )
         ttk.Label(
             export_tab,
-            text="Stale generation history remains in the project and is excluded from active exports.",
+            text="历史失效代次保留在项目中，但不会进入当前导出。",
             style="SurfaceMuted.TLabel",
             wraplength=300,
             justify="left",
         ).pack(anchor="w", fill="x", pady=(3, 12))
-        export = ttk.LabelFrame(export_tab, text="Human CSV", padding=8)
+        export = ttk.LabelFrame(export_tab, text="人用 CSV", padding=8)
         export.pack(fill="x")
         ttk.Checkbutton(
             export,
-            text="Include pending (accepted is always included)",
+            text="包含待定事件（始终包含已接受事件）",
             variable=self.include_pending_var,
         ).pack(anchor="w")
         ttk.Button(
             export,
-            text="Export human CSV…",
+            text="导出人用 CSV…",
             command=self.export_human,
             style="Primary.TButton",
         ).pack(fill="x", pady=(7, 0))
-        machine = ttk.LabelFrame(export_tab, text="Downstream machine contract", padding=8)
+        machine = ttk.LabelFrame(export_tab, text="下游机器契约", padding=8)
         machine.pack(fill="x", pady=(9, 0))
         ttk.Label(
             machine,
-            text="Versioned manifest + Parquet + SHA-256 sidecar.",
+            text="版本化 manifest + Parquet + SHA-256 校验文件。",
             style="SurfaceMuted.TLabel",
         ).pack(anchor="w", pady=(0, 6))
         ttk.Button(
             machine,
-            text="Export machine contract…",
+            text="导出机器契约…",
             command=self.export_machine,
             style="Secondary.TButton",
         ).pack(fill="x")
 
-        self.status_var = tk.StringVar(value="Ready")
+        self.status_var = tk.StringVar(value="准备就绪")
         status_bar = ttk.Frame(self.frame, style="Status.TFrame", padding=(12, 5))
         status_bar.pack(fill="x")
         ttk.Label(
@@ -961,11 +971,17 @@ class ReviewView:
             point_budget=max(200, int(self.canvas.winfo_width() * 1.5)),
         )
 
+    def _filter_mode(self) -> str:
+        return FILTER_VALUES.get(self.filter_var.get(), "all")
+
+    def _scale_mode(self) -> str:
+        return SCALE_VALUES.get(self.scale_var.get(), "linear")
+
     def reload_window(self, *, keep_model: bool = False) -> None:
         try:
             snapshot = self.service.window(
                 self._request(),
-                status_filter=self.filter_var.get(),
+                status_filter=self._filter_mode(),
                 selected_event_id=self.selected_event_id,
                 maximum_labels=max(4, self.canvas.winfo_width() // 90),
             )
@@ -981,8 +997,8 @@ class ReviewView:
         self.render()
         self._update_details()
         self.status_var.set(
-            f"{len(snapshot.events):,} visible events · {len(snapshot.trace):,} trace points · "
-            f"display bucket {snapshot.bucket_size} · one SQLite snapshot"
+            f"{len(snapshot.events):,} 个可见事件 · {len(snapshot.trace):,} 个曲线点 · "
+            f"显示分桶 {snapshot.bucket_size} · 单次 SQLite 快照"
         )
 
     def apply_viewport(self) -> None:
@@ -1006,7 +1022,7 @@ class ReviewView:
         self.reload_window()
 
     def _visible_model_events(self) -> list[dict[str, Any]]:
-        rows = filter_events(self.model.events(), self.filter_var.get())
+        rows = filter_events(self.model.events(), self._filter_mode())
         return [row for row in rows if self.viewport.contains(int(row["current_apex_time_ns"]))]
 
     def render(self) -> None:
@@ -1029,7 +1045,7 @@ class ReviewView:
             start_ns=self.viewport.start_ns,
             end_ns=max(self.viewport.start_ns + 1, self.viewport.end_ns),
             maximum_signal=maximum,
-            log_scale=self.scale_var.get() == "log1p",
+            log_scale=self._scale_mode() == "log1p",
             # Keep a dedicated legend lane above the scientific plot so a
             # full-scale apex can never collide with the status key.
             top=44,
@@ -1059,7 +1075,7 @@ class ReviewView:
             8,
             transform.top,
             anchor="nw",
-            text=("log1p " if transform.log_scale else "") + f"max {maximum:.4g}",
+            text=("log1p · " if transform.log_scale else "") + f"最大值 {maximum:.4g}",
             fill=PALETTE.muted,
             font=("TkDefaultFont", 8),
         )
@@ -1125,7 +1141,7 @@ class ReviewView:
             canvas.create_text(
                 legend_x,
                 18,
-                text=f"{token} {status}",
+                text=f"{token} {STATUS_LABELS[status]}",
                 anchor="w",
                 fill=encoding.color,
             )
@@ -1223,20 +1239,20 @@ class ReviewView:
 
     def set_status(self, status: str) -> None:
         if self.project_mutation_pending:
-            self.status_var.set("Wait for the range change to finish.")
+            self.status_var.set("请等待分析范围变更完成。")
             return
         current = self._selected()
         if current is None:
-            self.status_var.set("Select an event first.")
+            self.status_var.set("请先选择一个事件。")
             return
         try:
             token = self.model.begin_status(current["event_id"], status)
         except Exception as exc:
-            self.status_var.set(str(exc))
+            self.status_var.set(f"无法更新状态：{exc}")
             return
         self.render()
         self._update_details()
-        self.status_var.set(f"Saving {status}…")
+        self.status_var.set(f"正在保存“{STATUS_LABELS.get(status, status)}”…")
         reason = self._reason()
 
         def work():
@@ -1282,20 +1298,20 @@ class ReviewView:
 
     def restore(self) -> None:
         if self.project_mutation_pending:
-            self.status_var.set("Wait for the range change to finish.")
+            self.status_var.set("请等待分析范围变更完成。")
             return
         current = self._selected()
         if current is None:
-            self.status_var.set("Select an event first.")
+            self.status_var.set("请先选择一个事件。")
             return
         try:
             token = self.model.begin_patch(current["event_id"], self._restore_patch(current))
         except Exception as exc:
-            self.status_var.set(str(exc))
+            self.status_var.set(f"无法恢复事件：{exc}")
             return
         self.render()
         self._update_details()
-        self.status_var.set("Restoring immutable/created apex…")
+        self.status_var.set("正在恢复原始自动峰顶或人工创建峰顶…")
         reason = self._reason()
 
         def work():
@@ -1317,27 +1333,27 @@ class ReviewView:
         self.model.commit(token, result)
         self.selected_event_id = result["event_id"]
         self.reload_window()
-        self.status_var.set("Saved and appended to audit history.")
+        self.status_var.set("已保存，并追加到审计历史。")
 
     def _fail_optimistic(self, token, error: BaseException) -> None:
         self.model.rollback(token, error)
         self.render()
         self._update_details()
-        self.status_var.set(f"Save failed; visual state rolled back: {error}")
+        self.status_var.set(f"保存失败，界面状态已回滚：{error}")
         self.messagebox.showerror(APP_TITLE, str(error), parent=self.app.root)
 
     def set_mode(self, mode: str) -> None:
         if mode not in {"select", "add", "adjust"}:
             raise ValueError(mode)
         if mode == "adjust" and self._selected() is None:
-            self.status_var.set("Select an event before adjusting its apex.")
+            self.status_var.set("调整峰顶前，请先选择一个事件。")
             return
         self.interaction_mode = mode
         self.pending_click_ns = None
         messages = {
-            "select": "Selection mode.",
-            "add": "Add mode: click near a real positive PC34 local apex; Esc cancels.",
-            "adjust": "Adjust mode: click within the permitted physical support; Esc cancels.",
+            "select": "选择模式。",
+            "add": "补峰模式：请点击真实的 PC34 正局部峰附近；按 Esc 取消。",
+            "adjust": "调峰模式：请在允许的物理 support 内点击；按 Esc 取消。",
         }
         self.status_var.set(messages[mode])
         self.canvas.configure(cursor="crosshair" if mode != "select" else "arrow")
@@ -1345,11 +1361,11 @@ class ReviewView:
 
     def _submit_add(self, time_ns: int) -> None:
         if self.project_mutation_pending:
-            self.status_var.set("Wait for the range change to finish.")
+            self.status_var.set("请等待分析范围变更完成。")
             return
         self.pending_click_ns = int(time_ns)
         self.render()
-        self.status_var.set("Snapping and saving manual event…")
+        self.status_var.set("正在吸附到真实扫描并保存人工事件…")
         click_sec = time_ns / 1_000_000_000
         reason = self._reason()
 
@@ -1370,7 +1386,7 @@ class ReviewView:
             self.canvas.configure(cursor="arrow")
             self.selected_event_id = result["event_id"]
             self.reload_window()
-            self.status_var.set(f"Added at real scan; snap offset {result['snap_offset_sec']:.6g} s.")
+            self.status_var.set(f"已绑定真实扫描；吸附偏移 {result['snap_offset_sec']:.6g} s。")
 
         def failure(error):
             self.pending_click_ns = None
@@ -1378,17 +1394,17 @@ class ReviewView:
                 self.interaction_mode = "select"
                 self.canvas.configure(cursor="arrow")
                 self.select_event(error.event_id)
-                self.status_var.set("That physical evidence already belongs to an event; navigated to it.")
+                self.status_var.set("该物理证据已属于现有事件，已定位到该事件。")
             else:
                 self.render()
-                self.status_var.set(f"Add failed; no event created: {error}")
+                self.status_var.set(f"补充失败，未创建事件：{error}")
                 self.messagebox.showerror(APP_TITLE, str(error), parent=self.app.root)
 
         self.jobs.submit(work, success, failure)
 
     def _submit_adjust(self, time_ns: int) -> None:
         if self.project_mutation_pending:
-            self.status_var.set("Wait for the range change to finish.")
+            self.status_var.set("请等待分析范围变更完成。")
             return
         current = self._selected()
         if current is None:
@@ -1396,7 +1412,7 @@ class ReviewView:
             return
         self.pending_click_ns = int(time_ns)
         self.render()
-        self.status_var.set("Snapping and saving adjusted apex…")
+        self.status_var.set("正在吸附并保存调整后的峰顶…")
         click_sec = time_ns / 1_000_000_000
         reason = self._reason()
 
@@ -1419,42 +1435,42 @@ class ReviewView:
             self.canvas.configure(cursor="arrow")
             self.selected_event_id = result["event_id"]
             self.reload_window()
-            self.status_var.set(f"Apex adjusted; snap offset {result['snap_offset_sec']:.6g} s.")
+            self.status_var.set(f"峰顶已调整；吸附偏移 {result['snap_offset_sec']:.6g} s。")
 
         def failure(error):
             self.pending_click_ns = None
             self.render()
-            self.status_var.set(f"Adjust failed; visual state unchanged: {error}")
+            self.status_var.set(f"调整失败，界面状态未改变：{error}")
             self.messagebox.showerror(APP_TITLE, str(error), parent=self.app.root)
 
         self.jobs.submit(work, success, failure)
 
     def undo(self) -> None:
         if self.project_mutation_pending:
-            self.status_var.set("Wait for the range change to finish.")
+            self.status_var.set("请等待分析范围变更完成。")
             return
-        self.status_var.set("Undoing and appending audit…")
+        self.status_var.set("正在撤销并追加审计记录…")
         reason = self._reason()
         self.jobs.submit(
             lambda: self.service.review_store.undo(
                 actor=self.actor, session_id=self.session_id, reason=reason
             ),
-            lambda result: self._finish_history("Undo complete.", result),
-            lambda error: self._history_error("Undo", error),
+            lambda result: self._finish_history("撤销完成。", result),
+            lambda error: self._history_error("撤销", error),
         )
 
     def redo(self) -> None:
         if self.project_mutation_pending:
-            self.status_var.set("Wait for the range change to finish.")
+            self.status_var.set("请等待分析范围变更完成。")
             return
-        self.status_var.set("Redoing and appending audit…")
+        self.status_var.set("正在重做并追加审计记录…")
         reason = self._reason()
         self.jobs.submit(
             lambda: self.service.review_store.redo(
                 actor=self.actor, session_id=self.session_id, reason=reason
             ),
-            lambda result: self._finish_history("Redo complete.", result),
-            lambda error: self._history_error("Redo", error),
+            lambda result: self._finish_history("重做完成。", result),
+            lambda error: self._history_error("重做", error),
         )
 
     def _finish_history(self, message: str, result: dict[str, Any] | None) -> None:
@@ -1464,7 +1480,7 @@ class ReviewView:
         self.status_var.set(message)
 
     def _history_error(self, operation: str, error: BaseException) -> None:
-        self.status_var.set(f"{operation} failed: {error}")
+        self.status_var.set(f"{operation}失败：{error}")
 
     def _artifact(self, role: str) -> Path:
         for record in self.service.project.manifest["artifacts"]:
@@ -1474,11 +1490,11 @@ class ReviewView:
 
     def change_range(self) -> None:
         if self.project_mutation_pending:
-            self.status_var.set("A range change is already running.")
+            self.status_var.set("已有分析范围变更正在进行。")
             return
         start = self.simpledialog.askstring(
             APP_TITLE,
-            "New closed analysis start (minutes):",
+            "新的分析闭区间起点（分钟）：",
             initialvalue=_minutes_text(self.service.analysis_start_ns),
             parent=self.app.root,
         )
@@ -1486,42 +1502,41 @@ class ReviewView:
             return
         end = self.simpledialog.askstring(
             APP_TITLE,
-            "New closed analysis end (minutes):",
+            "新的分析闭区间终点（分钟）：",
             initialvalue=_minutes_text(self.service.analysis_end_ns),
             parent=self.app.root,
         )
         if end is None:
             return
         self.project_mutation_pending = True
-        self.status_var.set("Computing a read-only range-change diff preview…")
+        self.status_var.set("正在只读计算分析范围差异预览…")
         project_dir = self.service.project.project_dir
         reason = self._reason()
 
         def preview_success(preview) -> None:
             details = (
-                "No project files have changed yet.\n\n"
-                f"Old range: {_minutes_text(int(preview.old_analysis_range['start_ns']))}–"
+                "项目文件尚未发生变化。\n\n"
+                f"原范围：{_minutes_text(int(preview.old_analysis_range['start_ns']))}–"
                 f"{_minutes_text(int(preview.old_analysis_range['end_ns']))} min\n"
-                f"New range: {_minutes_text(preview.new_analysis_range.start_ns)}–"
+                f"新范围：{_minutes_text(preview.new_analysis_range.start_ns)}–"
                 f"{_minutes_text(preview.new_analysis_range.end_ns)} min\n\n"
-                f"Mapped stable EventIDs: {preview.mapped_count}\n"
-                f"Old automatic reviews marked stale: {preview.stale_count}\n"
-                f"Ambiguous mappings: {len(preview.plan.ambiguous_event_ids)}\n"
-                f"New automatic events: {preview.new_count}\n"
-                f"Manual events retained/evaluated: {len(preview.plan.manual_event_ids)}\n\n"
-                "Apply this new generation? The previous generation and full audit history "
-                "will remain immutable and recoverable."
+                f"保留稳定 EventID：{preview.mapped_count}\n"
+                f"转入历史失效的旧自动审阅：{preview.stale_count}\n"
+                f"存在歧义的映射：{len(preview.plan.ambiguous_event_ids)}\n"
+                f"新增自动事件：{preview.new_count}\n"
+                f"保留或重新判定的人工事件：{len(preview.plan.manual_event_ids)}\n\n"
+                "是否应用这个新代次？上一代次和完整审计历史会保持不可变并可恢复。"
             )
             confirmed = self.messagebox.askyesno(
-                "Confirm range-change diff",
+                "确认分析范围差异",
                 details,
                 parent=self.app.root,
             )
             if not confirmed:
                 self.project_mutation_pending = False
-                self.status_var.set("Range change cancelled; the active generation is unchanged.")
+                self.status_var.set("已取消范围变更；当前活动代次未改变。")
                 return
-            self.status_var.set("Publishing the confirmed generation with one atomic manifest switch…")
+            self.status_var.set("正在通过一次原子 manifest 切换发布已确认代次…")
             self.jobs.submit(
                 lambda: apply_range_change(
                     preview,
@@ -1552,20 +1567,20 @@ class ReviewView:
         self._sync_view_entries()
         self.project_mutation_pending = False
         self.reload_window()
-        self.status_var.set("Range change committed; previous generation retained in project history.")
+        self.status_var.set("范围变更已提交；上一代次保留在项目历史中。")
 
     def _range_change_error(self, error: BaseException) -> None:
         self.project_mutation_pending = False
-        self.status_var.set(f"Range change failed; active generation unchanged: {error}")
+        self.status_var.set(f"范围变更失败，当前活动代次未改变：{error}")
         self.messagebox.showerror(APP_TITLE, str(error), parent=self.app.root)
 
     def export_human(self) -> None:
         if self.project_mutation_pending:
-            self.status_var.set("Wait for the range change to finish before exporting.")
+            self.status_var.set("导出前请等待分析范围变更完成。")
             return
         path = self.filedialog.asksaveasfilename(
             parent=self.app.root,
-            title="Export reviewed events",
+            title="导出已审阅事件",
             defaultextension=".csv",
             filetypes=(("CSV", "*.csv"),),
             initialdir=str(self.service.project.project_dir / "annotations/exports"),
@@ -1574,7 +1589,7 @@ class ReviewView:
             return
         include_pending = bool(self.include_pending_var.get())
         reason = self._reason()
-        self.status_var.set("Exporting accepted review snapshot…")
+        self.status_var.set("正在导出已接受事件的审阅快照…")
 
         def work():
             events = self.service.review_store.list_events()
@@ -1605,24 +1620,24 @@ class ReviewView:
         self.jobs.submit(
             work,
             lambda result: self.status_var.set(
-                f"Exported {result.row_count:,} rows · SHA-256 {result.sha256[:12]}…"
+                f"已导出 {result.row_count:,} 行 · SHA-256 {result.sha256[:12]}…"
             ),
             lambda error: self.messagebox.showerror(APP_TITLE, str(error), parent=self.app.root),
         )
 
     def export_machine(self) -> None:
         if self.project_mutation_pending:
-            self.status_var.set("Wait for the range change to finish before exporting.")
+            self.status_var.set("导出前请等待分析范围变更完成。")
             return
         parent = self.filedialog.askdirectory(
             parent=self.app.root,
-            title="Choose the parent directory for a new machine-contract folder",
+            title="选择新机器契约文件夹的上级目录",
         )
         if not parent:
             return
         name = self.simpledialog.askstring(
             APP_TITLE,
-            "New machine-contract folder name:",
+            "新机器契约文件夹名称：",
             initialvalue="ms-event-machine-contract",
             parent=self.app.root,
         )
@@ -1630,7 +1645,7 @@ class ReviewView:
             return
         target = Path(parent) / Path(name).name
         reason = self._reason()
-        self.status_var.set("Exporting all-status machine contract…")
+        self.status_var.set("正在导出包含全部状态的机器契约…")
 
         def work():
             input_manifest = json.loads(self._artifact("input_manifest").read_text(encoding="utf-8"))
@@ -1664,7 +1679,7 @@ class ReviewView:
         self.jobs.submit(
             work,
             lambda result: self.status_var.set(
-                f"Machine contract: {result.row_count:,} rows · {result.manifest_sha256[:12]}…"
+                f"机器契约：{result.row_count:,} 行 · {result.manifest_sha256[:12]}…"
             ),
             lambda error: self.messagebox.showerror(APP_TITLE, str(error), parent=self.app.root),
         )
@@ -1718,146 +1733,153 @@ class MSDesktopApp:
         frame = self.ttk.Frame(self.root, style="Page.TFrame")
         frame.pack(fill="both", expand=True)
         self.welcome = frame
-        frame.columnconfigure(0, weight=5, uniform="welcome")
-        frame.columnconfigure(1, weight=7, uniform="welcome")
-        frame.rowconfigure(0, weight=1)
-
-        hero = self.ttk.Frame(frame, style="Hero.TFrame", padding=(48, 46))
-        hero.grid(row=0, column=0, sticky="nsew")
-        self.ttk.Label(hero, image=self.app_icon_128, style="HeroBody.TLabel").pack(anchor="w")
+        appbar = self.ttk.Frame(frame, style="Hero.TFrame", padding=(18, 9))
+        appbar.pack(fill="x")
+        self.ttk.Label(appbar, image=self.app_icon_32, style="HeroBody.TLabel").pack(
+            side="left", padx=(0, 10)
+        )
+        brand = self.ttk.Frame(appbar, style="Hero.TFrame")
+        brand.pack(side="left", fill="x", expand=True)
         self.ttk.Label(
-            hero,
-            text="MS EVENT STUDIO",
-            style="HeroSubtitle.TLabel",
-            font=(font_family(), 10, "bold"),
-        ).pack(anchor="w", pady=(24, 5))
-        self.ttk.Label(
-            hero,
-            text="Turn raw MS signal\ninto reviewable events.",
-            style="HeroTitle.TLabel",
-            justify="left",
+            brand,
+            text="MS Event Studio",
+            style="HeroBody.TLabel",
+            font=(font_family(), 12, "bold"),
         ).pack(anchor="w")
         self.ttk.Label(
-            hero,
-            text=(
-                "Inspect PC34 traces, keep immutable automatic evidence, "
-                "and add human decisions as an auditable layer."
-            ),
+            brand,
+            text="质谱事件提取与可审计审阅",
             style="HeroSubtitle.TLabel",
-            justify="left",
-            wraplength=360,
-        ).pack(anchor="w", pady=(16, 26))
-        for text in (
-            "◆  Raw source remains read only",
-            "◆  Every event stays bound to a physical scan",
-            "◆  Review history survives reopen and undo",
-        ):
-            self.ttk.Label(hero, text=text, style="HeroBody.TLabel").pack(
-                anchor="w", pady=5
-            )
-        hero_footer = self.ttk.Frame(hero, style="Hero.TFrame")
-        hero_footer.pack(side="bottom", fill="x")
-        self.ttk.Label(
-            hero_footer,
-            text=f"v{__version__}  ·  MS-only scientific workflow",
-            style="HeroSubtitle.TLabel",
+            font=(font_family(), 9),
         ).pack(anchor="w")
+        self.ttk.Button(
+            appbar,
+            text="使用说明",
+            command=self.show_test_guide,
+            style="Ghost.TButton",
+        ).pack(side="right", padx=(10, 0))
+        self.ttk.Label(
+            appbar,
+            text=f"v{__version__} · MS-only",
+            style="HeroSubtitle.TLabel",
+        ).pack(side="right")
 
-        content = self.ttk.Frame(frame, style="Page.TFrame", padding=(52, 46))
-        content.grid(row=0, column=1, sticky="nsew")
+        content = self.ttk.Frame(frame, style="Page.TFrame", padding=(32, 26))
+        content.pack(fill="both", expand=True)
         content.columnconfigure(0, weight=1)
-        content.rowconfigure(3, weight=1)
-        self.ttk.Label(content, text="WELCOME", style="Muted.TLabel").grid(
+        content.rowconfigure(4, weight=1)
+        self.ttk.Label(content, text="MS 事件工作台", style="Muted.TLabel").grid(
             row=0, column=0, sticky="w"
         )
-        self.ttk.Label(content, text="Start a scientific review", style="Title.TLabel").grid(
-            row=1, column=0, sticky="w", pady=(3, 20)
+        self.ttk.Label(content, text="从原始信号到可审阅事件", style="Title.TLabel").grid(
+            row=1, column=0, sticky="w", pady=(3, 4)
         )
+        self.ttk.Label(
+            content,
+            text="读取 PC34 / MS760 曲线，保留不可变自动证据，并将人工判断作为可追溯叠加层。",
+            style="Muted.TLabel",
+        ).grid(row=2, column=0, sticky="w", pady=(0, 18))
 
         actions = self.ttk.Frame(content, style="Page.TFrame")
-        actions.grid(row=2, column=0, sticky="ew")
+        actions.grid(row=3, column=0, sticky="ew")
         actions.columnconfigure(0, weight=1, uniform="action")
         actions.columnconfigure(1, weight=1, uniform="action")
         new_card = self.ttk.Frame(actions, style="Card.TFrame", padding=20)
         new_card.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
-        self.ttk.Label(new_card, text="NEW PROJECT", style="Eyebrow.TLabel").pack(anchor="w")
+        self.ttk.Label(new_card, text="01 · 新建项目", style="Eyebrow.TLabel").pack(anchor="w")
         self.ttk.Label(
             new_card,
-            text="Analyze raw MS text",
+            text="分析原始 MS 文本",
             style="SurfaceTitle.TLabel",
         ).pack(anchor="w", pady=(3, 5))
         self.ttk.Label(
             new_card,
-            text="Inspect the source once, select a closed range, and publish atomically.",
+            text="单遍读取并校验源文件，选择分析闭区间，再原子创建便携项目。",
             style="SurfaceMuted.TLabel",
-            wraplength=270,
+            wraplength=430,
             justify="left",
         ).pack(anchor="w", fill="x", pady=(0, 14))
         self.ttk.Button(
             new_card,
-            text="Create project  →",
+            text="新建项目  →",
             command=self.new_project,
             style="Primary.TButton",
         ).pack(anchor="w")
 
         open_card = self.ttk.Frame(actions, style="Card.TFrame", padding=20)
         open_card.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
-        self.ttk.Label(open_card, text="OPEN PROJECT", style="Eyebrow.TLabel").pack(anchor="w")
+        self.ttk.Label(open_card, text="02 · 继续工作", style="Eyebrow.TLabel").pack(anchor="w")
         self.ttk.Label(
             open_card,
-            text="Continue reviewing",
+            text="打开已有项目",
             style="SurfaceTitle.TLabel",
         ).pack(anchor="w", pady=(3, 5))
         self.ttk.Label(
             open_card,
-            text="Validate project bindings and resume the active generation and audit history.",
+            text="校验项目绑定，恢复活动检测代次、人工状态与完整审计历史。",
             style="SurfaceMuted.TLabel",
-            wraplength=270,
+            wraplength=430,
             justify="left",
         ).pack(anchor="w", fill="x", pady=(0, 14))
         self.ttk.Button(
             open_card,
-            text="Choose project  →",
+            text="选择项目  →",
             command=self.choose_project,
             style="Secondary.TButton",
         ).pack(anchor="w")
 
         lower = self.ttk.Frame(content, style="Page.TFrame")
-        lower.grid(row=3, column=0, sticky="nsew", pady=(14, 0))
+        lower.grid(row=4, column=0, sticky="nsew", pady=(14, 0))
         lower.columnconfigure(0, weight=1)
-        lower.rowconfigure(1, weight=1)
+        lower.rowconfigure(2, weight=1)
         guide = self.ttk.Frame(lower, style="Card.TFrame", padding=(20, 15))
         guide.grid(row=0, column=0, sticky="ew")
-        guide.columnconfigure(0, weight=1)
-        self.ttk.Label(guide, text="FIRST TIME HERE?", style="Eyebrow.TLabel").grid(
+        for column in range(3):
+            guide.columnconfigure(column, weight=1, uniform="workflow")
+        self.ttk.Label(
+            guide,
+            text="01  解析与校验\n源文件保持只读，完整计算 SHA-256",
+            style="Surface.TLabel",
+            wraplength=290,
+            justify="left",
+        ).grid(row=0, column=0, sticky="w")
+        self.ttk.Label(
+            guide,
+            text="02  审阅与校订\n峰顶绑定真实扫描，状态与修改可追溯",
+            style="Surface.TLabel",
+            wraplength=290,
+            justify="left",
+        ).grid(row=0, column=1, sticky="w", padx=18)
+        self.ttk.Label(
+            guide,
+            text="03  受控导出\n人用 CSV 与版本化 machine contract",
+            style="Surface.TLabel",
+            wraplength=290,
+            justify="left",
+        ).grid(row=0, column=2, sticky="w")
+
+        test_card = self.ttk.Frame(lower, style="Card.TFrame", padding=(20, 13))
+        test_card.grid(row=1, column=0, sticky="ew", pady=(14, 0))
+        test_card.columnconfigure(0, weight=1)
+        self.ttk.Label(test_card, text="第一次使用？", style="Eyebrow.TLabel").grid(
             row=0, column=0, sticky="w"
         )
         self.ttk.Label(
-            guide,
-            text="Run a guided 2-minute test with three known automatic events and one Add-event target.",
+            test_card,
+            text="先运行 2 分钟引导测试：包含 3 个已知自动事件和 1 个补峰目标。",
             style="SurfaceMuted.TLabel",
-            wraplength=540,
-            justify="left",
         ).grid(row=1, column=0, sticky="w", pady=(3, 0))
-        guide_buttons = self.ttk.Frame(guide, style="Surface.TFrame")
-        guide_buttons.grid(row=2, column=0, sticky="w", pady=(12, 0))
         self.ttk.Button(
-            guide_buttons,
-            text="Start guided test",
+            test_card,
+            text="开始引导测试",
             command=self.start_guided_test,
             style="Primary.TButton",
-        ).pack(side="left")
-        self.ttk.Button(
-            guide_buttons,
-            text="What will I test?",
-            command=self.show_test_guide,
-            style="Secondary.TButton",
-        ).pack(side="left", padx=(7, 0))
+        ).grid(row=0, column=1, rowspan=2, sticky="e", padx=(18, 0))
 
         recent = self.recent.load()
         recent_card = self.ttk.Frame(lower, style="Card.TFrame", padding=18)
-        recent_card.grid(row=1, column=0, sticky="nsew", pady=(14, 0))
-        self.ttk.Label(recent_card, text="RECENT PROJECTS", style="Eyebrow.TLabel").pack(
+        recent_card.grid(row=2, column=0, sticky="nsew", pady=(14, 0))
+        self.ttk.Label(recent_card, text="最近项目", style="Eyebrow.TLabel").pack(
             anchor="w", pady=(0, 7)
         )
         if recent:
@@ -1871,7 +1893,7 @@ class MSDesktopApp:
         else:
             self.ttk.Label(
                 recent_card,
-                text="No recent projects yet. Create one or start the guided test.",
+                text="暂无最近项目。可以新建项目，或先开始引导测试。",
                 style="SurfaceMuted.TLabel",
             ).pack(anchor="w", pady=6)
 
@@ -1880,15 +1902,15 @@ class MSDesktopApp:
 
     def show_test_guide(self) -> None:
         self.messagebox.showinfo(
-            "Guided test · about 10 minutes",
+            "引导测试 · 约 10 分钟",
             (
-                "1. Create and analyze a disposable 2-minute source.\n"
-                "2. Confirm three automatic apexes at 0.5, 1.0, and 1.5 min.\n"
-                "3. Test Accepted / Rejected / Pending / Restore and Undo / Redo.\n"
-                "4. Add the weak real peak near 0.75 min and adjust an automatic apex.\n"
-                "5. Export human CSV and the machine contract.\n"
-                "6. Change the range to 0.6–2 min and confirm stale history is excluded.\n\n"
-                "The guided source and project are disposable and never touch LMA Studio."
+                "1. 创建并分析一次性的 2 分钟合成源。\n"
+                "2. 确认 0.5、1.0、1.5 min 处有三个自动峰顶。\n"
+                "3. 测试接受、排除、待定、恢复，以及撤销/重做。\n"
+                "4. 在 0.75 min 附近补充弱峰，并调整一个自动峰顶。\n"
+                "5. 导出人用 CSV 和机器契约。\n"
+                "6. 将范围改为 0.6–2 min，确认历史失效事件不进入导出。\n\n"
+                "引导源和测试项目均为一次性材料，不会接触 LMA Studio。"
             ),
             parent=self.root,
         )
@@ -1896,7 +1918,7 @@ class MSDesktopApp:
     def start_guided_test(self) -> None:
         parent = self.filedialog.askdirectory(
             parent=self.root,
-            title="Choose a folder for disposable guided-test files",
+            title="选择用于存放一次性引导测试文件的目录",
         )
         if not parent:
             return
@@ -1909,12 +1931,12 @@ class MSDesktopApp:
             self,
             initial_source=assets.source_path,
             initial_target=assets.project_path,
-            initial_name="Guided test: PC34 review",
+            initial_name="引导测试：PC34 事件审阅",
             guided=True,
         )
 
     def choose_project(self) -> None:
-        path = self.filedialog.askdirectory(parent=self.root, title="Open an MS Event Studio project")
+        path = self.filedialog.askdirectory(parent=self.root, title="打开 MS Event Studio 项目")
         if path:
             self.open_project(path)
 

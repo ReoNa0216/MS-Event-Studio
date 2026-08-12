@@ -36,8 +36,10 @@ cell label, or expected event count was read by the detector.
 The real LSK scan Parquet predates the LMA commit that changed ±10 ppm to
 ±12 ppm. Phase 0 therefore measured the new detector on an old 10 ppm scan
 summary and reported 1,807 events. A true raw→12 ppm parser→detector run produces
-1,794. This is a provenance correction, not a hidden threshold adjustment; the
-Phase 0 Golden remains unchanged as an audit-time snapshot.
+1,794. This is a provenance correction, not a hidden threshold adjustment. The
+unchanged audit-time snapshot is retained only as
+[`docs/archive/phase0_baseline_snapshot.json`](archive/phase0_baseline_snapshot.json)
+and is not an executable or end-to-end oracle.
 
 The raw files also expose a valid leading zero-length spectrum. LSK and MPP
 therefore contain one more strictly retained spectrum than their older Parquet

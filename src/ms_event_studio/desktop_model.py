@@ -25,6 +25,26 @@ FILTERS = (
     "stale",
 )
 
+STATUS_LABELS = {
+    "unreviewed": "未审阅",
+    "accepted": "已接受",
+    "rejected": "已排除",
+    "pending": "待定",
+}
+ORIGIN_LABELS = {
+    "automatic": "自动识别",
+    "manual_added": "人工补充",
+    "manual_adjusted": "人工调整",
+}
+QUALITY_FLAG_LABELS = {
+    "collision_risk_high": "碰撞风险高（collision_risk_high）",
+    "broad_peak_width_gt_1p5_sec": "宽峰 > 1.5 s（broad_peak_width_gt_1p5_sec）",
+    "low_quality_scan_window": "扫描窗口质量低（low_quality_scan_window）",
+    "low_array_length_lt_6000_window": "数组长度偏低 < 6000（low_array_length_lt_6000_window）",
+    "low_array_length_lt_1000_window": "数组长度过低 < 1000（low_array_length_lt_1000_window）",
+    "low_tic_lt_1e6_window": "TIC 偏低 < 1e6（low_tic_lt_1e6_window）",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class PlotTransform:
@@ -94,7 +114,7 @@ def evidence_lines(
     automatic: dict[str, Any] | None,
 ) -> tuple[str, ...]:
     if event is None:
-        return ("Select an event to inspect its physical evidence.",)
+        return ("请选择一个事件以查看其物理证据。",)
     scan = scan or {}
     automatic = automatic or {}
     quality_names = (
@@ -105,23 +125,25 @@ def evidence_lines(
         "low_array_length_lt_1000_window",
         "low_tic_lt_1e6_window",
     )
-    flags = [name for name in quality_names if bool(automatic.get(name, False))]
+    flags = [QUALITY_FLAG_LABELS[name] for name in quality_names if bool(automatic.get(name, False))]
+    status = str(event.get("status", "—"))
+    origin = str(event.get("origin", "—"))
     return (
         f"EventID: {event.get('event_id', '—')}",
-        f"Status / source: {event.get('status', '—')} / {event.get('origin', '—')}",
-        f"Revision: {event.get('revision', '—')}",
-        f"Scan ID: {event.get('current_scan_id', '—')}",
-        f"Apex: {_fmt(event.get('current_apex_time_sec'))} s",
-        f"PC34 intensity: {_fmt(event.get('current_apex_intensity'))}",
+        f"状态 / 来源: {STATUS_LABELS.get(status, status)} / {ORIGIN_LABELS.get(origin, origin)}",
+        f"审阅修订号: {event.get('revision', '—')}",
+        f"扫描 ID: {event.get('current_scan_id', '—')}",
+        f"峰顶时间: {_fmt(event.get('current_apex_time_sec'))} s",
+        f"PC34 强度: {_fmt(event.get('current_apex_intensity'))}",
         f"PC34 m/z: {_fmt(scan.get('pc34_760_mz_at_max_intensity'), 9)}",
-        f"PC34 ppm error: {_fmt(scan.get('pc34_760_ppm_error_at_max_intensity'))}",
-        f"MS782 intensity: {_fmt(scan.get('qc_782_max_intensity'))}",
+        f"PC34 ppm 误差: {_fmt(scan.get('pc34_760_ppm_error_at_max_intensity'))}",
+        f"MS782 强度: {_fmt(scan.get('qc_782_max_intensity'))}",
         f"TIC: {_fmt(scan.get('tic'))}",
-        f"Prominence: {_fmt(automatic.get('peak_prominence'))}",
-        f"Width: {_fmt(automatic.get('peak_width_sec'))} s",
-        f"Original support: {_fmt(automatic.get('left_sec'))}–{_fmt(automatic.get('right_sec'))} s",
-        f"Snap offset: {_fmt(event.get('snap_offset_sec'))} s",
-        "Quality flags: " + (", ".join(flags) if flags else "none"),
+        f"峰显著度 Prominence: {_fmt(automatic.get('peak_prominence'))}",
+        f"峰宽 Width: {_fmt(automatic.get('peak_width_sec'))} s",
+        f"原始 support: {_fmt(automatic.get('left_sec'))}–{_fmt(automatic.get('right_sec'))} s",
+        f"吸附偏移: {_fmt(event.get('snap_offset_sec'))} s",
+        "质量标记: " + ("；".join(flags) if flags else "无"),
     )
 
 

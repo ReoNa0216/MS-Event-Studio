@@ -1,0 +1,244 @@
+{
+  "schema": "ms_event_studio_phase0_golden_summary_v1",
+  "source": {
+    "repository": "lma-studio",
+    "tag": "v0.4.4",
+    "commit": "b58b55e5920e78a05677304d2adeae30c519f917",
+    "caller_path": "scripts/v3/run_v3_02_ms_event_calling.py",
+    "caller_sha256": "241b91be8b1070d2694c177efe872aa10342ced2af188f9fd4ac0d29ea160d5a"
+  },
+  "environment": {
+    "python": "3.12.3",
+    "numpy": "2.2.5",
+    "pandas": "2.2.3",
+    "scipy": "1.15.3",
+    "matplotlib": "3.10.0",
+    "pyarrow": "19.0.1"
+  },
+  "normalization": {
+    "json": "UTF-8, ensure_ascii=true, keys sorted, separators comma/colon",
+    "floats": "15 significant digits; non-finite values normalized to null",
+    "dataframe": "columns in output order, dtype strings, records in row order"
+  },
+  "constants": {
+    "pc34_target_mz": 760.5851,
+    "qc782_target_mz": 782.5616,
+    "tolerance_ppm": 12.0,
+    "bin_size_min": 2.0,
+    "pc34_fallback_height_fraction": 0.1,
+    "pc34_fallback_prominence_fraction": 0.1
+  },
+  "synthetic": {
+    "golden_set_sha256": "8399d2bfd90160845b6ba2abdedf541fb955a573bee256e392e141ceb395e660",
+    "parser_mass_window": {
+      "sha256": "046cb8b5cc85068b0d4d9fa6ba6cbeac2b92e2f62927e4afb45628736b4a3a9d",
+      "fixture": "one scan; PC34 ions at -12 ppm, target, +12 ppm and +12.001 ppm; QC782 at target",
+      "expected": {
+        "metadata_spectrum_count": 1,
+        "parsed_spectrum_count": 1,
+        "pc34_760_n_mz": 3,
+        "pc34_760_max_intensity": 300.0,
+        "pc34_760_sum_intensity": 600.0,
+        "pc34_760_ppm_error_at_max_intensity": 11.9999999998708,
+        "qc_782_n_mz": 1,
+        "qc_782_max_intensity": 400.0,
+        "scan_id": 7001,
+        "spectrum_index": 7,
+        "scan_start_time_min": 1.23456789,
+        "scan_start_time_sec": 74.0740734
+      }
+    },
+    "empty_event_schema": {
+      "sha256": "3f05edc43ae6bb8ce48d2c5c2c23d929b37656fb6501a3f04376f32677e851d7",
+      "columns": [
+        "event_id",
+        "event_strategy",
+        "primary_signal_col",
+        "scan_row_index",
+        "spectrum_index",
+        "scan_id",
+        "time_min",
+        "time_sec",
+        "apex_intensity",
+        "peak_prominence",
+        "peak_width_sec",
+        "left_sec",
+        "right_sec",
+        "window_scan_count",
+        "pc34_760_apex",
+        "qc_782_apex",
+        "pc34_760_ppm_error_at_apex",
+        "qc_782_ppm_error_at_apex",
+        "tic_apex",
+        "ratio_760_782_max_pseudo1",
+        "array_length_apex",
+        "base_peak_mz_apex",
+        "low_array_length_lt_6000_window",
+        "low_array_length_lt_1000_window",
+        "low_tic_lt_1e6_window",
+        "calling_height",
+        "calling_prominence",
+        "calling_min_distance_sec",
+        "prev_event_gap_sec",
+        "next_event_gap_sec",
+        "nearest_event_gap_sec",
+        "collision_risk_high",
+        "broad_peak_width_gt_1p5_sec",
+        "low_quality_scan_window"
+      ],
+      "row_count": 0
+    },
+    "zero_inflated_range_fallback": {
+      "sha256": "e5e3ee369b5086828c87de206aa0e67839c92fb12d510ed982828425f0131853",
+      "rng_seed": null,
+      "called_indices": [100, 300, 500],
+      "expected_parameters": {
+        "peak_height": 300.0,
+        "peak_prominence": 30.0,
+        "min_distance_sec": 0.2,
+        "peak_height_model": "sparse_high_contrast_range_fallback",
+        "threshold_fallback_reason": "quiet_threshold_exceeded_signal_range",
+        "preliminary_peak_count": 3
+      }
+    },
+    "event_free_positive_noise": {
+      "sha256": "27a4322bcc70fe80e50a96ca34bf140f2208b049c26db8ff0a0b0eb442cc46e3",
+      "rng_seed": 760,
+      "sample_count": 12000,
+      "distribution": "uniform(0,250)",
+      "called_count": 0,
+      "expected_parameters": {
+        "peak_height": 517.221336112332,
+        "peak_prominence": 271.634690319002,
+        "min_distance_sec": 0.2,
+        "peak_height_model": "positive_background_tail_cap",
+        "threshold_fallback_reason": ""
+      }
+    },
+    "positive_background_tail_cap": {
+      "sha256": "d60bf52016fa0109ac473dd6d8227d1b774711de45f5d1315dfeefe58b77c173",
+      "rng_seed": 20260812,
+      "sample_count": 12000,
+      "distribution": "clip(normal(100,100),0,500); set indices range(500,11500,1000) to 1000",
+      "truth_and_called_indices": [500, 1500, 2500, 3500, 4500, 5500, 6500, 7500, 8500, 9500, 10500],
+      "expected_parameters": {
+        "peak_height": 627.949988041709,
+        "peak_prominence": 310.985600689962,
+        "min_distance_sec": 0.2,
+        "peak_height_model": "positive_background_tail_cap",
+        "threshold_fallback_reason": ""
+      }
+    },
+    "extreme_outlier": {
+      "sha256": "e76cf6bc21eb953cffb2bde7ab293bec1e2e6c68d60c0e63c8b05e2f185f80ce",
+      "rng_seed": 20260811,
+      "sample_count": 12000,
+      "distribution": "uniform(0,250); inject range(100,11900,50) uniform(3000,12000); middle injection 55000",
+      "injected_count": 236,
+      "called_count": 236,
+      "recalled": 236,
+      "extras": 0,
+      "expected_parameters": {
+        "peak_height": 1381.90124884431,
+        "peak_prominence": 280.780372986851,
+        "min_distance_sec": 0.2,
+        "peak_height_model": "background_body_multiplier",
+        "threshold_fallback_reason": ""
+      }
+    }
+  },
+  "real_readonly_summaries": {
+    "summary_sha256": "a138b9848f7e841dbf51df5ea19b4833902922b190f6078c7312ee19880d8bbb",
+    "raw_full_sha256_was_not_computed_in_phase0": true,
+    "projects": [
+      {
+        "project": "Lin-_LSK",
+        "raw_size_bytes": 8278292803,
+        "raw_head_sha256_1mb": "a47da9f21f16bd0763b71566a0cec787a797284101c03ea440c89b7d8f61e38a",
+        "raw_tail_sha256_1mb": "95c5a41e100d8047be2564455ddd55adc28ae27e409f73898925f6c0b6e3f12f",
+        "raw_fingerprint_matches_manifest": true,
+        "scan_rows": 54090,
+        "legacy_event_rows": 1512,
+        "v044_called_rows": 1807,
+        "v044_old_apex_recalled_within_one_scan": 1512,
+        "v044_old_apex_total": 1512,
+        "v044_max_nearest_old_apex_delta_sec": "0",
+        "scan_step_sec_median": "0.103000000020074",
+        "peak_height": "1518.1835449224",
+        "peak_prominence": "277.0612792968",
+        "min_distance_sec": "0.206000000040149",
+        "peak_height_model": "background_body_multiplier",
+        "threshold_fallback_reason": "",
+        "v044_apex_set_sha256": "eec30695264b943fcb4d704d7f0ef57a907ee80ec68d30828172d90897ebb7fe",
+        "manifest_event_parquet_sha256": "5731cc38c06c61a3aa51b26260cb88193c281372e4197d781ab0997f90a0786f",
+        "manifest_scan_parquet_sha256": "e6af2fec7b1d373f538073265a8c259ace7d8f13a5e8eb062879a4a28a91041a"
+      },
+      {
+        "project": "Lin-_MPP",
+        "raw_size_bytes": 7925382235,
+        "raw_head_sha256_1mb": "0cfa0a96c20ac2d9932dbf571b8ea1e09d4974240db0bd39336f9fd8687d88a9",
+        "raw_tail_sha256_1mb": "eadefeb990cb6a5bf7c4f5f291b26b70d4f922d8fdc94245a1d9d9e6a3269f92",
+        "raw_fingerprint_matches_manifest": true,
+        "scan_rows": 51240,
+        "legacy_event_rows": 1414,
+        "v044_called_rows": 1414,
+        "v044_old_apex_recalled_within_one_scan": 1414,
+        "v044_old_apex_total": 1414,
+        "v044_max_nearest_old_apex_delta_sec": "0",
+        "scan_step_sec_median": "0.103000000020074",
+        "peak_height": "2171.468719482",
+        "peak_prominence": "312.3755615232",
+        "min_distance_sec": "0.206000000040149",
+        "peak_height_model": "background_body_multiplier",
+        "threshold_fallback_reason": "",
+        "v044_apex_set_sha256": "31c3ff46d5c1524236f90191048c51c4df8165a2e18341601e3208ef63ec9b51",
+        "manifest_event_parquet_sha256": "3e8676707f341621b55c4ba2b1e26dfc1c9b18ed721d803544a2979c1d62ebbf",
+        "manifest_scan_parquet_sha256": "8a0e18efd49e1e19fce9f25654666627ae4c5d99f2e7dc8fc724416cf0e6d0f5"
+      },
+      {
+        "project": "Lin-_CLP",
+        "raw_size_bytes": 10736174515,
+        "raw_head_sha256_1mb": "f71454b2c5b81014fcbb189766343a174254468f721ecdf11c8316d8d416355f",
+        "raw_tail_sha256_1mb": "cb7d12086aaf362e589d381ac80897d1923e296e718c62e3f2a5ac76f5385448",
+        "raw_fingerprint_matches_manifest": true,
+        "scan_rows": 69771,
+        "legacy_event_rows": 1818,
+        "v044_called_rows": 1818,
+        "v044_old_apex_recalled_within_one_scan": 1818,
+        "v044_old_apex_total": 1818,
+        "v044_max_nearest_old_apex_delta_sec": "0",
+        "scan_step_sec_median": "0.103000000020074",
+        "peak_height": "948.606521606",
+        "peak_prominence": "189.7213043212",
+        "min_distance_sec": "0.206000000040149",
+        "peak_height_model": "background_body_multiplier",
+        "threshold_fallback_reason": "",
+        "v044_apex_set_sha256": "802dbe905bb31420afd346aeedc1998ea34affee48023c664031a6eb46c70047",
+        "manifest_event_parquet_sha256": "68610459ed45b83fc4d5953f711b669a4dbd169df18de7741afd330d81f62837",
+        "manifest_scan_parquet_sha256": "737541b8b923df16dc7ba5b132fe3debaba0711f85c54ac6b729a8e8d9232df3"
+      },
+      {
+        "project": "Lin-_LK",
+        "raw_size_bytes": 10691650073,
+        "raw_head_sha256_1mb": "6f8004cb631f1f64ec390a83ce2bcc4db69f10b1db9e64496f275fc08ffa80cb",
+        "raw_tail_sha256_1mb": "cf4fe4d4e87814f91009a4796af14462c05500ed1caf60e9e0a66b3b9a140519",
+        "raw_fingerprint_matches_manifest": true,
+        "scan_rows": 69771,
+        "legacy_event_rows": 1056,
+        "v044_called_rows": 1056,
+        "v044_old_apex_recalled_within_one_scan": 1056,
+        "v044_old_apex_total": 1056,
+        "v044_max_nearest_old_apex_delta_sec": "0",
+        "scan_step_sec_median": "0.103000000020074",
+        "peak_height": "1579.97855674549",
+        "peak_prominence": "448.914135742",
+        "min_distance_sec": "0.206000000040149",
+        "peak_height_model": "positive_background_tail_cap",
+        "threshold_fallback_reason": "",
+        "v044_apex_set_sha256": "e3175ce54f4758df942ae69c40b89bff8dce5dc035ad10ec6e21fc46d5c4d44c",
+        "manifest_event_parquet_sha256": "bb273bc90ce265bd6691279f786b35531b33feba000a8f2f53e788f16a3eccad",
+        "manifest_scan_parquet_sha256": "6b59dcccda189e85cc7d746769819a5b8e5c80a1329a0334557c4954b35d8463"
+      }
+    ]
+  }
+}

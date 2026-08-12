@@ -11,26 +11,28 @@ from typing import Any
 
 @dataclass(frozen=True, slots=True)
 class Palette:
-    canvas: str = "#F3F6FA"
+    # Shared LMA Studio family neutrals. MS Event Studio keeps its own
+    # cyan/teal scientific accent and peak-oriented visual identity.
+    canvas: str = "#F6F7F9"
     surface: str = "#FFFFFF"
-    surface_alt: str = "#EAF0F6"
-    navy: str = "#0B1830"
-    navy_soft: str = "#142744"
-    cyan: str = "#18B6E4"
-    cyan_hover: str = "#0B9DCA"
-    mint: str = "#38D6A3"
-    text: str = "#172238"
-    muted: str = "#607087"
-    border: str = "#D7E0EA"
+    surface_alt: str = "#EEF1F4"
+    navy: str = "#111827"
+    navy_soft: str = "#1F2937"
+    cyan: str = "#0E8AA6"
+    cyan_hover: str = "#0B6F86"
+    mint: str = "#2A7D67"
+    text: str = "#1B1F27"
+    muted: str = "#667085"
+    border: str = "#D7DCE3"
     success: str = "#12805C"
     success_hover: str = "#0E684C"
     warning: str = "#A96100"
     danger: str = "#C2382B"
     danger_hover: str = "#A62F25"
-    focus: str = "#A7E8F8"
-    trace: str = "#168DB8"
-    plot: str = "#FBFCFE"
-    grid: str = "#E8EEF5"
+    focus: str = "#9DDDEA"
+    trace: str = "#0E7490"
+    plot: str = "#FBFCFD"
+    grid: str = "#E7EAEE"
 
 
 PALETTE = Palette()
@@ -38,9 +40,9 @@ PALETTE = Palette()
 
 def font_family() -> str:
     if sys.platform == "win32":
-        return "Segoe UI"
+        return "Microsoft YaHei UI"
     if sys.platform == "darwin":
-        return "SF Pro Text"
+        return "PingFang SC"
     return "DejaVu Sans"
 
 
@@ -121,7 +123,7 @@ def configure_theme(root: Any) -> Any:
         "Title.TLabel",
         background=palette.canvas,
         foreground=palette.navy,
-        font=(family, 22, "bold"),
+        font=(family, 24, "bold"),
     )
     style.configure(
         "SurfaceTitle.TLabel",
@@ -139,7 +141,7 @@ def configure_theme(root: Any) -> Any:
         "HeroTitle.TLabel",
         background=palette.navy,
         foreground="#FFFFFF",
-        font=(family, 30, "bold"),
+        font=(family, 22, "bold"),
     )
     style.configure(
         "HeroSubtitle.TLabel",
@@ -185,12 +187,12 @@ def configure_theme(root: Any) -> Any:
     style.configure(
         "Primary.TButton",
         background=palette.cyan,
-        foreground=palette.navy,
+        foreground="#FFFFFF",
         bordercolor=palette.cyan,
     )
     style.map(
         "Primary.TButton",
-        background=[("pressed", palette.cyan_hover), ("active", "#50CAEA")],
+        background=[("pressed", palette.cyan_hover), ("active", "#159AB7")],
         bordercolor=[("focus", palette.focus)],
         foreground=[("disabled", "#69788B")],
     )

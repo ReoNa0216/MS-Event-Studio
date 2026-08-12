@@ -18,7 +18,7 @@ class PackagingContractTest(unittest.TestCase):
         self.assertEqual(result["human_rows"], 1)
         self.assertEqual(result["machine_rows"], 3)
         self.assertGreater(result["display_points"], 0)
-        self.assertEqual(__version__, "0.2.0.dev1")
+        self.assertEqual(__version__, "0.2.0.dev2")
 
     def test_build_is_native_windowed_onedir_and_source_root_is_explicit(self):
         repository = Path(__file__).resolve().parents[1]

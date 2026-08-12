@@ -28,7 +28,7 @@ git push -u origin main
 Then open GitHub **Actions → Build and release desktop packages → Run workflow**:
 
 1. choose `macos`;
-2. use a filesystem-safe candidate label such as `0.2.0-dev1`;
+2. use the current filesystem-safe candidate label `0.2.0-dev2`;
 3. leave `publish_prerelease` off for the first audit;
 4. download the `ms-event-studio-macos-arm64` artifact after the run succeeds;
 5. verify the ZIP next to its sidecar with `shasum -a 256 -c <file>.sha256`;
