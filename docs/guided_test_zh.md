@@ -1,7 +1,8 @@
 # MS Event Studio 中文引导测试
 
-这套测试使用程序自动生成的 2 分钟、1,201 个扫描的临时数据。它不会读取或修改
-LMA Studio 项目，也不应把测试项目建在真实数据目录中。
+第一部分使用程序自动生成的 2 分钟、1,201 个扫描的临时数据，用于快速、可重复地
+确认界面和交互链路。它不是科学验收，也不能替代后面的真实文件 UAT。所有测试都
+不会修改 LMA Studio 项目；测试项目也不应建在真实数据目录中。
 
 ## 第一轮：5 分钟冒烟测试
 
@@ -39,3 +40,34 @@ LMA Studio 项目，也不应把测试项目建在真实数据目录中。
 
 遇到问题时记录：执行到哪一步、弹窗原文、期望与实际结果，以及一张完整窗口截图。
 测试数据和项目用完后可手动删除；程序不会自动删除它们。
+
+## 第三轮：真实 MS 文件端到端 UAT（Phase 2 必做）
+
+先使用四套资产中体积最小的只读源：
+
+```text
+E:\ChenZhi\Tsinghua\Scientific_research\Hu Lab\scMetab\HSC1_data\Lin-_MPP.txt
+```
+
+该文件约 7.38 GiB。不要复制、改名或写入它，也不要在 `HSC1_data` 内创建项目。
+建议在独立目录建立一次性项目，例如：
+
+```text
+E:\ChenZhi\Tsinghua\Scientific_research\Hu Lab\MS_Event_Studio_UAT\Lin-_MPP
+```
+
+1. 从 `dist/windows/MS-Event-Studio/MS-Event-Studio.exe` 启动待测包，点击
+   **New project**，选择上述真实 TXT 和一个尚不存在的 UAT 项目目录。
+2. 点击 **Analyze source**。这是对完整 7.38-GiB 源的真实流式读取，不是缓存回放；
+   验证进度持续更新、Cancel 可响应、界面没有假死。不要为了加速而中断正式通过轮次。
+3. 记录总 scans、可用起止范围和耗时，再创建一个明确记录起止时间的真实项目。
+   首次分析预计是分钟级，后续浏览不得再次读取巨型 TXT。
+4. 检查全图、1-min/10-min 窗口、密集标签、linear/log、筛选、上一/下一窗；自动 apex
+   必须保持显示，缩放不得把窄峰平均掉。
+5. 抽查多个真实 event 的 scan ID、PC34/MS782/TIC、ppm、width、support 和 quality
+   evidence。至少完成一次 Accepted、Rejected、Pending、Restore、Add、Adjust、
+   Undo/Redo、关闭重开和两类导出。
+6. 将源文件测试前后的 size、mtime 和 SHA-256 与项目输出记录保存下来；必须完全一致。
+
+合成引导测试回答“程序的已知操作是否按预期工作”；真实文件 UAT 回答“大文件、真实
+信号和真实密度下是否仍然正确可用”。两者通过后才具备 Windows Phase 2 验收证据。

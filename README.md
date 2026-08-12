@@ -39,11 +39,14 @@ ms-event-studio-gui
 The current local Windows candidate is:
 
 ```text
-release/windows-dev1/MS-Event-Studio/MS-Event-Studio.exe
+dist/windows/MS-Event-Studio/MS-Event-Studio.exe
 ```
 
 It is an `onedir` application: keep the whole `MS-Event-Studio` directory
 together. The executable alone is not portable.
+
+`dist/` contains native candidates under test. Only a candidate that has passed
+the packaged smoke test is archived as a ZIP plus SHA-256 under `release/`.
 
 For a first test, click **Start guided test** on the welcome page and follow the
 [Chinese guided test](docs/guided_test_zh.md). Candidate hashes and the formal
@@ -86,7 +89,7 @@ python scripts/run_real_regression.py
 python scripts/run_phase2_performance.py
 ```
 
-The polished Phase 2 implementation run discovered 81 tests: 80 passed and one
+The polished Phase 2 implementation run discovered 82 tests: 81 passed and one
 symlink-escape test was skipped because this Windows account cannot create a
 symlink. All lexical Windows/UNC/drive/ADS/traversal attacks passed. Four
 read-only real-MS regressions passed with canonical summary SHA-256

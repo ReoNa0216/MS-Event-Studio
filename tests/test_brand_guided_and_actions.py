@@ -88,6 +88,28 @@ class BrandGuidedAndActionsTest(unittest.TestCase):
             self.assertIn(required, workflow)
         self.assertNotIn('${{ inputs.version }}"', workflow)
 
+    def test_native_scripts_validate_dist_before_writing_release_archives(self):
+        windows = (REPOSITORY / "desktop_bundle/build_windows.ps1").read_text(
+            encoding="utf-8"
+        )
+        macos = (REPOSITORY / "desktop_bundle/build_macos.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"dist\\windows"', windows)
+        self.assertIn('$ReleaseRoot = Join-Path $RepoRoot "release"', windows)
+        self.assertIn('"MS-Event-Studio-$Version-windows-x64.zip"', windows)
+        self.assertIn('"build\\release-staging\\windows-"', windows)
+        self.assertIn("The staged Windows archive is missing", windows)
+        self.assertIn("Move-Item -LiteralPath $StagedArchive -Destination $Archive", windows)
+        self.assertNotIn('"release\\windows\\', windows)
+        self.assertIn('dist_root="$repo_root/dist/macos"', macos)
+        self.assertIn('release_root="$repo_root/release"', macos)
+        self.assertIn('archive="$release_root/MS-Event-Studio-', macos)
+        self.assertIn('build/release-staging/macos.', macos)
+        self.assertIn('unzip -tq "$staged_archive"', macos)
+        self.assertIn('mv "$staged_archive" "$archive"', macos)
+        self.assertNotIn('release/macos/', macos)
+
 
 if __name__ == "__main__":
     unittest.main()

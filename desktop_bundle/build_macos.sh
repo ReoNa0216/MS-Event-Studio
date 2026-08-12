@@ -26,7 +26,8 @@ fi
 PYTHONPATH="src:tests:." "$python_bin" -m unittest discover -s tests -q
 "$python_bin" -m desktop_bundle.build_desktop
 
-app_path="$repo_root/release/macos/MS-Event-Studio.app"
+dist_root="$repo_root/dist/macos"
+app_path="$dist_root/MS-Event-Studio.app"
 executable="$app_path/Contents/MacOS/MS-Event-Studio"
 if [[ ! -x "$executable" ]]; then
   echo "The packaged application executable is missing: $executable" >&2
@@ -38,19 +39,27 @@ codesign --verify --deep --strict "$app_path"
 plutil -lint "$app_path/Contents/Info.plist"
 file "$executable" | grep -q "arm64"
 
-archive="$repo_root/release/MS-Event-Studio-${version}-macos-arm64.zip"
+release_root="$repo_root/release"
+archive="$release_root/MS-Event-Studio-${version}-macos-arm64.zip"
 checksum="${archive}.sha256"
-rm -f "$archive" "$checksum"
-staging="$(mktemp -d)"
+mkdir -p "$repo_root/build/release-staging"
+staging="$(mktemp -d "$repo_root/build/release-staging/macos.XXXXXX")"
 trap 'rm -rf "$staging"' EXIT
 bundle_root="$staging/MS-Event-Studio-${version}-macos-arm64"
 mkdir -p "$bundle_root"
 ditto "$app_path" "$bundle_root/MS-Event-Studio.app"
-cp "$repo_root/release/macos/build_manifest.json" "$bundle_root/"
-cp "$repo_root/release/macos/smoke_test.json" "$bundle_root/"
-ditto -c -k --sequesterRsrc --keepParent "$bundle_root" "$archive"
+cp "$dist_root/build_manifest.json" "$bundle_root/"
+cp "$dist_root/smoke_test.json" "$bundle_root/"
+staged_archive="$staging/$(basename "$archive")"
+staged_checksum="${staged_archive}.sha256"
+ditto -c -k --sequesterRsrc --keepParent "$bundle_root" "$staged_archive"
+unzip -tq "$staged_archive"
 archive_name="$(basename "$archive")"
-archive_hash="$(shasum -a 256 "$archive" | awk '{print $1}')"
-printf '%s  %s\n' "$archive_hash" "$archive_name" >"$checksum"
+archive_hash="$(shasum -a 256 "$staged_archive" | awk '{print $1}')"
+printf '%s  %s\n' "$archive_hash" "$archive_name" >"$staged_checksum"
+mkdir -p "$release_root"
+rm -f "$archive" "$checksum"
+mv "$staged_archive" "$archive"
+mv "$staged_checksum" "$checksum"
 
 echo "Build complete: $archive"

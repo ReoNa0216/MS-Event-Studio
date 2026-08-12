@@ -28,6 +28,10 @@ class PackagingContractTest(unittest.TestCase):
         self.assertIn("--clean", arguments)
         self.assertIn(str(repository / "src"), arguments)
         self.assertIn(str(repository / "desktop_bundle/ms_event_studio_gui.py"), arguments)
+        self.assertEqual(
+            arguments[arguments.index("--distpath") + 1],
+            str(repository / "dist/windows"),
+        )
         self.assertIn("--icon", arguments)
         self.assertIn(str(repository / "build/icons/MS-Event-Studio.ico"), arguments)
         self.assertIn("--add-data", arguments)
@@ -61,7 +65,7 @@ class PackagingContractTest(unittest.TestCase):
 
     def test_custom_candidate_root_must_remain_inside_repository(self):
         repository = Path(__file__).resolve().parents[1]
-        custom = repository / "release/windows-dev1"
+        custom = repository / "dist/windows-side-by-side"
         arguments = build_arguments(
             repository,
             platform_name="windows",

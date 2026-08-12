@@ -43,7 +43,7 @@ status in the active generation and requires downstream status filtering.
 
 ## Automated gates
 
-The polished source run discovered 81 tests: 80 passed and one symlink test was
+The polished source run discovered 82 tests: 81 passed and one symlink test was
 skipped solely because the Windows account lacks symlink creation privilege.
 Covered failure paths include corrupt display-cache rebuild, optimistic-write
 rollback, stale range previews, mutation of a previewed detection table,
@@ -90,25 +90,29 @@ review interaction gates.
 ## Windows candidate
 
 Built natively on Windows 11 with Python 3.12.3 and PyInstaller 6.21.0 at
-2026-08-12 20:37 CST. This is a local unsigned development candidate, not a
+2026-08-12 21:56 CST. This is a local unsigned development candidate, not a
 published or code-signed release.
 
 | Field | Value |
 |---|---|
 | Application version | `0.2.0.dev1` |
 | Bundle mode | `onedir-windowed` |
-| Executable | `release/windows-dev1/MS-Event-Studio/MS-Event-Studio.exe` |
-| Executable SHA-256 | `bf48bfc788a20eeff9b7b3e031515072f1274a03b835794d35a4fda4bf160b66` |
-| Bundle file count | 2,550 |
-| Bundle bytes | 529,273,379 |
-| Bundle tree SHA-256 | `fe257d1392589bb1d84e1bf79eb65006c57ed90ff561e118ef4d309f97aabb1d` |
+| Executable | `dist/windows/MS-Event-Studio/MS-Event-Studio.exe` |
+| Executable SHA-256 | `9324498bca33ee94ad2413dc27315208a1ca1c46da62401232c013b8f9d244fb` |
+| Bundle file count | 2,545 |
+| Bundle bytes | 529,054,313 |
+| Bundle tree SHA-256 | `a83b79f5e36b0aeab8ae3625eb1a4e04ecb38ff419f450993367931398cfbb85` |
 | Packaged smoke | exit 0, `status=ok`, `window_system=win32` |
 | Embedded icon | extracted from EXE and visually verified at small size |
+| Validated archive | `release/MS-Event-Studio-0.2.0-dev1-windows-x64.zip` |
+| Archive bytes | 190,731,995 |
+| Archive SHA-256 | `01689deb9c67dc764a875c96522e83281725b9476c5f27aac54ad54658b34a57` |
 
 The complete per-file manifest and smoke payload are generated at
-`release/windows-dev1/build_manifest.json` and
-`release/windows-dev1/smoke_test.json`.
-`release/` is intentionally ignored by Git.
+`dist/windows/build_manifest.json` and `dist/windows/smoke_test.json`.
+`dist/` is the mutable native-candidate area; after validation the wrapper
+publishes only `release/MS-Event-Studio-<version>-windows-x64.zip` and its
+SHA-256 sidecar. Both directories are intentionally ignored by Git.
 
 PyInstaller is not a cross-compiler. The macOS ARM64 path is implemented and
 contract-tested in `.github/workflows/release-desktop.yml`, following LMA
@@ -163,3 +167,10 @@ prefills the project form. A Chinese step-by-step version is maintained in
 Record pass/fail, unexpected messages, and screenshots for any visual defect.
 Mouse UAT must not use or modify an LMA Studio project; the generated source and
 project are disposable.
+
+The deterministic guided source is a reproducible interaction smoke fixture,
+not a substitute for real-data acceptance. Windows Phase 2 UAT must additionally
+open the packaged application against read-only `HSC1_data/Lin-_MPP.txt`
+(approximately 7.38 GiB), stream the complete source through New Project, and
+write only to a separate disposable UAT project outside `HSC1_data` and this
+repository. The detailed sequence is in `docs/guided_test_zh.md`.

@@ -44,7 +44,7 @@ def build_arguments(
         raise ValueError("PyInstaller is not a cross-compiler; build on Windows or macOS")
     dist = _within_repository(
         repository,
-        dist_root if dist_root is not None else repository / "release" / platform_name,
+        dist_root if dist_root is not None else repository / "dist" / platform_name,
     )
     work = _within_repository(repository, repository / "build/pyinstaller" / platform_name)
     spec = _within_repository(repository, repository / "build/pyinstaller/spec")
@@ -163,8 +163,13 @@ def build(repository: Path, *, dist_root: Path | None = None) -> dict[str, objec
     generate_packaging_icon(repository, platform_name)
     resolved_dist_root = _within_repository(
         repository,
-        dist_root if dist_root is not None else repository / "release" / platform_name,
+        dist_root if dist_root is not None else repository / "dist" / platform_name,
     )
+    resolved_dist_root.mkdir(parents=True, exist_ok=True)
+    # A candidate manifest must describe only the bundle produced by this run;
+    # never let a previous report become an input to its successor.
+    (resolved_dist_root / "build_manifest.json").unlink(missing_ok=True)
+    (resolved_dist_root / "smoke_test.json").unlink(missing_ok=True)
     arguments = build_arguments(
         repository,
         platform_name=platform_name,
@@ -237,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--dist-root",
         type=Path,
-        help="optional repository-contained candidate root (useful while an older EXE is open)",
+        help="optional repository-contained dist root (useful while an older EXE is open)",
     )
     args = parser.parse_args(argv)
     report = build(args.repository, dist_root=args.dist_root)
