@@ -106,6 +106,26 @@ def _edge_fingerprint(path: Path) -> _EdgeFingerprint:
     )
 
 
+def verify_source_fingerprint(path: str | Path, fingerprint: SourceFingerprint) -> None:
+    """Fail if a previously parsed source no longer has the same edge identity."""
+
+    source = Path(path).resolve()
+    if not source.is_file():
+        raise InputChangedError(f"previously parsed MS source is missing: {source}")
+    try:
+        current = _edge_fingerprint(source)
+    except OSError as exc:
+        raise InputChangedError(f"cannot revalidate previously parsed MS source: {exc}") from exc
+    expected = _EdgeFingerprint(
+        size_bytes=int(fingerprint.size_bytes),
+        mtime_ns=int(fingerprint.mtime_ns),
+        head_sha256=str(fingerprint.head_sha256),
+        tail_sha256=str(fingerprint.tail_sha256),
+    )
+    if current != expected:
+        raise InputChangedError("MS source changed after inspection")
+
+
 def _float(text: str, *, field: str, spectrum_number: int) -> float:
     try:
         value = float(text)

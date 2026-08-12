@@ -23,6 +23,13 @@
   including undo/redo and export, append audit rows.
 - Human CSV defaults to accepted only. Pending requires an explicit switch;
   unreviewed and rejected never enter the main CSV.
+- Analysis-range changes are new immutable automatic generations. They require
+  a read-only diff and explicit confirmation; old evidence/reviews are archived,
+  mapped EventIDs are reused, and ambiguous or out-of-range history is stale
+  rather than deleted.
+- Stale generation rows are never active export rows. The machine contract
+  retains every review status in the active generation, while historical
+  generations remain recoverable only through the bound project history.
 
 ## Confirmed numeric rules
 

@@ -17,8 +17,14 @@ import pandas as pd
 from . import __version__
 from .canonical import json_value
 from .detector import DETECTOR_VERSION, detect_events
-from .errors import ProjectValidationError
-from .parser import PARSER_VERSION, ParseProgress, parse_ms_scan_summary
+from .errors import CancelledError, ProjectValidationError
+from .parser import (
+    PARSER_VERSION,
+    ParseProgress,
+    ParseResult,
+    parse_ms_scan_summary,
+    verify_source_fingerprint,
+)
 from .paths import resolve_project_path
 from .review import REVIEW_SCHEMA_VERSION, ReviewStore
 from .timebase import AnalysisRange
@@ -53,6 +59,36 @@ class CreateProjectRequest:
 class Project:
     project_dir: Path
     manifest: dict
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedProjectSource:
+    """One completed source parse retained for the desktop create workflow."""
+
+    source_path: Path
+    parsed: ParseResult
+    start_ns: int
+    end_ns: int
+
+
+def inspect_project_source(
+    source_path: str | Path,
+    *,
+    cancel_check: Callable[[], bool] | None = None,
+    progress_callback: Callable[[ParseProgress], None] | None = None,
+) -> PreparedProjectSource:
+    source = Path(source_path).resolve()
+    parsed = parse_ms_scan_summary(
+        source,
+        cancel_check=cancel_check,
+        progress_callback=progress_callback,
+    )
+    return PreparedProjectSource(
+        source_path=source,
+        parsed=parsed,
+        start_ns=int(parsed.scans["scan_time_ns"].iloc[0]),
+        end_ns=int(parsed.scans["scan_time_ns"].iloc[-1]),
+    )
 
 
 def _now() -> str:
@@ -124,7 +160,11 @@ def _validate_target(target: Path) -> bool:
     return True
 
 
-def create_project(request: CreateProjectRequest) -> Project:
+def create_project(
+    request: CreateProjectRequest,
+    *,
+    prepared_source: PreparedProjectSource | None = None,
+) -> Project:
     source = Path(request.source_path).resolve()
     target = Path(request.project_dir).resolve()
     display_name = str(request.display_name).strip()
@@ -146,15 +186,35 @@ def create_project(request: CreateProjectRequest) -> Project:
             "data",
             "annotations/exports",
             "provenance",
+            "cache",
             "diagnostics",
         ):
             (staging / relative).mkdir(parents=True, exist_ok=False)
 
-        parsed = parse_ms_scan_summary(
-            source,
-            cancel_check=request.cancel_check,
-            progress_callback=request.progress_callback,
-        )
+        if prepared_source is None:
+            parsed = parse_ms_scan_summary(
+                source,
+                cancel_check=request.cancel_check,
+                progress_callback=request.progress_callback,
+            )
+        else:
+            if prepared_source.source_path.resolve() != source:
+                raise ValueError("prepared source belongs to a different MS file")
+            if prepared_source.parsed.summary.parser_version != PARSER_VERSION:
+                raise ValueError("prepared source parser version is no longer supported")
+            verify_source_fingerprint(source, prepared_source.parsed.fingerprint)
+            parsed = prepared_source.parsed
+            if request.progress_callback is not None:
+                request.progress_callback(
+                    ParseProgress(
+                        "prepared",
+                        parsed.fingerprint.size_bytes,
+                        parsed.fingerprint.size_bytes,
+                        len(parsed.scans),
+                    )
+                )
+        if request.cancel_check is not None and request.cancel_check():
+            raise CancelledError("project creation cancelled")
         scan_start_ns = int(parsed.scans["scan_time_ns"].iloc[0])
         scan_end_ns = int(parsed.scans["scan_time_ns"].iloc[-1])
         if analysis_range.start_ns < scan_start_ns or analysis_range.end_ns > scan_end_ns:
@@ -167,11 +227,15 @@ def create_project(request: CreateProjectRequest) -> Project:
             source_sha256=parsed.fingerprint.sha256,
             analysis_range=analysis_range,
         )
+        if request.cancel_check is not None and request.cancel_check():
+            raise CancelledError("project creation cancelled")
 
         scan_path = staging / "data/ms_scan_summary.parquet"
         event_path = staging / "data/automatic_events.parquet"
         parsed.scans.to_parquet(scan_path, index=False)
         detected.events.to_parquet(event_path, index=False)
+        if request.cancel_check is not None and request.cancel_check():
+            raise CancelledError("project creation cancelled")
 
         project_id = "PRJ_" + uuid.uuid4().hex
         created_at = _now()
@@ -268,6 +332,9 @@ def create_project(request: CreateProjectRequest) -> Project:
             },
         }
         _write_json(staging / MANIFEST_NAME, manifest)
+        if request.cancel_check is not None and request.cancel_check():
+            raise CancelledError("project creation cancelled")
+        verify_source_fingerprint(source, parsed.fingerprint)
         _open_project(staging)
 
         if target_was_empty:
@@ -321,6 +388,39 @@ def _open_project(project_dir: Path) -> Project:
         raise ProjectValidationError("artifact paths must be unique")
     if len({str(path).replace("\\", "/").casefold() for path in paths}) != len(paths):
         raise ProjectValidationError("artifact paths must be portable-case unique")
+
+    generation_history = manifest.get("generation_history", [])
+    if not isinstance(generation_history, list):
+        raise ProjectValidationError("generation history must be a list")
+    historical_paths: list[str] = []
+    for index, entry in enumerate(generation_history):
+        if not isinstance(entry, dict) or not isinstance(entry.get("generation_id"), str):
+            raise ProjectValidationError(f"invalid generation history entry {index}")
+        for role in ("automatic_events", "detector_protocol", "review_database"):
+            record = entry.get(role)
+            if not isinstance(record, dict) or record.get("role") != role:
+                raise ProjectValidationError(f"generation history {index} is missing {role}")
+            relative = record.get("path")
+            if not isinstance(relative, str) or not relative:
+                raise ProjectValidationError(f"generation history {index} has an invalid path")
+            historical_paths.append(relative)
+            historical_path = resolve_project_path(root, relative)
+            if not historical_path.is_file() or record.get("mutable") is not False:
+                raise ProjectValidationError(f"generation history artifact is invalid: {relative}")
+            expected_size = _manifest_int(
+                record.get("size_bytes_at_creation"),
+                "generation history size_bytes_at_creation",
+                minimum=0,
+            )
+            if historical_path.stat().st_size != expected_size:
+                raise ProjectValidationError(f"generation history artifact size mismatch: {relative}")
+            if _sha256(historical_path) != record.get("sha256"):
+                raise ProjectValidationError(f"generation history artifact SHA-256 mismatch: {relative}")
+    all_bound_paths = [*paths, *historical_paths]
+    if len({str(path).replace("\\", "/").casefold() for path in all_bound_paths}) != len(
+        all_bound_paths
+    ):
+        raise ProjectValidationError("active and historical artifact paths must be unique")
 
     for record in artifacts:
         relative = record.get("path")

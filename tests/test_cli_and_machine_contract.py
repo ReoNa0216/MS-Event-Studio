@@ -58,7 +58,24 @@ class MachineContractTest(unittest.TestCase):
                 "origin": "automatic",
                 "revision": 1,
                 "snap_offset_sec": 0.0,
-            }
+            },
+            {
+                "event_id": "EV_stale",
+                "auto_event_id": automatic[0]["auto_event_id"],
+                "original_auto_event_id": automatic[0]["auto_event_id"],
+                "generation_id": "GEN_retired",
+                "current_scan_id": "7",
+                "current_scan_row_index": 6,
+                "current_spectrum_index": 5,
+                "current_apex_time_ns": 60_000_000_000,
+                "current_apex_time_sec": 60.0,
+                "current_apex_intensity": 1000.0,
+                "status": "accepted",
+                "origin": "automatic",
+                "revision": 2,
+                "snap_offset_sec": 0.0,
+                "generation_state": "stale",
+            },
         ]
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             output = Path(tmp) / "machine"

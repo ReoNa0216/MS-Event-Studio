@@ -130,6 +130,8 @@ def export_human_csv(
         if event_id in seen_event_ids:
             raise ValueError(f"duplicate EventID in export input: {event_id}")
         seen_event_ids.add(event_id)
+        if event.get("generation_state") == "stale":
+            continue
         status = str(event.get("status", ""))
         apex_ns = int(event["current_apex_time_ns"])
         if status not in statuses:
@@ -284,6 +286,8 @@ def export_machine_contract(
         if event_id in review_ids:
             raise ValueError(f"duplicate EventID in machine export input: {event_id}")
         review_ids.add(event_id)
+        if review.get("generation_state") == "stale":
+            continue
         apex_ns = int(review["current_apex_time_ns"])
         if not int(analysis_start_ns) <= apex_ns <= int(analysis_end_ns):
             continue
@@ -344,7 +348,10 @@ def export_machine_contract(
                 "dtypes": {column: str(table[column].dtype) for column in columns},
             },
             "status_counts": status_counts,
-            "status_policy": "all statuses retained; consumers must filter explicitly",
+            "status_policy": (
+                "all active-generation review statuses retained; stale generation history "
+                "is excluded; consumers must filter review status explicitly"
+            ),
             "checksum_sidecar": {
                 "path": "checksums.sha256",
                 "format": "SHA-256 two-space filename",

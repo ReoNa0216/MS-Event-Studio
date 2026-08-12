@@ -1,14 +1,58 @@
 # MS Event Studio
 
-Independent MS-only event extraction and review project. This repository does
-not import LIF, UMAP coordinates, cell labels, or LMA Studio project state.
+Independent MS-only event extraction and auditable review. This repository does
+not import LIF, UMAP coordinates, cell labels, expected event counts, or LMA
+Studio project state.
 
-Phase 1 exit gates passed on 2026-08-12; Phase 2 desktop UI work has not begun.
-The scientific core and CLI were developed test-first from the confirmed Phase
-0 contract. Real MS assets remain outside this repository and are read only. No
-LIF, UMAP, cell labels, or expected event counts enter the detector.
+Phase 1 scientific and CLI gates passed on 2026-08-12. The Phase 2 Windows
+implementation candidate is ready; Phase 2 is not declared exited until mouse
+UAT and a native macOS candidate pass. LMA Studio remains frozen at v0.4.4.
 
-## Implemented Phase 1 surface
+## Desktop candidate
+
+The native Tk desktop application provides:
+
+- one-pass source inspection with byte progress, cancellation, and reuse of the
+  parsed scan table during atomic project creation;
+- min/max display pyramids, bounded 1/10-minute windows, event apex overlays,
+  support intervals, deterministic dense labels, linear/log scale, and pan;
+- evidence for the selected real scan, including PC34, MS782, TIC, m/z/ppm,
+  prominence, physical width, and quality flags;
+- accepted/rejected/pending/unreviewed review, real-scan Add/Adjust, Restore,
+  durable Undo/Redo, non-color-only encodings, filters, and keyboard access;
+- immediate optimistic status display with asynchronous persistence and failure
+  rollback;
+- previewed analysis-range recalculation with stable-ID reconciliation, stale
+  history retention, and one atomic manifest switch;
+- accepted-only human CSV and all-active-status versioned machine export.
+
+Run from source:
+
+```powershell
+python -m pip install -e .
+ms-event-studio-gui
+```
+
+The current local Windows candidate is:
+
+```text
+release/windows/MS-Event-Studio/MS-Event-Studio.exe
+```
+
+It is an `onedir` application: keep the whole `MS-Event-Studio` directory
+together. The executable alone is not portable.
+
+To create a small, deterministic two-minute source for mouse UAT:
+
+```powershell
+python scripts/create_phase2_uat_source.py `
+  --output "$env:TEMP\ms-event-studio-phase2-uat.txt"
+```
+
+The UAT and candidate hashes are recorded in
+[docs/phase2_desktop_and_uat.md](docs/phase2_desktop_and_uat.md).
+
+## Scientific core and CLI
 
 - strict one-pass ASCII parser with complete SHA-256, byte progress,
   cancellation, input-mutation checks, and fixed-point nanosecond time;
@@ -18,24 +62,8 @@ LIF, UMAP, cell labels, or expected event counts enter the detector.
 - atomic portable project creation and hash-checked preflight;
 - SQLite review overlay with stable EventID, immutable automatic evidence,
   optimistic revision checks, append-only audit, and durable undo/redo;
-- accepted-only six-column human CSV (pending is opt-in) and an all-status
-  versioned machine contract with SHA-256 sidecar.
-
-## Development
-
-```powershell
-$env:PYTHONPATH = "src"
-python -m unittest discover -s tests -v
-```
-
-Install the CLI in an isolated environment when desired:
-
-```powershell
-python -m pip install -e .
-ms-event-studio --help
-```
-
-## CLI
+- accepted-only six-column human CSV (`pending` is opt-in) and a versioned
+  machine contract with Parquet and SHA-256 sidecar.
 
 ```powershell
 ms-event-studio create --source "D:\data\run.txt" --project "D:\projects\run" `
@@ -45,19 +73,27 @@ ms-event-studio export --project "D:\projects\run" --output accepted.csv
 ms-event-studio export-machine --project "D:\projects\run" --output-dir machine-contract
 ```
 
-`export` never includes rejected or unreviewed events. Add
-`--include-pending` only when a downstream consumer explicitly supports that
-state. Machine export retains every state and the immutable automatic support.
+Never overwrite an LMA Studio `ms_events.parquet` with either export. Formal LMA
+import is Phase 3 and requires a separate validated contract path.
 
-The CLI prints one JSON result to stdout and structured parse progress/errors to
-stderr. Project creation accepts only an absent or empty target and publishes it
-only after all Parquet, SQLite, provenance, manifest, and preflight steps pass.
+## Verification
 
-Scientific rules: [docs/scientific_contract.md](docs/scientific_contract.md).
-Project and export schemas: [docs/project_and_export_contracts.md](docs/project_and_export_contracts.md).
-Four-project read-only regression: [docs/phase1_real_regression_summary.md](docs/phase1_real_regression_summary.md).
+```powershell
+$env:PYTHONPATH = "src;tests;."
+python -m unittest discover -s tests -v
+python scripts/run_real_regression.py
+python scripts/run_phase2_performance.py
+```
 
-The final Phase 1 verification discovered 52 tests: 51 passed and the symlink
-escape test was skipped because this Windows account cannot create a symlink.
-The equivalent lexical Windows/UNC/drive/ADS/traversal path attacks all passed.
-The package also compiles, exposes all four CLI commands, and builds as a wheel.
+The final Phase 2 implementation run discovered 75 tests: 74 passed and one
+symlink-escape test was skipped because this Windows account cannot create a
+symlink. All lexical Windows/UNC/drive/ADS/traversal attacks passed. Four
+read-only real-MS regressions passed with canonical summary SHA-256
+`c03232a6153ba48a1f12d1e69c26bbad33d43b2d069f428d2e2ea074616f0b30`.
+
+Further contracts:
+
+- [Scientific rules](docs/scientific_contract.md)
+- [Project and export schemas](docs/project_and_export_contracts.md)
+- [Phase 1 real-data regression](docs/phase1_real_regression_summary.md)
+- [Phase 2 desktop, performance, packaging, and UAT](docs/phase2_desktop_and_uat.md)

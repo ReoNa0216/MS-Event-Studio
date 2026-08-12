@@ -23,6 +23,28 @@ absolute path is deliberately not serialized; the input manifest stores file
 name, complete SHA-256, size, mtime, and head/tail hashes. Recalculation must ask
 the user to reselect a source and verify its fingerprint.
 
+## Range generation changes
+
+An analysis-range change is preview-only until explicit confirmation. The
+preview binds the root-manifest hash, complete review-state token, detector
+payload hash, proposed reconciliation, and new generation identity. Apply fails
+if any bound state changed.
+
+Confirmed apply holds a SQLite writer reservation while it creates a unique
+generation activation. The retired review database is copied to a new immutable
+archive before the root manifest switches; this prevents a stale second
+application from corrupting bound history if it later writes the obsolete path.
+The new automatic table, detector protocol, active review database, and retired
+review archive are complete before the single atomic manifest replacement.
+Failed post-switch validation restores the old manifest and removes only the
+recognized orphan activation.
+
+Exact or confirmed unique mappings retain project EventID and status. Ambiguous
+or unmatched old automatic reviews remain with `generation_state=stale`;
+in-range manual events remain active/manual, while out-of-range manual events
+become stale. Recalculation clears the old generation's undo stack but preserves
+all audit rows and appends `recalculate_analysis_range` with the confirmed diff.
+
 ## Human CSV v1
 
 The exact columns are:
@@ -46,5 +68,8 @@ An atomic machine-export directory contains:
   and provenance;
 - `checksums.sha256`: SHA-256 for both files above.
 
-Consumers must filter status explicitly. This contract is not permission to
-overwrite an LMA Studio `ms_events.parquet`; formal LMA import remains Phase 3.
+The table contains all review statuses from the active generation. Stale
+generation history is preserved in the project but excluded from both export
+contracts. Consumers must filter review status explicitly. This contract is not
+permission to overwrite an LMA Studio `ms_events.parquet`; formal LMA import
+remains Phase 3.
