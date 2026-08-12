@@ -1,0 +1,6 @@
+* text=auto eol=lf
+
+*.parquet binary
+*.sqlite binary
+*.png binary
+*.whl binary

@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.DS_Store
+Thumbs.db
+*.sqlite-wal
+*.sqlite-shm
+*.tmp
+.*.writing-*
+
+# Real scientific inputs and generated user projects never belong in source control.
+HSC1_data/
+raw_inputs/
+*.ms-event-building-*/
+tests/real_output/

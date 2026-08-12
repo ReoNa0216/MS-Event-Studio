@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ms-event-studio"
+version = "0.1.0.dev0"
+description = "MS-only event extraction, review, and versioned export"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26,<3",
+  "pandas>=2.1,<3",
+  "pyarrow>=14,<22",
+  "scipy>=1.11,<2",
+]
+
+[project.scripts]
+ms-event-studio = "ms_event_studio.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
