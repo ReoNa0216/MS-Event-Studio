@@ -70,7 +70,9 @@ class PackagingContractTest(unittest.TestCase):
             '"webview.platforms.mshtml"',
             '"webbrowserinterop."',
             '"pywebview-android.jar"',
-            '"packaging/windows/runtime-placeholder.txt"',
+            '"webview/lib/runtimes/win-arm64/native/runtime-placeholder.txt"',
+            '"webview/lib/runtimes/win-x86/native/runtime-placeholder.txt"',
+            'str(repo_root / "packaging/windows/runtime-placeholder.txt")',
             "a.binaries = [entry for entry in a.binaries if windows_production_payload(entry)]",
         ):
             self.assertIn(required, spec)

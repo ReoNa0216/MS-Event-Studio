@@ -128,8 +128,16 @@ def windows_production_payload(entry):
 a.datas = [entry for entry in a.datas if windows_production_payload(entry)]
 a.binaries = [entry for entry in a.binaries if windows_production_payload(entry)]
 a.datas += [
-    (str(repo_root / "packaging/windows/runtime-placeholder.txt"), "webview/lib/runtimes/win-arm64/native"),
-    (str(repo_root / "packaging/windows/runtime-placeholder.txt"), "webview/lib/runtimes/win-x86/native"),
+    (
+        "webview/lib/runtimes/win-arm64/native/runtime-placeholder.txt",
+        str(repo_root / "packaging/windows/runtime-placeholder.txt"),
+        "DATA",
+    ),
+    (
+        "webview/lib/runtimes/win-x86/native/runtime-placeholder.txt",
+        str(repo_root / "packaging/windows/runtime-placeholder.txt"),
+        "DATA",
+    ),
 ]
 a.datas = [
     entry
