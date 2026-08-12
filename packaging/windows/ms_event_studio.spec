@@ -33,7 +33,10 @@ datas += collect_data_files("webview", subdir="lib")
 datas += collect_data_files("webview", subdir="js")
 # pywebview publishes every platform/architecture in its shared data tree.
 # This is an x64 Edge Chromium candidate: do not ship the Android backend or
-# WebView2 loaders for other Windows architectures.
+# non-x64 loader binaries. pywebview 6.2.1 nevertheless calls
+# ``interop_dll_path`` for all three runtime directory names while importing
+# Edge Chromium, so the two non-target directories must remain as empty
+# placeholders in the onedir tree.
 datas = [
     entry
     for entry in datas
@@ -124,6 +127,10 @@ def windows_production_payload(entry):
 # MSHTML and other-architecture payloads cannot be reintroduced by that hook.
 a.datas = [entry for entry in a.datas if windows_production_payload(entry)]
 a.binaries = [entry for entry in a.binaries if windows_production_payload(entry)]
+a.datas += [
+    (str(repo_root / "packaging/windows/runtime-placeholder.txt"), "webview/lib/runtimes/win-arm64/native"),
+    (str(repo_root / "packaging/windows/runtime-placeholder.txt"), "webview/lib/runtimes/win-x86/native"),
+]
 a.datas = [
     entry
     for entry in a.datas

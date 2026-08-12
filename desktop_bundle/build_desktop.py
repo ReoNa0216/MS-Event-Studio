@@ -173,6 +173,8 @@ def validate_single_renderer_tree(
         "/libcef",
         "/pywebview-android.jar",
         "/webbrowserinterop.",
+        "/runtimes/win-arm64/native/webview2loader.dll",
+        "/runtimes/win-x86/native/webview2loader.dll",
         "/qt5",
         "/qt6",
         "/libqt",
@@ -219,6 +221,18 @@ def validate_single_renderer_tree(
             raise RuntimeError(
                 "Windows candidate is missing the Edge Chromium runtime: "
                 + ", ".join(missing_runtime)
+            )
+        required_placeholders = (
+            "webview/lib/runtimes/win-arm64/native/runtime-placeholder.txt",
+            "webview/lib/runtimes/win-x86/native/runtime-placeholder.txt",
+        )
+        missing_placeholders = [
+            item for item in required_placeholders if not any(path.endswith(item) for path in normalized)
+        ]
+        if missing_placeholders:
+            raise RuntimeError(
+                "Windows candidate is missing pywebview runtime placeholders: "
+                + ", ".join(missing_placeholders)
             )
     elif platform_name != "macos":
         raise ValueError(f"unsupported desktop platform: {platform_name}")

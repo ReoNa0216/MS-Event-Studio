@@ -70,6 +70,7 @@ class PackagingContractTest(unittest.TestCase):
             '"webview.platforms.mshtml"',
             '"webbrowserinterop."',
             '"pywebview-android.jar"',
+            '"packaging/windows/runtime-placeholder.txt"',
             "a.binaries = [entry for entry in a.binaries if windows_production_payload(entry)]",
         ):
             self.assertIn(required, spec)
@@ -257,6 +258,10 @@ class PackagingContractTest(unittest.TestCase):
                 "runtimes/win-x64/native/WebView2Loader.dll",
             )
         ]
+        windows_runtime += [
+            {"path": f"MS-Event-Studio/_internal/webview/lib/runtimes/{arch}/native/runtime-placeholder.txt"}
+            for arch in ("win-arm64", "win-x86")
+        ]
         valid_windows = web_assets + windows_runtime
         validate_single_renderer_tree(valid_windows, platform_name="windows")
         validate_single_renderer_tree(web_assets, platform_name="macos")
@@ -266,6 +271,8 @@ class PackagingContractTest(unittest.TestCase):
             "MS-Event-Studio/_internal/webview/lib/pywebview-android.jar",
             "MS-Event-Studio/_internal/PySide6/QtWebEngineCore.dll",
             "MS-Event-Studio/_internal/cefpython3/libcef.dll",
+            "MS-Event-Studio/_internal/webview/lib/runtimes/win-arm64/native/WebView2Loader.dll",
+            "MS-Event-Studio/_internal/webview/lib/runtimes/win-x86/native/WebView2Loader.dll",
         ):
             with self.subTest(forbidden=forbidden), self.assertRaisesRegex(
                 RuntimeError, "second renderer|Tk/Tcl"
