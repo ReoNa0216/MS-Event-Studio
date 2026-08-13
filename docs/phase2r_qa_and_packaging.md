@@ -82,7 +82,7 @@ never satisfies Windows native DPI or macOS Retina evidence.
   single-renderer checks, plus physical 100%, 125%, 150%, and 200% native DPI
   capture. Each scale used the packaged WebView2 window at its logical 960×640
   outer minimum; no browser/CSS proxy was counted as native evidence.
-- GitHub Actions run 31675795071 built the ARM64 macOS app on `macos-14`, ran all
+- GitHub Actions run 31678141049 built the ARM64 macOS app on `macos-14`, ran all
   152 tests, launched the signed package through Cocoa, and passed the hidden
   DOM/API/scientific smoke and final codesign/manifest/archive checks.
 - macOS Retina screenshots and mouse UAT remain `planned`. A hidden native

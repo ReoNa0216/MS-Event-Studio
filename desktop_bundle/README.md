@@ -77,9 +77,11 @@ CEF/Qt, Android and legacy WebBrowser payloads. On Windows it additionally
 requires the x64 WebView2 Core, WinForms and loader files. Both specs explicitly
 exclude the legacy `ms_event_studio.desktop`/`theme` modules and non-target
 pywebview backends.
-`dist/` and `release/` are ignored. `dist/` is mutable test output; `release/`
-contains only validated ZIP archives and their SHA-256 sidecars. Keep every
-file in an `onedir` candidate together.
+`dist/` and `release/` are ignored. `dist/` contains only the current canonical
+platform candidate; named intermediate candidates belong under `build/` and
+must be removed or archived before handoff. `release/` contains only validated
+ZIP archives and their SHA-256 sidecars. Keep every file in an `onedir`
+candidate together.
 
 PyInstaller is not a cross-compiler: a Windows success does not satisfy the
 macOS gate. The macOS CI candidate is ad-hoc signed, checked with `codesign`,

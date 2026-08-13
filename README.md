@@ -14,13 +14,13 @@ pywebview + HTML/CSS/SVG 渲染器，不会回退到旧 Tk 审阅页。候选包
 
 - 完整 Python 与前端单元测试、浏览器交互门禁和打包隐藏冒烟；
 - 960×640、1366×768、1920×1080 的 36 个确定性场景截图；
-- Windows 原生 100% 与 150% 缩放下的任务、DPI、焦点和视觉检查；
+- Windows 原生 100%、125%、150% 与 200% 缩放下的任务、DPI、焦点和视觉检查；
 - 科学/API 边界、交互与可访问性、LMA v0.4.4 视觉一致性的独立审查；
 - 大型只读 MS 源的创建、审阅、重开和两类导出整链验证。
 
-这仍是候选版，不代表 Phase 2R 已退出。Windows 原生 125% 与 200% 缩放、macOS
-ARM64/Retina 仍需在对应真实环境中验证，最终用户 UAT 也尚未签收。`0.2.0.dev3`
-仅作为冻结的科学回归基线，不再是 UX 候选。
+macOS ARM64 候选也已通过 GitHub Actions 原生构建、Cocoa 隐藏启动、签名和科学冒烟。
+现在只剩 Apple Silicon Retina 屏幕上的可见界面与鼠标 UAT；完成前仍不宣布 Phase 2R
+退出。`0.2.0.dev3` 仅作为冻结的科学回归基线，不再是 UX 候选。
 
 ## 主要能力
 
@@ -61,9 +61,9 @@ ms-event-studio export-machine --project "D:\projects\run" --output-dir audit-pa
 
 ## 用户验收
 
-正式验收前请阅读[中文引导验收指南](docs/guided_test_zh.md)。指南要求使用一次性项目或
-项目副本，并把项目、导出目标与 LMA Studio 目录分开；不要在真实源文件所在目录直接
-创建测试项目。
+正式验收使用[最终人工验收操作卡](docs/guided_test_zh.md)。它只保留需要用户主观判断的
+Retina、鼠标和科研任务流程，不要求用户重复自动化或工程级边界测试。请使用一次性项目
+或项目副本，并把项目、导出目标与 LMA Studio 目录分开。
 
 验收问题至少应附带：候选版本与 SHA-256、操作系统和显示缩放、复现步骤、期望与实际
 结果，以及一张完整窗口截图。若问题发生在写入操作之后，还要说明界面是否提示保存
@@ -80,7 +80,7 @@ python scripts/capture_ui_matrix.py --validate-only --require-all
 ```
 
 真实数据回归和原生截图必须在受控资产与对应真实平台上运行；浏览器缩放或响应式代理
-不能替代 Windows 125%/200% 或 macOS Retina 的原生证据。
+不能替代原生证据。Windows 四档证据已经齐备，macOS Retina 可见界面仍需真机验收。
 
 进一步资料：
 

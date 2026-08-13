@@ -1,7 +1,7 @@
 # 历史：Phase 2R 启动指令
 
 > 此文件记录 2026-08-12 启动 WebView 迁移时使用的原始指令，仅用于追溯。
-> UX-R0–R6 及本机可执行的 R7 门禁已经完成，不要再次复制下文启动迁移；当前状态请看
+> UX-R0–R8 自动化与原生候选门禁已经完成，不要再次复制下文启动迁移；当前状态请看
 > `README.md`、`MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md` 和 `qa/screenshot_matrix.json`。
 
 复制下面整段作为新 Session 的第一条消息：

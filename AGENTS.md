@@ -21,7 +21,8 @@ truth for the Phase 2R rebuild.
   Tk/WebView workbench.
 - `dist/`, `release/`, and real-data UAT projects are generated evidence, not
   source of truth. Keep them out of Git and do not treat an old executable as
-  proof that current source passed UX review.
+  proof that current source passed UX review. Put named intermediate candidates
+  under `build/`; before handoff, `dist/` contains only the current candidate.
 - Before asking the user to perform UAT, run the complete automated suite,
   packaged smoke tests, the standard screenshot matrix, and three independent
   agent reviews: interaction/task flow, LMA visual consistency, and

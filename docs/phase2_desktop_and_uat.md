@@ -150,9 +150,8 @@ MS_EVENT_STUDIO_VERSION=0.2.0-dev3 bash desktop_bundle/build_macos.sh
 
 ## UAT status
 
-The old mouse checklist is preserved only in
-[`guided_test_zh.md`](guided_test_zh.md) as a reproducible dev3 interaction
-regression. User UX testing is paused. Before the next user UAT, Phase 2R must
-pass its Playwright interaction suite, standard screenshot matrix, Windows and
-macOS packaged smoke, real 7.38-GiB read-only file run, and the three independent
-agent reviews defined in the rebuild handoff.
+This section records the rejected dev3 state only. The current user-facing
+operation card is [`guided_test_zh.md`](guided_test_zh.md); it applies to the
+`0.3.0.dev1` WebView candidate and intentionally does not repeat this historical
+Tk checklist. Current pre-UAT status is maintained in
+[`phase2r_qa_and_packaging.md`](phase2r_qa_and_packaging.md).

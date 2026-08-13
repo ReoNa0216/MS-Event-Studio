@@ -31,9 +31,9 @@ Phase 2R exit. No local Windows build or browser proxy can satisfy that gate.
 
 The private repository is connected at
 [`ReoNa0216/MS-Event-Studio`](https://github.com/ReoNa0216/MS-Event-Studio), and
-local `main` tracks `origin/main`. The first unpublished macOS audit ran from
-commit `ff91fa9821423f305335549fafa4b9cbae437078` as
-[Actions run 31675795071](https://github.com/ReoNa0216/MS-Event-Studio/actions/runs/31675795071).
+local `main` tracks `origin/main`. The final unpublished macOS audit ran from
+commit `684e0e19915b2bdc6991d2ee658fbcdb1fc34965` as
+[Actions run 31678141049](https://github.com/ReoNa0216/MS-Event-Studio/actions/runs/31678141049).
 It completed 152 tests, built the ARM64 `.app`, launched the signed package with
 the Cocoa backend, passed the DOM/API/scientific smoke, verified the final
 signature and bundle manifest, and uploaded the ZIP plus SHA-256 sidecar. It did
@@ -48,9 +48,9 @@ packages → Run workflow**:
 3. leave `publish_prerelease` off for the first audit;
 4. download the `ms-event-studio-macos-arm64` artifact after the run succeeds;
 5. verify the ZIP next to its sidecar with `shasum -a 256 -c <file>.sha256`;
-6. unzip it on an Apple Silicon Mac and execute the Phase 2R packaged smoke and
-   current Chinese UAT guide; do not reuse the dev3 legacy checklist as UX
-   acceptance.
+6. unzip it on an Apple Silicon Mac and follow the concise
+   [`guided_test_zh.md`](guided_test_zh.md) operation card; packaged smoke is
+   already part of the workflow and does not need to be rerun by the user.
 
 Use a `v*` tag only after both native candidates and mouse UAT are accepted.
 
