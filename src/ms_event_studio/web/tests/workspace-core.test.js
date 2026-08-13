@@ -24,6 +24,7 @@ import {
   normalizeWorkspace,
   normalizeEventEditAim,
   normalizeEventEditPreview,
+  PLOT_LABEL_LIMIT,
   placePlotLabels,
   plotTimeFromClientPoint,
   restoreAutomaticApexBody,
@@ -386,6 +387,48 @@ test("dense labels avoid collisions and remain clipped inside content", () => {
   for (let left = 0; left < labels.length; left += 1) {
     for (let right = left + 1; right < labels.length; right += 1) {
       if (labels[left].selected || labels[right].selected) continue;
+      const a = labels[left].box;
+      const b = labels[right].box;
+      assert.ok(a.right + 4 <= b.left || b.right + 4 <= a.left || a.bottom + 4 <= b.top || b.bottom + 4 <= a.top);
+    }
+  }
+});
+
+test("production label limit keeps large overlays readable without suppressing markers", () => {
+  const workspace = fixtureWorkspace("review-dense");
+  const template = workspace.window.eventOverlay[0];
+  workspace.window.eventOverlay = Array.from({ length: 1414 }, (_, index) => ({
+    ...template,
+    eventToken: `massive-event-${index}`,
+    apexTimeMin: 88 * index / 1413,
+    apexIntensity: 1000 + (index % 37) * 140,
+  }));
+  workspace.window.viewport = {
+    start_min: 0,
+    end_min: 88,
+    analysis_start_min: 0,
+    analysis_end_min: 88,
+  };
+  workspace.window.labelEventTokens = Array.from(
+    { length: PLOT_LABEL_LIMIT },
+    (_, index) => `massive-event-${Math.round(index * 1413 / (PLOT_LABEL_LIMIT - 1))}`,
+  );
+  const geometry = buildPlotGeometry(workspace);
+  const labels = placePlotLabels(
+    geometry,
+    workspace.window.labelEventTokens,
+    "massive-event-706",
+  );
+
+  assert.equal(geometry.markers.length, 1414);
+  assert.ok(labels.length > 0);
+  assert.ok(labels.length <= PLOT_LABEL_LIMIT);
+  assert.ok(labels.some((label) => label.selected));
+  const placedTokens = labels.map((label) => label.event.eventToken);
+  assert.ok(placedTokens.some((token) => Number(token.split("-").at(-1)) < 250));
+  assert.ok(placedTokens.some((token) => Number(token.split("-").at(-1)) > 1150));
+  for (let left = 0; left < labels.length; left += 1) {
+    for (let right = left + 1; right < labels.length; right += 1) {
       const a = labels[left].box;
       const b = labels[right].box;
       assert.ok(a.right + 4 <= b.left || b.right + 4 <= a.left || a.bottom + 4 <= b.top || b.bottom + 4 <= a.top);

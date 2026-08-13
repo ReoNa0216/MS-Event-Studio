@@ -78,6 +78,11 @@ export const PLOT_LAYOUT = Object.freeze({
   legend: Object.freeze({ left: 72, top: 38, right: 378, bottom: 68 }),
 });
 
+// The event overlay remains complete. Only persistent time callouts are capped:
+// eight evenly spread labels keep a full-range, high-event-count project
+// readable while selection and hover still replace one slot on demand.
+export const PLOT_LABEL_LIMIT = 8;
+
 function finite(value, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -694,7 +699,7 @@ function rectanglesOverlap(left, right, gap = 4) {
   );
 }
 
-export function placePlotLabels(geometry, labelTokens, selectedToken = "", maximum = 30) {
+export function placePlotLabels(geometry, labelTokens, selectedToken = "", maximum = PLOT_LABEL_LIMIT) {
   const allowed = new Set((Array.isArray(labelTokens) ? labelTokens : []).map(opaqueToken));
   const selected = opaqueToken(selectedToken);
   const candidates = geometry.markers
@@ -995,7 +1000,7 @@ export function workspaceRequestBody(workspace, {
   startMin = null,
   endMin = null,
   pointBudget = 2_000,
-  maximumLabels = 30,
+  maximumLabels = PLOT_LABEL_LIMIT,
 } = {}) {
   const normalized = normalizedWorkspaceValue(workspace);
   const viewport = normalized.window.viewport;

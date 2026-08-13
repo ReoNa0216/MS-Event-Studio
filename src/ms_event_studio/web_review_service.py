@@ -26,7 +26,7 @@ from .errors import ExistingEventNavigation, ReviewConflict, SnapError
 from .export import export_human_csv, export_machine_contract
 from .paths import resolve_project_path
 from .project import Project
-from .timebase import minutes_to_ns, seconds_to_ns
+from .timebase import NANOSECONDS_PER_MINUTE, minutes_to_ns, seconds_to_ns
 from .web_models import (
     AdjustmentRangeView,
     AllowedIntervalView,
@@ -68,6 +68,7 @@ FILTER_OPTIONS = (
     ("manual_adjusted", "人工调整"),
 )
 FILTER_VALUES = frozenset(value for value, _label in FILTER_OPTIONS)
+DEFAULT_WORKSPACE_WINDOW_NS = 10 * NANOSECONDS_PER_MINUTE
 DECISION_STATUSES = {
     "keep": "accepted",
     "exclude": "rejected",
@@ -172,9 +173,16 @@ class BrowserWorkspaceService:
         self._preview_tokens: dict[str, _PreviewCapability] = {}
         self._selected_identity: str | None = None
         self._start = self._window_service.analysis_start_ns
-        self._end = self._window_service.analysis_end_ns
+        self._end = min(
+            self._window_service.analysis_end_ns,
+            self._start + DEFAULT_WORKSPACE_WINDOW_NS,
+        )
+        self._selection_view_anchor: tuple[str, int] | None = None
         self._point_budget = 2_000
-        self._maximum_labels = 30
+        # Keep every event in the SVG overlay, but limit persistent callouts.
+        # Eight labels are deterministically spread across the current window;
+        # the selected event always takes one of those slots.
+        self._maximum_labels = 8
         self._status_filter = "all"
 
     @property
@@ -406,6 +414,49 @@ class BrowserWorkspaceService:
         )
         return unreviewed or (str(rows[0]["event_id"]) if rows else None)
 
+    def _keep_changed_selection_visible(self, rows: list[dict[str, Any]]) -> None:
+        """Pan minimally when a newly presented selection is outside the viewport.
+
+        The remembered identity/apex pair distinguishes selection changes from
+        explicit window-only navigation.  A user-set viewport is therefore
+        preserved byte-for-byte while the selected apex remains inside it, and
+        is not silently undone merely because the user pans away.
+        """
+
+        selected = next(
+            (
+                row
+                for row in rows
+                if str(row["event_id"]) == self._selected_identity
+            ),
+            None,
+        )
+        anchor = (
+            None
+            if selected is None
+            else (
+                str(selected["event_id"]),
+                int(selected["current_apex_time_ns"]),
+            )
+        )
+        if anchor == self._selection_view_anchor:
+            return
+        self._selection_view_anchor = anchor
+        if anchor is None:
+            return
+
+        target_ns = anchor[1]
+        if self._start <= target_ns <= self._end:
+            return
+
+        analysis_start = self._window_service.analysis_start_ns
+        analysis_end = self._window_service.analysis_end_ns
+        window_width = self._end - self._start
+        latest_start = analysis_end - window_width
+        desired_start = target_ns if target_ns < self._start else target_ns - window_width
+        self._start = max(analysis_start, min(desired_start, latest_start))
+        self._end = self._start + window_width
+
     def _parse_window_request(self, payload: Mapping[str, Any] | None) -> None:
         if payload is None:
             return
@@ -547,6 +598,7 @@ class BrowserWorkspaceService:
                 self._selected_identity = self._selected(active)
             else:
                 self._selected_identity = selected
+            self._keep_changed_selection_visible(active)
             sequence = {
                 str(row["event_id"]): index
                 for index, row in enumerate(active, start=1)
@@ -1237,6 +1289,7 @@ class BrowserWorkspaceService:
 
 __all__ = [
     "BrowserWorkspaceService",
+    "DEFAULT_WORKSPACE_WINDOW_NS",
     "DECISION_STATUSES",
     "FILTER_OPTIONS",
     "WorkspaceRequestError",

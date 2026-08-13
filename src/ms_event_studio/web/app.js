@@ -38,6 +38,7 @@ import {
   normalizeEventEditAim,
   normalizeEventEditPreview,
   normalizeWorkspace,
+  PLOT_LABEL_LIMIT,
   placePlotLabels,
   plotTimeFromClientPoint,
   restoreAutomaticApexBody,
@@ -630,7 +631,7 @@ function renderPlotLabels(geometry) {
       state.hoveredEventToken,
     ],
     state.hoveredEventToken || selectedWorkspaceEvent()?.eventToken || "",
-    30,
+    PLOT_LABEL_LIMIT,
   );
   placements.forEach((placement) => {
     const group = svgElement("g", {
@@ -927,7 +928,7 @@ async function requestWorkspaceWindow(options = {}) {
   try {
     const body = workspaceRequestBody(state.workspace, {
       statusFilter: state.workspaceFilter,
-      maximumLabels: state.workspaceLabels ? 30 : 0,
+      maximumLabels: state.workspaceLabels ? PLOT_LABEL_LIMIT : 0,
       ...options,
     });
     if (body.end_min < body.start_min) [body.start_min, body.end_min] = [body.end_min, body.start_min];
