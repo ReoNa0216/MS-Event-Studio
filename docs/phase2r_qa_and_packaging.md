@@ -78,18 +78,16 @@ never satisfies Windows native DPI or macOS Retina evidence.
 - All 36 browser scenarios are automated at 960×640, 1366×768 and 1920×1080
   (108 images). UX-R1–R6 interaction/API/accessibility gates and independent
   pre-UAT reviews are complete for the source implementation.
-- R7 proved the Windows pre-candidate on physical 100% and 150% monitors,
-  including PerMonitorV2, WebView2, logical outer minimum, tree/hash/config,
-  single renderer and LMA 150% comparison. Those artifacts remain traceable
-  under `build/qa/`, but the R8 version bump requires a fresh Windows package
-  and the same gates on its exact bytes.
-- Windows 125% and 200% remain `planned`; no browser/CSS proxy is counted as
-  native evidence.
-- macOS ARM64 build, signed packaged smoke, native Retina screenshots and mouse
-  UAT remain `planned`. This Windows workspace has no remote and does not run or
-  claim macOS validation.
+- The final R8 Windows package passed hidden smoke, tree/hash/config and
+  single-renderer checks, plus physical 100%, 125%, 150%, and 200% native DPI
+  capture. Each scale used the packaged WebView2 window at its logical 960×640
+  outer minimum; no browser/CSS proxy was counted as native evidence.
+- GitHub Actions run 31675795071 built the ARM64 macOS app on `macos-14`, ran all
+  152 tests, launched the signed package through Cocoa, and passed the hidden
+  DOM/API/scientific smoke and final codesign/manifest/archive checks.
+- macOS Retina screenshots and mouse UAT remain `planned`. A hidden native
+  window proves the package starts, but it is not visible Retina acceptance.
 
 Therefore `python scripts/capture_ui_matrix.py --validate-only --require-all`
-must still fail only on Windows 125%/200% and macOS Retina. Do not label
-`0.3.0.dev1` pre-UAT-complete until the new package evidence and these
-non-substitutable native samples exist.
+must now fail only on macOS Retina. Do not label `0.3.0.dev1` UAT-complete until
+that non-substitutable native sample and the final human sign-off exist.

@@ -29,17 +29,18 @@ Phase 2R exit. No local Windows build or browser proxy can satisfy that gate.
 
 ## First remote build
 
-This local repository currently has no Git remote. After its GitHub repository
-has been created, connect and push `main`:
+The private repository is connected at
+[`ReoNa0216/MS-Event-Studio`](https://github.com/ReoNa0216/MS-Event-Studio), and
+local `main` tracks `origin/main`. The first unpublished macOS audit ran from
+commit `ff91fa9821423f305335549fafa4b9cbae437078` as
+[Actions run 31675795071](https://github.com/ReoNa0216/MS-Event-Studio/actions/runs/31675795071).
+It completed 152 tests, built the ARM64 `.app`, launched the signed package with
+the Cocoa backend, passed the DOM/API/scientific smoke, verified the final
+signature and bundle manifest, and uploaded the ZIP plus SHA-256 sidecar. It did
+not create a prerelease or stable tag.
 
-```powershell
-git remote add origin <YOUR_GITHUB_REPOSITORY_URL>
-git push -u origin main
-```
-
-Do not run the workflow as a new UX candidate until the Phase 2R packaging
-upgrade is committed. After that gate, open GitHub **Actions → Build and release
-desktop packages → Run workflow**:
+For another audit candidate, open GitHub **Actions → Build and release desktop
+packages → Run workflow**:
 
 1. choose `macos`;
 2. use the filesystem-safe WebView candidate label recorded by Phase 2R
@@ -53,9 +54,9 @@ desktop packages → Run workflow**:
 
 Use a `v*` tag only after both native candidates and mouse UAT are accepted.
 
-Current local evidence covers the complete 36×3 browser matrix and physical
-Windows 100%/150% native DPI for the earlier R7 pre-candidate. Windows
-125%/200% and macOS Retina are still `planned` in
-`qa/screenshot_matrix.json`. The R8 version bump changes packaged bytes, so the
-new Windows candidate must rerun hidden smoke, tree/hash audit and native QA;
-the first remote macOS build must remain an unpublished audit candidate.
+Current evidence covers the complete 36×3 browser matrix and the exact final R8
+Windows candidate at physical 100%, 125%, 150%, and 200% native DPI. The local
+display was restored to its original 150% after the additional captures.
+`qa/screenshot_matrix.json` now leaves only macOS Retina as `planned`: the
+successful Actions build and Cocoa hidden smoke prove package execution, but do
+not replace visible Retina screenshots or mouse UAT on Apple Silicon.

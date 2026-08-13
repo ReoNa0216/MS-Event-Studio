@@ -137,7 +137,7 @@ class UxR0R1QaContractTest(unittest.TestCase):
         self.assertRegex(self.js, r"\bgetState\b")
         self.assertRegex(self.js, r"aria-busy")
 
-    def test_standard_matrix_is_complete_as_a_plan_but_not_claimed_complete(self):
+    def test_standard_matrix_is_complete_except_for_macos_retina(self):
         matrix = load_and_validate_matrix(REPOSITORY / "qa/screenshot_matrix.json")
         self.assertEqual(
             {(row["width"], row["height"]) for row in matrix["browser"]["viewports"]},
@@ -169,19 +169,18 @@ class UxR0R1QaContractTest(unittest.TestCase):
         native_windows = {
             row["scale_percent"]: row for row in matrix["native_samples"]["windows"]
         }
-        for scale in (100, 150):
+        captured_evidence = {
+            100: "build/qa/windows-native-readable-run2/report.json",
+            125: "build/qa/windows-native-readable-final-125-run2/report.json",
+            150: "build/qa/windows-native-readable-run2/report.json",
+            200: "build/qa/windows-native-readable-final-200-run2/report.json",
+        }
+        for scale, evidence in captured_evidence.items():
             with self.subTest(native_windows_scale=scale):
                 self.assertEqual(native_windows[scale]["status"], "captured")
-                self.assertEqual(
-                    native_windows[scale]["evidence"],
-                    "build/qa/windows-native-readable-run2/report.json",
-                )
+                self.assertEqual(native_windows[scale]["evidence"], evidence)
                 self.assertNotIn(f"native:windows:{scale}", pending)
-        for scale in (125, 200):
-            with self.subTest(missing_native_windows_scale=scale):
-                self.assertEqual(native_windows[scale]["status"], "planned")
-                self.assertIn(f"native:windows:{scale}", pending)
-        self.assertIn("native:macos:retina-native", pending)
+        self.assertEqual(pending, ["native:macos:retina-native"])
 
     def test_copy_linter_targets_visible_dom_not_private_api_fields(self):
         fixture = """

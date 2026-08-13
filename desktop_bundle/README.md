@@ -87,8 +87,10 @@ macOS gate. The macOS CI candidate is ad-hoc signed, checked with `codesign`,
 signing and notarization remain later release operations. The workflow keeps
 the native-runner and opt-in candidate policy used by LMA Studio.
 
-The R7 Windows WebView pre-candidate established real native 100% and 150%
-DPI behavior, but it does not certify new R8 bytes. Rebuild `0.3.0.dev1` and
-rerun packaged smoke/native QA before handoff. Windows 125%/200% and macOS
-Retina remain planned until real hardware evidence exists; CSS scaling is not a
-substitute.
+The final R8 Windows candidate passed packaged smoke and native 100%, 125%,
+150%, and 200% DPI capture on physical Windows displays; every sample retained
+the logical 960×640 outer-window minimum, reachable actions, and zero horizontal
+overflow. The first unpublished macOS Actions audit also built the ARM64 app and
+passed its signed Cocoa hidden-WebView/API/scientific smoke. macOS Retina visual
+and mouse UAT still require an Apple Silicon Mac; CSS scaling and the hidden
+smoke are not substitutes for that final native sample.

@@ -137,11 +137,12 @@ LMA WebView2/pythonnet packaging pattern.
 
 ## macOS status
 
-The existing workflow and shell script implement a native `macos-14` ARM64
-path, but no remote workflow run or genuine `.app` UAT is claimed because this
-repository currently has no Git remote. The Phase 2R WebView migration must
-first update the macOS dependencies/spec/smoke path, then build on GitHub
-Actions and test on Apple Silicon. The old dev3 command is historical only:
+At the time of this dev3 baseline there was no remote workflow run or genuine
+`.app` UAT. The later Phase 2R WebView work connected a GitHub repository and
+successfully built/smoke-tested an unpublished ARM64 Cocoa candidate on
+`macos-14`; current evidence and remaining Retina UAT are tracked in
+[`github_actions_builds.md`](github_actions_builds.md). The old dev3 command is
+historical only:
 
 ```bash
 MS_EVENT_STUDIO_VERSION=0.2.0-dev3 bash desktop_bundle/build_macos.sh

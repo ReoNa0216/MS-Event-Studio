@@ -15,9 +15,9 @@
   "native_samples": {
     "windows": [
       {"scale_percent": 100, "status": "captured", "evidence": "build/qa/windows-native-readable-run2/report.json"},
-      {"scale_percent": 125, "status": "planned"},
+      {"scale_percent": 125, "status": "captured", "evidence": "build/qa/windows-native-readable-final-125-run2/report.json"},
       {"scale_percent": 150, "status": "captured", "evidence": "build/qa/windows-native-readable-run2/report.json"},
-      {"scale_percent": 200, "status": "planned"}
+      {"scale_percent": 200, "status": "captured", "evidence": "build/qa/windows-native-readable-final-200-run2/report.json"}
     ],
     "macos": [
       {"scale": "retina-native", "status": "planned"}
