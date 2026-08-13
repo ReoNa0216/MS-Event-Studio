@@ -5,8 +5,8 @@
 科学与打包代码基线：`a587b37`（`0.2.0.dev3`）
 
 当前执行状态：**`0.3.0.dev1` 已完成 UX-R0–R8、完整自动门禁、Windows 四档原生 DPI
-和 Windows 用户人工验收。下一步是将当前已验收源码推送后重新运行 macOS ARM64 Cocoa
-构建，再安排 Apple Silicon Retina 可见界面与鼠标 UAT。**
+和 Windows 用户人工验收。已验收源码已经推送，macOS ARM64 Cocoa 候选也已重新构建并
+作为公开预发布包提供下载。下一步是安排 Apple Silicon Retina 可见界面与鼠标 UAT。**
 `0.2.0.dev3` 的 UX 验收失败，只保留为科学与持久化回归基线。
 
 本文是下一阶段桌面端工作的唯一主交接。开始实现前还必须阅读：

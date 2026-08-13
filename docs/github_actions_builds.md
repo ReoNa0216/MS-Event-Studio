@@ -27,7 +27,7 @@ notarized. The `0.3.0.dev1` candidate must receive packaged smoke, the standard
 screenshot/agent pre-UAT gate, and mouse UAT on a real Apple Silicon Mac before
 Phase 2R exit. No local Windows build or browser proxy can satisfy that gate.
 
-## First remote build
+## Remote builds and public test release
 
 The private repository is connected at
 [`ReoNa0216/MS-Event-Studio`](https://github.com/ReoNa0216/MS-Event-Studio), and
@@ -39,6 +39,18 @@ the Cocoa backend, passed the DOM/API/scientific smoke, verified the final
 signature and bundle manifest, and uploaded the ZIP plus SHA-256 sidecar. It did
 not create a prerelease or stable tag.
 
+After Windows UAT accepted the final interaction and label changes, commit
+`7f5622d7b6bc5a08c72d281d09ce29a8ab1c9d2e` was rebuilt by
+[Actions run 31696372038](https://github.com/ReoNa0216/MS-Event-Studio/actions/runs/31696372038).
+The ARM64 job passed with the Cocoa backend and produced
+`MS-Event-Studio-0.3.0-dev1-macos-arm64.zip`; its SHA-256 is
+`b72740ac43c05a54fdcd1026b2d2c19428a501c7552762d20a19ac078cc8e785`.
+That exact ZIP and sidecar are available as the public prerelease
+[`v0.3.0-dev1-macos-test1`](https://github.com/ReoNa0216/MS-Event-Studio-Releases/releases/tag/v0.3.0-dev1-macos-test1).
+The development repository remains private so its historical local paths and
+internal evidence are not exposed; the public repository contains only the
+download guide, release assets, checksum and issue tracker.
+
 For another audit candidate, open GitHub **Actions → Build and release desktop
 packages → Run workflow**:
 
@@ -48,11 +60,9 @@ packages → Run workflow**:
 3. leave `publish_prerelease` off for the first audit;
 4. download the `ms-event-studio-macos-arm64` artifact after the run succeeds;
 5. verify the ZIP next to its sidecar with `shasum -a 256 -c <file>.sha256`;
-6. Windows manual UAT is now accepted; after rebuilding from the accepted
-   source, provide the new artifact to a tester with an Apple Silicon Mac for
-   the separate Retina/mouse UAT. Do not send the Windows-only user a macOS
-   operation card. Packaged smoke is already part of the workflow and does not
-   need to be rerun by the tester.
+6. Provide only an artifact built from the currently accepted source to an
+   Apple Silicon tester for the separate Retina/mouse UAT. Packaged smoke is
+   already part of the workflow and does not need to be rerun by the tester.
 
 Use a `v*` tag only after both native candidates and mouse UAT are accepted.
 
@@ -60,7 +70,6 @@ Current evidence covers the complete 36×3 browser matrix and the exact final R8
 Windows candidate at physical 100%, 125%, 150%, and 200% native DPI. The local
 display was restored to its original 150% after the additional captures.
 `qa/screenshot_matrix.json` now leaves only macOS Retina as `planned`: the
-successful Actions build and Cocoa hidden smoke prove package execution, but do
-not replace visible Retina screenshots or mouse UAT on Apple Silicon. The first
-Actions artifact was built before the final Windows label/peak-edit feedback
-changes; push the accepted commits and run the workflow again before Mac UAT.
+successful rebuilt Actions candidate and Cocoa hidden smoke prove package
+execution, but do not replace visible Retina screenshots or mouse UAT on Apple
+Silicon. The current public test release is the candidate for that final gate.

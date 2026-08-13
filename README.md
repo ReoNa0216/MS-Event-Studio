@@ -18,11 +18,12 @@ pywebview + HTML/CSS/SVG 渲染器，不会回退到旧 Tk 审阅页。候选包
 - 科学/API 边界、交互与可访问性、LMA v0.4.4 视觉一致性的独立审查；
 - 大型只读 MS 源的创建、审阅、重开和两类导出整链验证。
 
-macOS ARM64 候选也已通过 GitHub Actions 原生构建、Cocoa 隐藏启动、签名和科学冒烟。
-Windows 最终候选已于 2026-08-13 通过用户人工验收。下一步是把当前已验收源码推送到
-GitHub，重新生成对应字节的 macOS ARM64 候选，再安排具备 Apple Silicon Mac 的测试者
-完成 Retina 可见界面与鼠标 UAT；完成前仍不宣布 Phase 2R 退出。`0.2.0.dev3` 仅作为
-冻结的科学回归基线，不再是 UX 候选。
+Windows 最终候选已于 2026-08-13 通过用户人工验收。随后从已验收源码重新生成了
+macOS ARM64 候选；它已通过 GitHub Actions 原生构建、Cocoa 隐藏启动、签名和科学冒烟，
+并发布到公开的
+[`MS-Event-Studio-Releases`](https://github.com/ReoNa0216/MS-Event-Studio-Releases/releases/tag/v0.3.0-dev1-macos-test1)
+仓库供 Apple Silicon 用户测试。下一步只剩 Retina 可见界面与真实鼠标 UAT；完成前仍不
+宣布 Phase 2R 退出。`0.2.0.dev3` 仅作为冻结的科学回归基线，不再是 UX 候选。
 
 ## 主要能力
 
