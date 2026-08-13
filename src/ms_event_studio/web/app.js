@@ -623,15 +623,17 @@ function renderPlotLabels(geometry) {
   const labelLayer = element("labelLayer");
   labelLayer.replaceChildren();
   if (!state.workspaceLabels) return;
+  const selectedToken = selectedWorkspaceEvent()?.eventToken || "";
   const placements = placePlotLabels(
     geometry,
     [
       ...state.workspace.window.labelEventTokens,
-      selectedWorkspaceEvent()?.eventToken || "",
+      selectedToken,
       state.hoveredEventToken,
     ],
-    state.hoveredEventToken || selectedWorkspaceEvent()?.eventToken || "",
+    selectedToken,
     PLOT_LABEL_LIMIT,
+    [state.hoveredEventToken],
   );
   placements.forEach((placement) => {
     const group = svgElement("g", {

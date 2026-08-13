@@ -436,6 +436,27 @@ test("production label limit keeps large overlays readable without suppressing m
   }
 });
 
+test("hover callout shares the production budget without displacing the selection", () => {
+  const workspace = fixtureWorkspace("review-dense");
+  const selectedToken = workspace.selection.event.eventToken;
+  const hoveredToken = workspace.window.eventOverlay.find(
+    (event) => event.eventToken !== selectedToken
+      && !workspace.window.labelEventTokens.includes(event.eventToken),
+  ).eventToken;
+  const geometry = buildPlotGeometry(workspace);
+  const labels = placePlotLabels(
+    geometry,
+    [...workspace.window.labelEventTokens, selectedToken, hoveredToken],
+    selectedToken,
+    PLOT_LABEL_LIMIT,
+    [hoveredToken],
+  );
+
+  assert.ok(labels.length <= PLOT_LABEL_LIMIT);
+  assert.ok(labels.some((label) => label.event.eventToken === selectedToken && label.selected));
+  assert.ok(labels.some((label) => label.event.eventToken === hoveredToken));
+});
+
 test("highest and edge callouts avoid the legend and prioritize selection", () => {
   for (const id of ["review-highest", "review-edge"]) {
     const workspace = fixtureWorkspace(id);

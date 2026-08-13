@@ -699,13 +699,21 @@ function rectanglesOverlap(left, right, gap = 4) {
   );
 }
 
-export function placePlotLabels(geometry, labelTokens, selectedToken = "", maximum = PLOT_LABEL_LIMIT) {
+export function placePlotLabels(
+  geometry,
+  labelTokens,
+  selectedToken = "",
+  maximum = PLOT_LABEL_LIMIT,
+  priorityTokens = [],
+) {
   const allowed = new Set((Array.isArray(labelTokens) ? labelTokens : []).map(opaqueToken));
   const selected = opaqueToken(selectedToken);
+  const priorities = new Set((Array.isArray(priorityTokens) ? priorityTokens : []).map(opaqueToken));
   const candidates = geometry.markers
     .filter(({ event }) => event.eventToken === selected || allowed.has(event.eventToken))
     .sort((left, right) => (
       Number(right.event.eventToken === selected) - Number(left.event.eventToken === selected)
+      || Number(priorities.has(right.event.eventToken)) - Number(priorities.has(left.event.eventToken))
       || left.x - right.x
     ));
   const selectedMarker = candidates.find(({ event }) => event.eventToken === selected) || null;
@@ -720,6 +728,7 @@ export function placePlotLabels(geometry, labelTokens, selectedToken = "", maxim
     if (
       selectedMarker
       && marker.event.eventToken !== selected
+      && !priorities.has(marker.event.eventToken)
       && Math.abs(marker.x - selectedMarker.x) < width + 24
       && Math.abs(marker.y - selectedMarker.y) < height * 3
     ) {

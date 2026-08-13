@@ -175,6 +175,11 @@ test("browser code never calls a direct native bridge or persistent browser stor
   assert.match(js, /eventEditCancelBody\(token\)/);
   assert.match(js, /eventEditTimeFromHitX\(point\.x, hit\)/);
   assert.match(js, /element\("editPosition"\)\.addEventListener\("keydown", handleEventEditPositionKeydown\)/);
+  assert.match(
+    js,
+    /const selectedToken = selectedWorkspaceEvent\(\)\?\.eventToken \|\| "";[\s\S]*placePlotLabels\([\s\S]*selectedToken,[\s\S]*PLOT_LABEL_LIMIT,[\s\S]*\[state\.hoveredEventToken\]/,
+  );
+  assert.doesNotMatch(js, /state\.hoveredEventToken \|\| selectedWorkspaceEvent\(\)\?\.eventToken/);
   assert.doesNotMatch(js, /localStorage|sessionStorage|indexedDB/);
 });
 
