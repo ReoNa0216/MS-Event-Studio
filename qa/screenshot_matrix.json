@@ -14,10 +14,10 @@
   },
   "native_samples": {
     "windows": [
-      {"scale_percent": 100, "status": "captured", "evidence": "build/qa/windows-native-readable-run2/report.json"},
-      {"scale_percent": 125, "status": "captured", "evidence": "build/qa/windows-native-readable-final-125-run2/report.json"},
-      {"scale_percent": 150, "status": "captured", "evidence": "build/qa/windows-native-readable-run2/report.json"},
-      {"scale_percent": 200, "status": "captured", "evidence": "build/qa/windows-native-readable-final-200-run2/report.json"}
+      {"scale_percent": 100, "status": "captured", "evidence": "build/qa/user-feedback-final-native-agent-4331a5b-foreground-run2/report.json"},
+      {"scale_percent": 125, "status": "captured", "evidence": "build/qa/user-feedback-final-native-4331a5b-125pct/report.json"},
+      {"scale_percent": 150, "status": "captured", "evidence": "build/qa/user-feedback-final-native-4331a5b-restored-150pct/report.json"},
+      {"scale_percent": 200, "status": "captured", "evidence": "build/qa/user-feedback-final-native-4331a5b-200pct/report.json"}
     ],
     "macos": [
       {"scale": "retina-native", "status": "planned"}
