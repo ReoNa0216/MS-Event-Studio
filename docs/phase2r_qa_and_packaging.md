@@ -92,13 +92,12 @@ never satisfies Windows native DPI or macOS Retina evidence.
 - GitHub Actions run 31678141049 built the ARM64 macOS app on `macos-14`, ran all
   152 tests, launched the signed package through Cocoa, and passed the hidden
   DOM/API/scientific smoke and final codesign/manifest/archive checks.
-- Windows automated/native evidence is complete, but the user-facing manual
-  acceptance still starts with the Windows final candidate. macOS Retina
-  screenshots and mouse UAT remain `planned` for a later Apple Silicon tester;
-  a hidden native window proves the package starts, but it is not visible
-  Retina acceptance.
+- Windows automated/native evidence and user-facing manual acceptance are
+  complete. macOS Retina screenshots and mouse UAT remain `planned` for a later
+  Apple Silicon tester; a hidden native window proves the package starts, but
+  it is not visible Retina acceptance. The earlier Actions artifact predates
+  the final Windows feedback fixes and must be rebuilt from the accepted source.
 
 Therefore `python scripts/capture_ui_matrix.py --validate-only --require-all`
 must now fail only on macOS Retina. Do not label `0.3.0.dev1` UAT-complete until
-the Windows human sign-off and the later non-substitutable Retina sample both
-exist.
+the later non-substitutable Retina sample exists.

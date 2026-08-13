@@ -48,10 +48,11 @@ packages → Run workflow**:
 3. leave `publish_prerelease` off for the first audit;
 4. download the `ms-event-studio-macos-arm64` artifact after the run succeeds;
 5. verify the ZIP next to its sidecar with `shasum -a 256 -c <file>.sha256`;
-6. only after the Windows manual UAT is accepted, provide it to a tester with an
-   Apple Silicon Mac for the separate Retina/mouse UAT; do not send the
-   Windows-only user a macOS operation card. Packaged smoke is already part of
-   the workflow and does not need to be rerun by the tester.
+6. Windows manual UAT is now accepted; after rebuilding from the accepted
+   source, provide the new artifact to a tester with an Apple Silicon Mac for
+   the separate Retina/mouse UAT. Do not send the Windows-only user a macOS
+   operation card. Packaged smoke is already part of the workflow and does not
+   need to be rerun by the tester.
 
 Use a `v*` tag only after both native candidates and mouse UAT are accepted.
 
@@ -60,4 +61,6 @@ Windows candidate at physical 100%, 125%, 150%, and 200% native DPI. The local
 display was restored to its original 150% after the additional captures.
 `qa/screenshot_matrix.json` now leaves only macOS Retina as `planned`: the
 successful Actions build and Cocoa hidden smoke prove package execution, but do
-not replace visible Retina screenshots or mouse UAT on Apple Silicon.
+not replace visible Retina screenshots or mouse UAT on Apple Silicon. The first
+Actions artifact was built before the final Windows label/peak-edit feedback
+changes; push the accepted commits and run the workflow again before Mac UAT.
