@@ -151,7 +151,8 @@ MS_EVENT_STUDIO_VERSION=0.2.0-dev3 bash desktop_bundle/build_macos.sh
 ## UAT status
 
 This section records the rejected dev3 state only. The current user-facing
-operation card is [`guided_test_zh.md`](guided_test_zh.md); it applies to the
-`0.3.0.dev1` WebView candidate and intentionally does not repeat this historical
-Tk checklist. Current pre-UAT status is maintained in
+Windows operation card is [`guided_test_zh.md`](guided_test_zh.md); it applies
+to the `0.3.0.dev1` WebView candidate and intentionally does not repeat this
+historical Tk checklist. Windows human sign-off comes before a separate Apple
+Silicon Retina UAT. Current pre-UAT status is maintained in
 [`phase2r_qa_and_packaging.md`](phase2r_qa_and_packaging.md).

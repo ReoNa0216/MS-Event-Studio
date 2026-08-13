@@ -5,7 +5,8 @@
 科学与打包代码基线：`a587b37`（`0.2.0.dev3`）
 
 当前执行状态：**`0.3.0.dev1` 已完成 UX-R0–R8、完整自动门禁、Windows 四档原生 DPI
-和 macOS ARM64 Cocoa 构建冒烟；只剩 Apple Silicon Retina 可见界面与鼠标 UAT。**
+和 macOS ARM64 Cocoa 构建冒烟；当前先做 Windows 用户人工验收，通过后再安排 Apple
+Silicon Retina 可见界面与鼠标 UAT。**
 `0.2.0.dev3` 的 UX 验收失败，只保留为科学与持久化回归基线。
 
 本文是下一阶段桌面端工作的唯一主交接。开始实现前还必须阅读：
@@ -35,6 +36,8 @@
    前，必须完成自动化、标准状态截图和三个独立代理的 pre-UAT。
 6. `0.2.0.dev3` 保留为科学/持久化/打包回归基线，不作为视觉或交互基线。下一份真正
    的 WebView 候选建议升为 `0.3.0.dev1` / `0.3.0-dev1`。
+7. 用户只有 Windows 电脑，人工验收必须先从 Windows 最终候选开始；不得用 macOS-only
+   指南替代。Windows 人工通过后，macOS Retina 验收由具备 Apple Silicon 的测试者完成。
 
 ## 2. 第一性原理：软件首先要完成什么
 

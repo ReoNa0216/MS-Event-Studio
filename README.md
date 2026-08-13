@@ -19,8 +19,9 @@ pywebview + HTML/CSS/SVG 渲染器，不会回退到旧 Tk 审阅页。候选包
 - 大型只读 MS 源的创建、审阅、重开和两类导出整链验证。
 
 macOS ARM64 候选也已通过 GitHub Actions 原生构建、Cocoa 隐藏启动、签名和科学冒烟。
-现在只剩 Apple Silicon Retina 屏幕上的可见界面与鼠标 UAT；完成前仍不宣布 Phase 2R
-退出。`0.2.0.dev3` 仅作为冻结的科学回归基线，不再是 UX 候选。
+当前人工验收顺序是：先由用户在 Windows 上验收最终候选；Windows 通过后，再安排具备
+Apple Silicon Mac 的测试者完成 Retina 可见界面与鼠标 UAT。两项完成前仍不宣布
+Phase 2R 退出。`0.2.0.dev3` 仅作为冻结的科学回归基线，不再是 UX 候选。
 
 ## 主要能力
 
@@ -61,13 +62,13 @@ ms-event-studio export-machine --project "D:\projects\run" --output-dir audit-pa
 
 ## 用户验收
 
-正式验收使用[最终人工验收操作卡](docs/guided_test_zh.md)。它只保留需要用户主观判断的
-Retina、鼠标和科研任务流程，不要求用户重复自动化或工程级边界测试。请使用一次性项目
-或项目副本，并把项目、导出目标与 LMA Studio 目录分开。
+正式验收使用 [Windows 人工验收操作卡](docs/guided_test_zh.md)。它从本地最终 EXE 启动
+开始，只保留普通 Windows 用户需要点击和观察的科研任务，不要求用户重复自动化或工程级
+边界测试。请使用一次性项目或项目副本，并把项目、导出目标与 LMA Studio 目录分开。
 
-验收问题至少应附带：候选版本与 SHA-256、操作系统和显示缩放、复现步骤、期望与实际
-结果，以及一张完整窗口截图。若问题发生在写入操作之后，还要说明界面是否提示保存
-完成，以及关闭重开后的状态。
+用户只需说明 Windows 版本与显示缩放、点了什么、看到了什么，并附一张完整窗口截图；
+候选版本和 SHA-256 由维护者从当前交付记录中补齐。若问题发生在写入操作之后，再说明
+界面是否提示保存完成，以及关闭重开后的状态。
 
 ## 开发验证
 
@@ -80,7 +81,8 @@ python scripts/capture_ui_matrix.py --validate-only --require-all
 ```
 
 真实数据回归和原生截图必须在受控资产与对应真实平台上运行；浏览器缩放或响应式代理
-不能替代原生证据。Windows 四档证据已经齐备，macOS Retina 可见界面仍需真机验收。
+不能替代原生证据。Windows 四档自动证据已经齐备，但仍先接受用户的 Windows 人工验收；
+通过后再安排 macOS Retina 真机验收。
 
 进一步资料：
 

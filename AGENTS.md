@@ -27,3 +27,6 @@ truth for the Phase 2R rebuild.
   packaged smoke tests, the standard screenshot matrix, and three independent
   agent reviews: interaction/task flow, LMA visual consistency, and
   accessibility/QA. Give the user only a candidate that has passed those gates.
+- User-facing UAT starts on Windows. Do not give a macOS-only operation guide to
+  a Windows-only user; schedule Apple Silicon Retina UAT only after the Windows
+  candidate has received human sign-off.

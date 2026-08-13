@@ -48,9 +48,10 @@ packages → Run workflow**:
 3. leave `publish_prerelease` off for the first audit;
 4. download the `ms-event-studio-macos-arm64` artifact after the run succeeds;
 5. verify the ZIP next to its sidecar with `shasum -a 256 -c <file>.sha256`;
-6. unzip it on an Apple Silicon Mac and follow the concise
-   [`guided_test_zh.md`](guided_test_zh.md) operation card; packaged smoke is
-   already part of the workflow and does not need to be rerun by the user.
+6. only after the Windows manual UAT is accepted, provide it to a tester with an
+   Apple Silicon Mac for the separate Retina/mouse UAT; do not send the
+   Windows-only user a macOS operation card. Packaged smoke is already part of
+   the workflow and does not need to be rerun by the tester.
 
 Use a `v*` tag only after both native candidates and mouse UAT are accepted.
 
