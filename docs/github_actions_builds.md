@@ -45,8 +45,9 @@ After Windows UAT accepted the final interaction and label changes, commit
 The ARM64 job passed with the Cocoa backend and produced
 `MS-Event-Studio-0.3.0-dev1-macos-arm64.zip`; its SHA-256 is
 `b72740ac43c05a54fdcd1026b2d2c19428a501c7552762d20a19ac078cc8e785`.
-That exact ZIP and sidecar are available as the public prerelease
-[`v0.3.0-dev1-macos-test1`](https://github.com/ReoNa0216/MS-Event-Studio-Releases/releases/tag/v0.3.0-dev1-macos-test1).
+That exact ZIP and sidecar, together with the accepted Windows x64 archive, are
+available as the public cross-platform prerelease
+[`v0.3.0-test1`](https://github.com/ReoNa0216/MS-Event-Studio-Releases/releases/tag/v0.3.0-test1).
 The development repository remains private so its historical local paths and
 internal evidence are not exposed; the public repository contains only the
 download guide, release assets, checksum and issue tracker.
