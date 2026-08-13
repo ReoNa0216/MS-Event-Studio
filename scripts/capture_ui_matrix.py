@@ -289,12 +289,69 @@ def capture_browser_rows(
                                 return !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby') && !(id && document.querySelector(`label[for="${CSS.escape(id)}"]`));
                               }).length;
                               const visibleCopy = document.body.innerText + '\\n' + Array.from(document.querySelectorAll('[aria-label],[title],[placeholder]')).map(el => [el.getAttribute('aria-label'), el.getAttribute('title'), el.getAttribute('placeholder')].filter(Boolean).join(' ')).join('\\n');
+                              const activeDialog = document.querySelector('dialog[open]');
+                              const scope = activeDialog || document;
+                              const clippedBox = node => {
+                                if (!node || !node.getClientRects().length || node.closest('[hidden]')) return null;
+                                const style = getComputedStyle(node);
+                                if (style.display === 'none' || style.visibility === 'hidden') return null;
+                                const source = node.getBoundingClientRect();
+                                let box = {
+                                  left: Math.max(0, source.left), top: Math.max(0, source.top),
+                                  right: Math.min(innerWidth, source.right), bottom: Math.min(innerHeight, source.bottom),
+                                };
+                                for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+                                  const parentStyle = getComputedStyle(parent);
+                                  if (!['hidden','auto','scroll','clip'].includes(parentStyle.overflowX)
+                                      && !['hidden','auto','scroll','clip'].includes(parentStyle.overflowY)) continue;
+                                  const clip = parent.getBoundingClientRect();
+                                  box = {
+                                    left: Math.max(box.left, clip.left), top: Math.max(box.top, clip.top),
+                                    right: Math.min(box.right, clip.right), bottom: Math.min(box.bottom, clip.bottom),
+                                  };
+                                }
+                                return box.right - box.left > 1 && box.bottom - box.top > 1 ? box : null;
+                              };
+                              const visible = node => Boolean(clippedBox(node));
+                              const controls = Array.from(scope.querySelectorAll('button,input,select,textarea,a[href]'))
+                                .filter(visible)
+                                .map((node, index) => {
+                                  const box = clippedBox(node);
+                                  return {
+                                    key: node.dataset.qa || node.id || `${node.tagName.toLowerCase()}-${index}`,
+                                    left: box.left, top: box.top, right: box.right, bottom: box.bottom,
+                                    width: box.right - box.left, height: box.bottom - box.top,
+                                  };
+                                });
+                              const controlOverlaps = [];
+                              for (let left = 0; left < controls.length; left += 1) {
+                                for (let right = left + 1; right < controls.length; right += 1) {
+                                  const a = controls[left]; const b = controls[right];
+                                  const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+                                  const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+                                  if (overlapX > 1 && overlapY > 1) controlOverlaps.push([a.key, b.key]);
+                                }
+                              }
+                              const navigation = document.querySelector('.event-navigation');
+                              const selection = document.querySelector('.selected-event-panel:not([hidden])');
+                              const navigationToSelectionGap = visible(navigation) && visible(selection)
+                                ? selection.getBoundingClientRect().top - navigation.getBoundingClientRect().bottom
+                                : null;
+                              const toolbarLabelSizes = Array.from(document.querySelectorAll('.toolbar-window label, .toolbar-field'))
+                                .filter(visible)
+                                .map(node => ({
+                                  text: (node.firstChild?.textContent || node.textContent || '').trim(),
+                                  fontSize: parseFloat(getComputedStyle(node).fontSize),
+                                }));
                               return {
                                 duplicateIds,
                                 unnamedButtons,
                                 unlabeledInputs,
                                 horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-                                forbiddenTerms: terms.filter(term => visibleCopy.toLocaleLowerCase().includes(term.toLocaleLowerCase()))
+                                forbiddenTerms: terms.filter(term => visibleCopy.toLocaleLowerCase().includes(term.toLocaleLowerCase())),
+                                controlOverlaps,
+                                navigationToSelectionGap,
+                                toolbarLabelSizes,
                               };
                             }""",
                             list(FORBIDDEN_UI_TERMS),
@@ -305,6 +362,15 @@ def capture_browser_rows(
                             or audit["unlabeledInputs"]
                             or audit["horizontalOverflow"]
                             or audit["forbiddenTerms"]
+                            or audit["controlOverlaps"]
+                            or (
+                                audit["navigationToSelectionGap"] is not None
+                                and audit["navigationToSelectionGap"] < 16
+                            )
+                            or any(
+                                row["fontSize"] < 12
+                                for row in audit["toolbarLabelSizes"]
+                            )
                         ):
                             raise RuntimeError(f"DOM/a11y gate failed for {scenario['id']}: {audit}")
                         name = f"{_slug(scenario['id'])}--{viewport['width']}x{viewport['height']}.png"

@@ -28,6 +28,7 @@ import {
   eventEditApplyBody,
   eventEditCancelBody,
   eventEditDefaultTime,
+  eventEditFocusViewport,
   eventEditHitGeometry,
   eventEditKeyboardStep,
   eventEditPreviewBody,
@@ -80,6 +81,7 @@ function emptyEventEditState() {
     busy: false,
     hoverTimeMin: null,
     keyboardTimeMin: null,
+    returnViewport: null,
   };
 }
 
@@ -101,7 +103,6 @@ const state = {
   workspaceScale: "linear",
   workspaceLabels: true,
   moreEvidenceExpanded: false,
-  hoveredEventToken: "",
   reviewSaveState: "idle",
   reviewError: "",
   eventEdit: emptyEventEditState(),
@@ -584,31 +585,13 @@ function renderPlotMarkers(geometry) {
       r: 16,
     });
     const shape = createMarkerShape(marker);
-    group.append(hit, shape);
+    const title = svgElement("title");
+    title.textContent = `${marker.event.apexTimeMin.toFixed(3)} 分钟，${marker.event.statusLabel}`;
+    group.append(title, hit, shape);
     const choose = () => {
       if (!disabled) selectWorkspaceEvent(marker.event.eventToken);
     };
     group.addEventListener("click", choose);
-    group.addEventListener("mouseenter", () => {
-      state.hoveredEventToken = marker.event.eventToken;
-      renderPlotLabels(geometry);
-    });
-    group.addEventListener("mouseleave", () => {
-      if (state.hoveredEventToken === marker.event.eventToken) {
-        state.hoveredEventToken = "";
-        renderPlotLabels(geometry);
-      }
-    });
-    group.addEventListener("focus", () => {
-      state.hoveredEventToken = marker.event.eventToken;
-      renderPlotLabels(geometry);
-    });
-    group.addEventListener("blur", () => {
-      if (state.hoveredEventToken === marker.event.eventToken) {
-        state.hoveredEventToken = "";
-        renderPlotLabels(geometry);
-      }
-    });
     group.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -629,11 +612,9 @@ function renderPlotLabels(geometry) {
     [
       ...state.workspace.window.labelEventTokens,
       selectedToken,
-      state.hoveredEventToken,
     ],
     selectedToken,
     PLOT_LABEL_LIMIT,
-    [state.hoveredEventToken],
   );
   placements.forEach((placement) => {
     const group = svgElement("g", {
@@ -644,31 +625,12 @@ function renderPlotLabels(geometry) {
       "data-label-top": placement.box.top,
       "data-label-right": placement.box.right,
       "data-label-bottom": placement.box.bottom,
+      "data-event-status": placement.event.status,
+      "data-selected": placement.selected,
     });
-    group.append(
-      svgElement("line", {
-        x1: placement.anchorX,
-        y1: placement.anchorY,
-        x2: placement.marker.x,
-        y2: placement.marker.y - placement.marker.radius,
-      }),
-      svgElement("line", {
-        x1: placement.anchorX,
-        y1: placement.anchorY,
-        x2: placement.marker.x,
-        y2: placement.marker.y - placement.marker.radius,
-      }),
-      svgElement("rect", {
-        x: placement.box.left,
-        y: placement.box.top,
-        width: placement.box.right - placement.box.left,
-        height: placement.box.bottom - placement.box.top,
-        rx: 5,
-      }),
-    );
     const text = svgElement("text", {
-      x: placement.box.left + 8,
-      y: placement.box.top + 16,
+      x: placement.box.left,
+      y: placement.box.bottom - 3,
     });
     text.textContent = placement.text;
     group.append(text);
@@ -751,7 +713,7 @@ function renderEventEditOverlay(geometry) {
     setHidden(hit, true);
   }
   const hasHover = edit.hoverTimeMin !== null && edit.hoverTimeMin !== "";
-  const hover = hasHover ? Number(edit.hoverTimeMin) : Number.NaN;
+  const hover = hasHover ? Number(edit.hoverTimeMin) : Number(edit.keyboardTimeMin);
   if (Number.isFinite(hover) && ["aiming", "error"].includes(edit.state)) {
     const x = geometry.xForTime(hover);
     aimLine.setAttribute("x1", x);
@@ -785,7 +747,9 @@ function renderEventEdit() {
   }
   const modeName = edit.mode === "adjust" ? "重新定位峰顶" : "添加遗漏峰";
   const titleByState = {
-    aiming: `${modeName}：在图中选择位置`,
+    aiming: edit.mode === "adjust"
+      ? "在放大的局部曲线中选择真实峰顶"
+      : "在图中选择遗漏峰",
     preview: `${modeName}：确认候选峰`,
     saving: `正在应用${modeName}`,
     error: `${modeName}需要处理`,
@@ -797,30 +761,32 @@ function renderEventEdit() {
       ? "候选只是一项预览；选择“应用候选”后才会修改项目。"
       : edit.state === "saving"
         ? "正在重新校验候选并保存，请稍候。"
-        : "可在高亮范围内单击，或用方向键微调位置并按 Enter 生成预览。",
+        : edit.mode === "adjust"
+          ? "仅当自动标记偏离真实局部峰顶时调整。点击曲线上的目标峰，系统会吸附到最近的真实扫描。"
+          : "点击你认为遗漏的真实局部峰顶；系统会吸附到最近的真实扫描并先生成预览。",
   );
   const interval = edit.allowedInterval;
   setText(
     "editAllowedRange",
     interval ? `${interval.startMin.toFixed(6)}–${interval.endMin.toFixed(6)} min` : "正在准备…",
   );
-  const position = element("editPosition");
   const hasKeyboardTime = edit.keyboardTimeMin !== null && edit.keyboardTimeMin !== "";
   const keyboardTime = hasKeyboardTime ? Number(edit.keyboardTimeMin) : Number.NaN;
   const keyboardReady = Boolean(interval) && Number.isFinite(keyboardTime);
   element("editPositionFact").hidden = !interval;
-  if (interval) {
-    position.min = String(interval.startMin);
-    position.max = String(interval.endMin);
-    const step = eventEditKeyboardStep(interval);
-    position.step = step > 0 ? String(step) : "any";
-    position.value = String(keyboardReady ? keyboardTime : interval.startMin);
-  }
-  position.disabled = !keyboardReady
-    || !["aiming", "error"].includes(edit.state)
-    || edit.busy
-    || !edit.token;
-  setText("editPositionValue", keyboardReady ? `${keyboardTime.toFixed(6)} min` : "—");
+  const plotCanAim = keyboardReady
+    && ["aiming", "error"].includes(edit.state)
+    && !edit.busy
+    && Boolean(edit.token);
+  const plot = element("signalPlot");
+  plot.setAttribute("tabindex", plotCanAim ? "0" : "-1");
+  plot.setAttribute("role", plotCanAim ? "group" : "img");
+  plot.setAttribute("aria-label", plotCanAim
+    ? `局部峰形选择器，当前位置 ${keyboardTime.toFixed(6)} 分钟。用左右方向键移动，按 Enter 预览。`
+    : "PC34 信号曲线与事件标记");
+  const hasPointerAim = edit.hoverTimeMin !== null && edit.hoverTimeMin !== "";
+  const displayedAim = hasPointerAim ? Number(edit.hoverTimeMin) : keyboardTime;
+  setText("editPositionValue", Number.isFinite(displayedAim) ? `${displayedAim.toFixed(6)} min` : "—");
   const hasCandidate = Boolean(edit.candidate);
   element("editCandidateFact").hidden = !hasCandidate;
   element("editChangeFact").hidden = !hasCandidate;
@@ -943,10 +909,22 @@ async function requestWorkspaceWindow(options = {}) {
   }
 }
 
+async function workspaceAtViewport(viewport) {
+  const start = Number(viewport?.startMin ?? viewport?.start_min);
+  const end = Number(viewport?.endMin ?? viewport?.end_min);
+  const body = workspaceRequestBody(state.workspace, {
+    startMin: start,
+    endMin: end,
+    statusFilter: state.workspaceFilter,
+    maximumLabels: state.workspaceLabels ? PLOT_LABEL_LIMIT : 0,
+  });
+  if (body.end_min < body.start_min) [body.start_min, body.end_min] = [body.end_min, body.start_min];
+  return normalizeWorkspace(await post(API_ENDPOINTS.workspaceWindow, body));
+}
+
 function selectWorkspaceEvent(eventToken) {
   if (!eventToken || workbenchBusy()) return;
   clearReviewFeedback();
-  state.hoveredEventToken = "";
   if (state.fixture) {
     const event = state.workspace.events.find((row) => row.eventToken === eventToken);
     if (!event) return;
@@ -1028,7 +1006,6 @@ async function performReviewMutation(path, buildBody) {
       throw new ApiError("本地服务没有返回更新后的工作区。", { code: "invalid_response" });
     }
     state.workspace = normalizeWorkspace(payload.workspace);
-    state.hoveredEventToken = "";
     state.reviewSaveState = "idle";
     state.reviewError = "";
     element("reviewNote").value = "";
@@ -1093,6 +1070,8 @@ async function beginEventEdit(mode) {
   if (!state.workspace || state.fixture || pendingWorkbenchOperation() || eventEditActive()) return;
   const event = selectedWorkspaceEvent();
   if (mode === "adjust" && !event) return;
+  const returnViewport = { ...state.workspace.window.viewport };
+  let issuedToken = "";
   state.eventEdit = {
     ...emptyEventEditState(),
     state: "aiming",
@@ -1105,6 +1084,16 @@ async function beginEventEdit(mode) {
       API_ENDPOINTS.eventEditAim,
       eventEditAimBody(mode, event),
     ));
+    issuedToken = aim.token;
+    if (mode === "adjust") {
+      const focused = eventEditFocusViewport(aim.allowedInterval, returnViewport);
+      if (focused && (
+        Math.abs(focused.startMin - returnViewport.start_min) > Number.EPSILON
+        || Math.abs(focused.endMin - returnViewport.end_min) > Number.EPSILON
+      )) {
+        state.workspace = await workspaceAtViewport(focused);
+      }
+    }
     state.eventEdit = {
       ...emptyEventEditState(),
       state: "aiming",
@@ -1113,8 +1102,16 @@ async function beginEventEdit(mode) {
       before: aim.before,
       allowedInterval: aim.allowedInterval,
       keyboardTimeMin: eventEditDefaultTime(aim.allowedInterval, aim.before),
+      returnViewport: mode === "adjust" ? returnViewport : null,
     };
   } catch (error) {
+    if (issuedToken) {
+      try {
+        await post(API_ENDPOINTS.eventEditCancel, eventEditCancelBody(issuedToken));
+      } catch (_cancelError) {
+        // The visible error below is sufficient; an expired capability is harmless.
+      }
+    }
     state.eventEdit = {
       ...emptyEventEditState(),
       state: "error",
@@ -1123,7 +1120,7 @@ async function beginEventEdit(mode) {
     };
   }
   renderWorkspace();
-  focusEnabledControl(state.eventEdit.token ? "editPosition" : "cancelEventEdit");
+  focusEnabledControl(state.eventEdit.token ? "signalPlot" : "cancelEventEdit");
 }
 
 function pointInBox(point, box) {
@@ -1178,6 +1175,11 @@ function updateEventEditAim(event) {
   state.eventEdit.hoverTimeMin = point && !eventEditPointExcluded(event, point)
     ? eventEditTimeFromPoint(point)
     : null;
+  const displayed = state.eventEdit.hoverTimeMin ?? state.eventEdit.keyboardTimeMin;
+  const hasDisplayed = displayed !== null && displayed !== "" && Number.isFinite(Number(displayed));
+  setText("editPositionValue", hasDisplayed
+    ? `${Number(displayed).toFixed(6)} min`
+    : "—");
   const geometry = buildPlotGeometry(state.workspace, { logScale: state.workspaceScale === "log" });
   renderEventEditOverlay(geometry);
 }
@@ -1204,6 +1206,7 @@ async function previewEventEditAtTime(clickTimeMin) {
       candidate: preview.candidate,
       change: preview.change,
       allowedInterval: preview.allowedInterval,
+      returnViewport: edit.returnViewport,
     };
   } catch (error) {
     state.eventEdit.state = "error";
@@ -1224,24 +1227,41 @@ function previewEventEdit(event) {
   previewEventEditAtTime(time);
 }
 
-function updateKeyboardEventEditPosition() {
-  if (!["aiming", "error"].includes(state.eventEdit.state) || state.eventEdit.busy) return;
-  const position = element("editPosition");
-  const value = Number(position.value);
+function setKeyboardEventEditPosition(value) {
   const interval = state.eventEdit.allowedInterval;
   if (!Number.isFinite(value) || !interval) return;
   state.eventEdit.keyboardTimeMin = Math.max(interval.startMin, Math.min(interval.endMin, value));
-  state.eventEdit.hoverTimeMin = state.eventEdit.keyboardTimeMin;
+  state.eventEdit.hoverTimeMin = null;
   setText("editPositionValue", `${state.eventEdit.keyboardTimeMin.toFixed(6)} min`);
+  element("signalPlot").setAttribute(
+    "aria-label",
+    `局部峰形选择器，当前位置 ${state.eventEdit.keyboardTimeMin.toFixed(6)} 分钟。用左右方向键移动，按 Enter 预览。`,
+  );
   renderEventEditOverlay(buildPlotGeometry(state.workspace, {
     logScale: state.workspaceScale === "log",
   }));
 }
 
-function handleEventEditPositionKeydown(event) {
-  if (event.key !== "Enter" || element("editPosition").disabled) return;
+function handleEventEditPlotKeydown(event) {
+  const edit = state.eventEdit;
+  if (!["aiming", "error"].includes(edit.state) || edit.busy || !edit.token) return;
+  const interval = edit.allowedInterval;
+  const current = Number(edit.keyboardTimeMin);
+  if (!interval || !Number.isFinite(current)) return;
+  if (event.key === "Enter") {
+    event.preventDefault();
+    previewEventEditAtTime(current);
+    return;
+  }
+  let next = current;
+  const step = eventEditKeyboardStep(interval) || 0;
+  if (event.key === "ArrowLeft") next -= step * (event.shiftKey ? 10 : 1);
+  else if (event.key === "ArrowRight") next += step * (event.shiftKey ? 10 : 1);
+  else if (event.key === "Home") next = interval.startMin;
+  else if (event.key === "End") next = interval.endMin;
+  else return;
   event.preventDefault();
-  previewEventEditAtTime(state.eventEdit.keyboardTimeMin);
+  setKeyboardEventEditPosition(next);
 }
 
 async function applyEventEdit() {
@@ -1280,17 +1300,27 @@ async function applyEventEdit() {
   // A successful response means the scientific change is already committed.
   // From this point on, rendering failures must never masquerade as a failed save.
   state.workspace = updatedWorkspace;
+  let viewportRestoreFailed = false;
+  if (edit.returnViewport) {
+    try {
+      state.workspace = await workspaceAtViewport(edit.returnViewport);
+    } catch (_restoreError) {
+      viewportRestoreFailed = true;
+    }
+  }
   resetEventEdit();
   state.reviewSaveState = "idle";
   state.reviewError = "";
-  state.hoveredEventToken = "";
   element("reviewNote").value = "";
   const successMessage = payload.outcome === "navigate_existing"
     ? "该位置已有事件，已为你选中；没有重复添加。"
     : edit.mode === "add" ? "遗漏峰已添加。" : "峰顶位置已更新。";
   try {
     renderWorkspace();
-    showToast(successMessage, "success");
+    showToast(
+      viewportRestoreFailed ? `${successMessage} 当前仍显示局部窗口，可用上方窗口控件返回。` : successMessage,
+      "success",
+    );
     focusEventEditOrigin(edit.mode);
   } catch (_renderError) {
     const committedWorkspace = updatedWorkspace;
@@ -1309,6 +1339,7 @@ async function applyEventEdit() {
 async function cancelEventEdit() {
   if (!eventEditActive() || state.eventEdit.busy) return;
   const mode = state.eventEdit.mode;
+  const returnViewport = state.eventEdit.returnViewport;
   if (state.fixture) {
     resetEventEdit();
     renderWorkspace();
@@ -1330,6 +1361,13 @@ async function cancelEventEdit() {
     showToast(eventEditFailureMessage(error, "编辑已在本页面取消。"), "error");
   } finally {
     resetEventEdit();
+    if (returnViewport && !state.fixture) {
+      try {
+        state.workspace = await workspaceAtViewport(returnViewport);
+      } catch (_restoreError) {
+        showToast("编辑已取消；当前仍显示局部窗口，可用上方窗口控件返回。", "error");
+      }
+    }
     renderWorkspace();
     focusEventEditOrigin(mode);
   }
@@ -2550,11 +2588,15 @@ function installEvents() {
   element("applyEventEdit").addEventListener("click", applyEventEdit);
   element("cancelEventEdit").addEventListener("click", cancelEventEdit);
   element("signalPlot").addEventListener("mousemove", updateEventEditAim);
-  element("editPosition").addEventListener("input", updateKeyboardEventEditPosition);
-  element("editPosition").addEventListener("keydown", handleEventEditPositionKeydown);
+  element("signalPlot").addEventListener("keydown", handleEventEditPlotKeydown);
   element("signalPlot").addEventListener("mouseleave", () => {
     if (!eventEditActive()) return;
     state.eventEdit.hoverTimeMin = null;
+    const fallback = state.eventEdit.keyboardTimeMin;
+    const hasFallback = fallback !== null && fallback !== "" && Number.isFinite(Number(fallback));
+    setText("editPositionValue", hasFallback
+      ? `${Number(fallback).toFixed(6)} min`
+      : "—");
     renderEventEditOverlay(buildPlotGeometry(state.workspace, {
       logScale: state.workspaceScale === "log",
     }));

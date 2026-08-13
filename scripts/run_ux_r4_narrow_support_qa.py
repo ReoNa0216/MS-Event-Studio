@@ -1,9 +1,10 @@
 """Real-browser regression gate for narrow automatic event supports in UX-R4.
 
-The disposable project deliberately has a sub-pixel automatic support when the
-full two-minute analysis window is shown, while retaining a second real local
-maximum inside that immutable support.  The gate therefore distinguishes the
-canonical scientific interval from the larger, transparent pointer target.
+The disposable project deliberately has a sub-pixel automatic support in the
+normal two-minute view, while retaining a second real local maximum inside that
+immutable support.  Adjustment must zoom to the local morphology, keep the
+canonical scientific interval unchanged, and support both pointer and keyboard
+selection directly on the plot.
 
 Browser viewport sizes are CSS-pixel evidence only.  This script does not claim
 native DPI coverage.
@@ -264,7 +265,7 @@ def _begin_adjust(page: Any, requests: list[dict[str, str]], *, keyboard: bool) 
     if keyboard:
         surface["focus"] = _assert_focus(
             page,
-            "edit-position",
+            "plot-svg",
             "keyboard narrow-support adjust",
             require_visible=True,
         )
@@ -272,46 +273,46 @@ def _begin_adjust(page: Any, requests: list[dict[str, str]], *, keyboard: bool) 
 
 
 def _range_contract(page: Any, allowed: dict[str, float]) -> dict[str, Any]:
-    evidence = page.locator(_qa("edit-position")).evaluate(
-        """node => ({
-          type: node.type,
-          min: Number(node.min),
-          max: Number(node.max),
-          step: Number(node.step),
-          value: Number(node.value),
-          visible: Boolean(node.getBoundingClientRect().width && node.getBoundingClientRect().height),
-          disabled: node.disabled,
-          describedBy: node.getAttribute('aria-describedby') || '',
-        })"""
+    evidence = page.evaluate(
+        """() => {
+          const plot = document.querySelector('[data-qa="plot-svg"]');
+          const readout = document.querySelector('[data-qa="edit-position-readout"]');
+          const box = readout?.getBoundingClientRect?.();
+          return {
+            role: plot?.getAttribute('role') || '',
+            tabindex: plot?.getAttribute('tabindex') || '',
+            ariaLabel: plot?.getAttribute('aria-label') || '',
+            readout: (readout?.textContent || '').trim(),
+            readoutLive: readout?.getAttribute('aria-live') || '',
+            visible: Boolean(box?.width && box?.height),
+            focused: document.activeElement === plot,
+          };
+        }"""
     )
     hook = _workbench_state(page)
     keyboard_time = hook.get("editKeyboardTimeMin")
-    _assert(evidence["type"] == "range", "keyboard position control is not a native range")
-    _assert(evidence["visible"] and not evidence["disabled"], "keyboard position is unavailable")
-    _assert(evidence["step"] > 0, "keyboard position has no positive step")
-    _assert(
-        math.isclose(evidence["min"], float(allowed["startMin"]), abs_tol=1e-12),
-        "range minimum differs from the canonical allowed interval",
-    )
-    _assert(
-        math.isclose(evidence["max"], float(allowed["endMin"]), abs_tol=1e-12),
-        "range maximum differs from the canonical allowed interval",
-    )
+    start = float(allowed["startMin"])
+    end = float(allowed["endMin"])
+    step = max((end - start) / 100.0, math.ulp(max(1.0, abs(start), abs(end))) * 8.0)
+    _assert(evidence["role"] == "group", "aiming plot lacks interactive group semantics")
+    _assert(evidence["tabindex"] == "0", "aiming plot is not keyboard focusable")
+    _assert(evidence["visible"], "keyboard aim readout is unavailable")
+    _assert(evidence["readoutLive"] == "polite", "keyboard aim readout is not announced")
+    _assert("左右方向键" in evidence["ariaLabel"] and "Enter" in evidence["ariaLabel"],
+            "plot does not expose keyboard aiming instructions")
     _assert(isinstance(keyboard_time, (int, float)), "hook lacks the keyboard aim time")
-    _assert(
-        math.isclose(evidence["value"], float(keyboard_time), abs_tol=1e-12),
-        "range value and read-only hook keyboard time differ",
-    )
-    _assert(
-        evidence["min"] <= evidence["value"] <= evidence["max"],
-        "range value is outside its canonical interval",
-    )
-    _assert(
-        "editPositionHelp" in evidence["describedBy"]
-        and "editPositionValue" in evidence["describedBy"],
-        "keyboard range lacks its instructions/value accessible description",
-    )
-    return {**evidence, "hook_value": keyboard_time}
+    _assert(start <= float(keyboard_time) <= end,
+            "keyboard aim is outside its canonical interval")
+    _assert(evidence["readout"] == f"{float(keyboard_time):.6f} min",
+            "visible aim readout and read-only hook disagree")
+    return {
+        **evidence,
+        "min": start,
+        "max": end,
+        "step": step,
+        "value": float(keyboard_time),
+        "hook_value": keyboard_time,
+    }
 
 
 def _edit_geometry(page: Any, allowed: dict[str, float]) -> dict[str, Any]:
@@ -337,17 +338,22 @@ def _edit_geometry(page: Any, allowed: dict[str, float]) -> dict[str, Any]:
     hit = result["hit"]
     _assert(content and canonical and hit, "narrow edit geometry is incomplete")
     _assert(not canonical["hidden"] and not hit["hidden"], "narrow edit geometry is hidden")
-    _assert(
-        0.0 < canonical["width"] < 4.0,
-        f"fixture no longer exercises a sub-4px canonical interval: {canonical['width']}",
-    )
+    viewport = _workbench_state(page).get("viewport") or {}
+    viewport_span = float(viewport.get("end_min", 0)) - float(viewport.get("start_min", 0))
+    _assert(0.0 < viewport_span <= 0.020000000001,
+            f"adjustment did not focus the local morphology: {viewport}")
+    _assert(float(viewport["start_min"]) <= float(allowed["startMin"])
+            and float(viewport["end_min"]) >= float(allowed["endMin"]),
+            "focused viewport does not contain the canonical support")
+    _assert(canonical["width"] >= MIN_POINTER_HIT_CSS_PX,
+            f"focused canonical support remains too small to inspect: {canonical['width']}")
     _assert(
         hit["width"] >= MIN_POINTER_HIT_CSS_PX,
         f"transparent edit hit target is narrower than {MIN_POINTER_HIT_CSS_PX}px",
     )
     _assert(
-        hit["width"] > canonical["width"],
-        "narrow canonical interval was not expanded for pointer access",
+        hit["width"] >= canonical["width"] - 1.0,
+        "pointer target is narrower than the visible scientific interval",
     )
     canonical_center = (canonical["left"] + canonical["right"]) / 2.0
     hit_center = (hit["left"] + hit["right"]) / 2.0
@@ -364,7 +370,15 @@ def _edit_geometry(page: Any, allowed: dict[str, float]) -> dict[str, Any]:
         / (float(allowed["endMin"]) - float(allowed["startMin"]))
     )
     _assert(0.0 <= ratio <= 1.0, "real candidate is outside the browser allowed interval")
-    return {**result, "candidate_ratio": ratio}
+    trace_segments = page.locator("#traceLayer .trace-line").get_attribute("d") or ""
+    _assert(trace_segments.count("L") >= 8, "focused view does not show enough real curve samples")
+    return {
+        **result,
+        "candidate_ratio": ratio,
+        "viewport": viewport,
+        "viewport_span_min": viewport_span,
+        "trace_segments": trace_segments.count("L") + 1,
+    }
 
 
 def _cancel_active_edit(
@@ -383,6 +397,10 @@ def _cancel_active_edit(
     _wait_edit_state(page, "selected", None)
     _assert(_request_count(requests, "cancel") == before + 1, "edit cancel was not issued once")
     _assert(snapshot() == before_science, "cancel changed scientific state")
+    restored = _workbench_state(page).get("viewport") or {}
+    _assert(math.isclose(float(restored.get("start_min", -1)), 0.0, abs_tol=1e-12)
+            and math.isclose(float(restored.get("end_min", -1)), 2.0, abs_tol=1e-12),
+            f"cancel did not restore the user's original viewport: {restored}")
     focus = _assert_focus(
         page,
         "adjust-apex",
@@ -429,6 +447,8 @@ def _mouse_candidate(
         "native_dpi_evidence": False,
         "canonical_support_css_px": geometry["canonical"]["width"],
         "pointer_hit_css_px": geometry["hit"]["width"],
+        "focused_viewport": geometry["viewport"],
+        "trace_segments": geometry["trace_segments"],
         "candidate_time_min": candidate,
         "range": range_evidence,
         "preview_focus": focus,
@@ -453,7 +473,7 @@ def _non_target_zero_preview(
         outside_hit = (hit["right"] + 5.0, content["top"] + 0.84 * content["height"])
     _assert(
         content["left"] < outside_hit[0] < content["right"],
-        "could not place expanded-hit exterior point inside plot content",
+        "could not place a non-target point inside plot content",
     )
     page.mouse.click(*outside_hit)
     time.sleep(0.08)
@@ -477,7 +497,7 @@ def _non_target_zero_preview(
         time.sleep(0.08)
     _assert(
         _request_count(requests, "preview") == before,
-        "expanded-hit exterior, axis, legend, or label issued a preview request",
+        "non-target curve area, axis, legend, or label issued a preview request",
     )
     _assert(_workbench_state(page).get("editState") == "aiming", "non-target left aim state")
     _assert(snapshot() == before_science, "non-target pointer input changed scientific state")
@@ -508,7 +528,7 @@ def _keyboard_candidate_apply(
     allowed = surface["allowed_interval"]
     range_initial = _range_contract(page, allowed)
     before_preview = _request_count(requests, "preview")
-    control = page.locator(_qa("edit-position"))
+    control = page.locator(_qa("plot-svg"))
     step = float(range_initial["step"])
     count = round((KEYBOARD_CANDIDATE_SEC / 60.0 - range_initial["value"]) / step)
     _assert(0 < count <= 2000, f"keyboard candidate requires unreasonable steps: {count}")
@@ -517,7 +537,7 @@ def _keyboard_candidate_apply(
     moved = _range_contract(page, allowed)
     _assert(
         abs(float(moved["value"]) - KEYBOARD_CANDIDATE_SEC / 60.0) <= step / 2.0 + 1e-12,
-        "keyboard range cannot reach the real in-support candidate",
+        "keyboard plot aiming cannot reach the real in-support candidate",
     )
     _assert(
         _request_count(requests, "preview") == before_preview,

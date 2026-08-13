@@ -73,7 +73,7 @@ export const PLOT_LAYOUT = Object.freeze({
   // The 1000-unit viewBox renders at ~0.59 CSS px/unit in the compact
   // viewport. Seven units preserve the required >=4 CSS px visual inset.
   safeGap: 7,
-  markerExtent: 9,
+  markerExtent: 4,
   topHeadroom: 0.1,
   legend: Object.freeze({ left: 72, top: 38, right: 378, bottom: 68 }),
 });
@@ -214,6 +214,53 @@ export function eventEditKeyboardStep(interval) {
   const span = end - start;
   if (span === 0) return 0;
   return Math.max(span / 100, Number.EPSILON * Math.max(1, Math.abs(start), Math.abs(end)) * 8);
+}
+
+export function eventEditFocusViewport(interval, viewport, {
+  minimumSpanMin = 0.02,
+  contextMultiplier = 4,
+} = {}) {
+  const start = Number(interval?.startMin);
+  const end = Number(interval?.endMin);
+  const viewportStart = Number(viewport?.start_min);
+  const viewportEnd = Number(viewport?.end_min);
+  const analysisStart = Number(viewport?.analysis_start_min);
+  const analysisEnd = Number(viewport?.analysis_end_min);
+  if (
+    !Number.isFinite(start)
+    || !Number.isFinite(end)
+    || end < start
+    || !Number.isFinite(viewportStart)
+    || !Number.isFinite(viewportEnd)
+    || viewportEnd <= viewportStart
+    || !Number.isFinite(analysisStart)
+    || !Number.isFinite(analysisEnd)
+    || analysisEnd < analysisStart
+  ) return null;
+  const availableSpan = analysisEnd - analysisStart;
+  if (!(availableSpan > 0)) return { startMin: analysisStart, endMin: analysisEnd };
+  const currentSpan = Math.min(availableSpan, viewportEnd - viewportStart);
+  const intervalSpan = Math.max(0, end - start);
+  const targetSpan = Math.min(
+    currentSpan,
+    availableSpan,
+    Math.max(Number(minimumSpanMin) || 0, intervalSpan * Math.max(1, Number(contextMultiplier) || 1)),
+  );
+  const center = start + intervalSpan / 2;
+  let focusedStart = center - targetSpan / 2;
+  let focusedEnd = focusedStart + targetSpan;
+  if (focusedStart < analysisStart) {
+    focusedStart = analysisStart;
+    focusedEnd = analysisStart + targetSpan;
+  }
+  if (focusedEnd > analysisEnd) {
+    focusedEnd = analysisEnd;
+    focusedStart = analysisEnd - targetSpan;
+  }
+  return {
+    startMin: Math.max(analysisStart, focusedStart),
+    endMin: Math.min(analysisEnd, focusedEnd),
+  };
 }
 
 export function eventEditHitGeometry(
@@ -722,9 +769,9 @@ export function placePlotLabels(
     if (placements.length >= Math.max(0, Number(maximum) || 0) && marker.event.eventToken !== selected) {
       continue;
     }
-    const text = `${marker.event.apexTimeMin.toFixed(3)} min`;
-    const width = Math.max(70, 16 + text.length * 6.4);
-    const height = 24;
+    const text = marker.event.apexTimeMin.toFixed(3);
+    const width = Math.max(26, text.length * 6.2);
+    const height = 13;
     if (
       selectedMarker
       && marker.event.eventToken !== selected
@@ -744,10 +791,10 @@ export function placePlotLabels(
       return { left: x, top: y, right: x + width, bottom: y + height };
     };
     const candidateBoxes = [
-      clampBox(marker.x - width / 2, marker.y - marker.radius - height - 8),
-      clampBox(marker.x - width / 2, marker.y + marker.radius + 8),
-      clampBox(marker.x + marker.radius + 10, marker.y - height / 2),
-      clampBox(marker.x - marker.radius - width - 10, marker.y - height / 2),
+      clampBox(marker.x + marker.radius + 5, marker.y - 10),
+      clampBox(marker.x - marker.radius - width - 5, marker.y - 10),
+      clampBox(marker.x - width / 2, marker.y - marker.radius - height - 4),
+      clampBox(marker.x - width / 2, marker.y + marker.radius + 4),
     ];
     const box = candidateBoxes.find((candidate) => (
       !rectanglesOverlap(candidate, geometry.layout.legend, geometry.layout.safeGap)
@@ -859,8 +906,12 @@ function rawFixtureWorkspace(id) {
     });
   }
   const selected = selectedIndex >= 0 ? events[selectedIndex] : null;
-  const start = visualId === "review-dense" ? 32.1 : 31.5;
-  const end = visualId === "review-dense" ? 32.55 : 33.5;
+  const focusedAdjust = id.startsWith("adjust-") || id === "edit-out-of-range";
+  const start = focusedAdjust ? 31.54 : visualId === "review-dense" ? 32.1 : 31.5;
+  const end = focusedAdjust ? 32.1 : visualId === "review-dense" ? 32.55 : 33.5;
+  const visibleEvents = events.filter((event) => (
+    event.apex_time_min >= start && event.apex_time_min <= end
+  ));
   const reviewed = events.filter((event) => event.status !== "unreviewed").length;
   const counts = Object.fromEntries(
     ["unreviewed", "accepted", "rejected", "pending"].map((status) => [
@@ -944,8 +995,8 @@ function rawFixtureWorkspace(id) {
         analysis_end_min: 96,
       },
       trace: fixtureTrace(start, end, events),
-      event_overlay: events,
-      label_event_tokens: events.filter((_, index) => index % 3 === 0).map((event) => event.event_token),
+      event_overlay: visibleEvents,
+      label_event_tokens: visibleEvents.filter((_, index) => index % 3 === 0).map((event) => event.event_token),
     },
     history: visualId === "undo-empty"
       ? { can_undo: false, can_redo: false }
@@ -985,6 +1036,7 @@ export function fixtureEventEdit(id) {
       error: "",
       busy: false,
       hoverTimeMin: null,
+      keyboardTimeMin: candidate.timeMin,
     };
   }
   return {
@@ -1000,6 +1052,7 @@ export function fixtureEventEdit(id) {
       : "",
     busy: false,
     hoverTimeMin: null,
+    keyboardTimeMin: adjust ? before.timeMin : 32.04,
   };
 }
 

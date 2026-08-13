@@ -45,6 +45,13 @@ jobs, rollback, geometry, long Chinese copy, contrast and reflow. Fixture
 states issue zero writes; real API gates use temporary projects. They write
 ignored JSON reports under `build/qa/` and exit nonzero on any failed check.
 
+The chart gates also require pointer hover/focus to leave the visible time-label
+set unchanged. Peak adjustment must focus the real local curve without widening
+the scientific support interval, preserve real trace samples, accept mouse and
+keyboard targeting, and restore the prior viewport on cancel. Every browser
+matrix row audits visible-control overlap, navigation-to-selection spacing and
+toolbar-label legibility in addition to document overflow.
+
 Generated PNGs and `report.json` default to ignored `build/qa/screenshots/`.
 They are evidence for the exact source run, not committed golden assets.
 `--require-all` is the pre-UAT hard gate: it fails while a browser scenario is

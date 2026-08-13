@@ -14,6 +14,7 @@ import {
   eventEditApplyBody,
   eventEditCancelBody,
   eventEditDefaultTime,
+  eventEditFocusViewport,
   eventEditHitGeometry,
   eventEditKeyboardStep,
   eventEditPreviewBody,
@@ -218,6 +219,29 @@ test("keyboard edit position stays within the exact interval with a fine dynamic
   const step = eventEditKeyboardStep(interval);
   assert.ok(step > 0);
   assert.ok(step <= (interval.endMin - interval.startMin) / 100 + Number.EPSILON);
+});
+
+test("adjustment focus viewport exposes local morphology without changing the allowed interval", () => {
+  const centered = eventEditFocusViewport(
+    { startMin: 2.543391, endMin: 2.54685 },
+    { start_min: 2.034, end_min: 3.034, analysis_start_min: 0, analysis_end_min: 10 },
+  );
+  assert.ok(Math.abs(centered.startMin - 2.5351205) < 1e-12);
+  assert.ok(Math.abs(centered.endMin - 2.5551205) < 1e-12);
+  assert.deepEqual(
+    eventEditFocusViewport(
+      { startMin: 0.001, endMin: 0.004 },
+      { start_min: 0, end_min: 1, analysis_start_min: 0, analysis_end_min: 10 },
+    ),
+    { startMin: 0, endMin: 0.02 },
+  );
+  assert.deepEqual(
+    eventEditFocusViewport(
+      { startMin: 9.996, endMin: 9.999 },
+      { start_min: 9, end_min: 10, analysis_start_min: 0, analysis_end_min: 10 },
+    ),
+    { startMin: 9.98, endMin: 10 },
+  );
 });
 
 test("review mutation bodies are closed, opaque, and preserve the operation note", () => {
@@ -436,25 +460,27 @@ test("production label limit keeps large overlays readable without suppressing m
   }
 });
 
-test("hover callout shares the production budget without displacing the selection", () => {
+test("persistent callouts are deterministic and never depend on pointer position", () => {
   const workspace = fixtureWorkspace("review-dense");
   const selectedToken = workspace.selection.event.eventToken;
-  const hoveredToken = workspace.window.eventOverlay.find(
-    (event) => event.eventToken !== selectedToken
-      && !workspace.window.labelEventTokens.includes(event.eventToken),
-  ).eventToken;
   const geometry = buildPlotGeometry(workspace);
-  const labels = placePlotLabels(
+  const first = placePlotLabels(
     geometry,
-    [...workspace.window.labelEventTokens, selectedToken, hoveredToken],
+    [...workspace.window.labelEventTokens, selectedToken],
     selectedToken,
     PLOT_LABEL_LIMIT,
-    [hoveredToken],
+  );
+  const second = placePlotLabels(
+    geometry,
+    [...workspace.window.labelEventTokens, selectedToken],
+    selectedToken,
+    PLOT_LABEL_LIMIT,
   );
 
-  assert.ok(labels.length <= PLOT_LABEL_LIMIT);
-  assert.ok(labels.some((label) => label.event.eventToken === selectedToken && label.selected));
-  assert.ok(labels.some((label) => label.event.eventToken === hoveredToken));
+  assert.deepEqual(second, first);
+  assert.ok(first.length <= PLOT_LABEL_LIMIT);
+  assert.ok(first.some((label) => label.event.eventToken === selectedToken && label.selected));
+  assert.ok(first.every((label) => /^\d+\.\d{3}$/.test(label.text)));
 });
 
 test("highest and edge callouts avoid the legend and prioritize selection", () => {

@@ -469,7 +469,7 @@ def _check_standard_fixture_reflow(page: Any, base_url: str) -> dict[str, Any]:
                       const copy = bar?.querySelector('.edit-mode-bar__copy');
                       const facts = bar?.querySelector('.edit-mode-bar__facts');
                       const actions = bar?.querySelector('.edit-mode-bar__actions');
-                      const position = bar?.querySelector('[data-qa="edit-position"]');
+                      const position = bar?.querySelector('[data-qa="edit-position-readout"]');
                       const rect = node => {
                         const box = node?.getBoundingClientRect?.();
                         const style = node ? getComputedStyle(node) : null;
@@ -679,7 +679,7 @@ def _begin_edit(
     surface = _assert_edit_surface(page, expected_state="aiming", expected_mode=mode)
     if keyboard:
         surface["keyboard_focus"] = _assert_focus(
-            page, "edit-position", f"keyboard {mode} aim", require_visible=True
+            page, "plot-svg", f"keyboard {mode} aim", require_visible=True
         )
     return surface
 

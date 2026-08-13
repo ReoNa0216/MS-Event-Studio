@@ -250,13 +250,12 @@
             <p id="editModeDescription">移动指针瞄准，单击后只生成预览，不会立即修改项目。</p>
           </div>
           <dl class="edit-mode-bar__facts">
-            <div data-qa="edit-allowed-range-copy"><dt>允许区间</dt><dd id="editAllowedRange">—</dd></div>
+            <div data-qa="edit-allowed-range-copy"><dt id="editAllowedRangeLabel">可选择范围</dt><dd id="editAllowedRange">—</dd></div>
             <div id="editPositionFact" class="edit-position-fact">
-              <dt><label for="editPosition">键盘瞄准位置</label></dt>
+              <dt>当前瞄准</dt>
               <dd>
-                <input id="editPosition" type="range" min="0" max="1" step="0.01" value="0.5" data-qa="edit-position" aria-describedby="editPositionHelp editPositionValue">
-                <output id="editPositionValue" for="editPosition">—</output>
-                <span id="editPositionHelp">方向键微调，Enter 生成预览</span>
+                <output id="editPositionValue" aria-live="polite" data-qa="edit-position-readout">—</output>
+                <span id="editPositionHelp">点击曲线选择峰顶；聚焦图后可用方向键移动，Enter 预览</span>
               </dd>
             </div>
             <div id="editCandidateFact" data-qa="edit-candidate" hidden><dt>候选峰顶</dt><dd id="editCandidate">—</dd></div>
@@ -279,7 +278,7 @@
           </header>
 
           <div id="plotFrame" class="plot-frame">
-            <svg id="signalPlot" class="signal-plot" viewBox="0 0 1000 600" role="img" aria-labelledby="plotTitle plotDescription" data-qa="plot-svg">
+            <svg id="signalPlot" class="signal-plot" viewBox="0 0 1000 600" role="img" tabindex="-1" aria-labelledby="plotTitle plotDescription" data-qa="plot-svg">
               <desc id="plotDescription">PC34 信号曲线与事件标记；使用事件列表或图中标记选择事件。</desc>
               <defs>
                 <clipPath id="plotContentClip">
@@ -292,12 +291,14 @@
                 <text x="62" y="578">时间（min）</text>
                 <text x="20" y="286" transform="rotate(-90 20 286)">PC34 强度</text>
               </g>
+              <g id="editRangeLayer" class="edit-range-layer" clip-path="url(#plotContentClip)" aria-hidden="true">
+                <rect id="editAllowedOverlay" class="edit-allowed-overlay" y="26" height="516" data-qa="edit-allowed-range" hidden></rect>
+              </g>
               <g id="traceLayer" class="trace-layer" clip-path="url(#plotContentClip)" aria-hidden="true"></g>
               <g id="editOverlayLayer" class="edit-overlay-layer" clip-path="url(#plotContentClip)" aria-hidden="true">
-                <rect id="editAllowedOverlay" class="edit-allowed-overlay" y="26" height="516" data-qa="edit-allowed-range" hidden></rect>
                 <line id="editAimLine" class="edit-aim-line" y1="26" y2="542" hidden></line>
                 <g id="editCandidateMarker" class="edit-candidate-marker" data-qa="edit-candidate-marker" hidden>
-                  <circle r="8"></circle><line x1="-12" x2="12"></line><line y1="-12" y2="12"></line>
+                  <circle r="5"></circle><line x1="-8" x2="8"></line><line y1="-8" y2="8"></line>
                 </g>
               </g>
               <g id="eventLayer" class="event-layer" clip-path="url(#plotContentClip)" aria-label="窗口内事件"></g>

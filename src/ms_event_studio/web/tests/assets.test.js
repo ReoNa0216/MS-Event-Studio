@@ -51,7 +51,7 @@ test("review workbench exposes stable semantic QA hooks", async () => {
     "edit-mode-bar",
     "edit-allowed-range",
     "edit-allowed-hit",
-    "edit-position",
+    "edit-position-readout",
     "edit-candidate",
     "edit-change",
     "edit-apply",
@@ -98,7 +98,9 @@ test("review workbench exposes stable semantic QA hooks", async () => {
   assert.match(html, /id="eventLayer"[^>]+clip-path="url\(#plotContentClip\)"/);
   assert.match(html, /id="editOverlayLayer"[^>]+clip-path="url\(#plotContentClip\)"/);
   assert.match(html, /id="editError"[^>]+role="alert"[^>]+data-qa="edit-error"/);
-  assert.match(html, /id="editPosition"[^>]+type="range"[^>]+data-qa="edit-position"/);
+  assert.match(html, /id="signalPlot"[^>]+role="img"[^>]+tabindex="-1"[^>]+data-qa="plot-svg"/);
+  assert.match(html, /id="editPositionValue"[^>]+aria-live="polite"[^>]+data-qa="edit-position-readout"/);
+  assert.doesNotMatch(html, /type="range"|id="editPosition"/);
 });
 
 test("design tokens are a single shared source for the approved family palette", async () => {
@@ -128,6 +130,14 @@ test("design tokens are a single shared source for the approved family palette",
   assert.match(
     css,
     /\.event-row\[aria-selected="true"\] \.event-row__copy small\s*\{[^}]*color:\s*var\(--color-text\)/s,
+  );
+  assert.match(
+    css,
+    /\.selected-event-panel:not\(\[hidden\]\)\s*\{[^}]*margin-top:\s*var\(--space-7\)[^}]*padding-top:\s*var\(--space-6\)/s,
+  );
+  assert.match(
+    css,
+    /\.toolbar-window label,[\s\S]*?\.toolbar-field\s*\{[^}]*font-size:\s*var\(--font-size-secondary\)/s,
   );
 });
 
@@ -174,13 +184,30 @@ test("browser code never calls a direct native bridge or persistent browser stor
   assert.match(js, /target\?\.closest\("#plotLegend, #eventLayer"\)/);
   assert.match(js, /eventEditCancelBody\(token\)/);
   assert.match(js, /eventEditTimeFromHitX\(point\.x, hit\)/);
-  assert.match(js, /element\("editPosition"\)\.addEventListener\("keydown", handleEventEditPositionKeydown\)/);
+  assert.match(js, /element\("signalPlot"\)\.addEventListener\("keydown", handleEventEditPlotKeydown\)/);
+  assert.match(js, /eventEditFocusViewport\(aim\.allowedInterval, returnViewport\)/);
+  assert.match(js, /state\.workspace = await workspaceAtViewport\(focused\)/);
+  assert.match(js, /allowedInterval: preview\.allowedInterval,[\s\S]*returnViewport: edit\.returnViewport/);
   assert.match(
     js,
-    /const selectedToken = selectedWorkspaceEvent\(\)\?\.eventToken \|\| "";[\s\S]*placePlotLabels\([\s\S]*selectedToken,[\s\S]*PLOT_LABEL_LIMIT,[\s\S]*\[state\.hoveredEventToken\]/,
+    /const selectedToken = selectedWorkspaceEvent\(\)\?\.eventToken \|\| "";[\s\S]*placePlotLabels\([\s\S]*state\.workspace\.window\.labelEventTokens,[\s\S]*selectedToken,[\s\S]*PLOT_LABEL_LIMIT/,
   );
-  assert.doesNotMatch(js, /state\.hoveredEventToken \|\| selectedWorkspaceEvent\(\)\?\.eventToken/);
+  assert.doesNotMatch(js, /hoveredEventToken/);
   assert.doesNotMatch(js, /localStorage|sessionStorage|indexedDB/);
+});
+
+test("plot labels follow the compact stable LMA treatment", async () => {
+  const js = await asset("app.js");
+  const css = await asset("app.css");
+  const labelRenderer = js.slice(
+    js.indexOf("function renderPlotLabels"),
+    js.indexOf("function renderPlotLegend"),
+  );
+  assert.match(labelRenderer, /text\.textContent = placement\.text/);
+  assert.doesNotMatch(labelRenderer, /mouseenter|mouseleave|focusin|focusout|svgElement\("rect"/);
+  assert.match(css, /\.plot-callout text\s*\{[^}]*paint-order:\s*stroke/s);
+  assert.match(css, /\.plot-callout text\s*\{[^}]*font-size:\s*var\(--font-size-compact\)/s);
+  assert.doesNotMatch(css, /\.plot-callout rect/);
 });
 
 test("committed event edits cannot fall back into the pre-response rollback branch", async () => {

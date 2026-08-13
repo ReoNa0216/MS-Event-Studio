@@ -93,9 +93,9 @@ src/ms_event_studio/
     icons/*.svg
 ```
 
-`desktop_bundle/ms_event_studio_gui.py` 最终指向 `web_desktop.main`。迁移中可暂时保留
-`desktop.py` 供回归对照，但不再向其中增加 UI 功能；完整工作台通过验收后删除或明确
-归档旧 Tk 入口，正式包中只保留一个渲染栈。
+`desktop_bundle/ms_event_studio_gui.py` 指向 `web_desktop.main`。迁移完成后，旧
+`desktop.py` 与 `theme.py` 已删除；仍需复用的筛选/刻度常量位于纯模型
+`desktop_model.py`。生产源码与最终包都有门禁拒绝 Tk/Tcl 和第二渲染栈。
 
 本仓库应复制并适配 LMA 的实现模式，不能从 `../lma-studio` 动态导入。优先只读参考：
 
@@ -142,8 +142,10 @@ SVG 主图必须满足：
 
 - 数据域至少预留 8–12% 顶部 headroom；marker、label、legend 的 bbox 距内容边界至少
   4 px，并由 clip path 限制，不允许最高峰的三角形或字母越过灰线。
-- 默认用形状与颜色表达 U/A/R/P，不在每个峰顶重复绘制 `U/A/R/P` 字母；选中或悬停
-  时再显示带白色描边的 callout。
+- 默认用小型形状与颜色表达 U/A/R/P，不在每个峰顶重复绘制 `U/A/R/P` 字母，也不能
+  让标记遮住局部峰形。时间标签只显示透明背景的三位小数，并用白色文字描边保证可读性。
+- 标签集合由服务端建议和当前选择确定；当前选择必须优先显示。鼠标悬停和焦点移动不能
+  临时换一批标签，避免同一图窗在没有数据变化时跳动。
 - 事件层与降采样信号层分离，自动峰顶不能被 envelope 降采样吃掉。
 - 绘图区外、图例、坐标轴、空白边距均不是写入 hit target。
 - 高密度标签有碰撞避免；透明 hit area 提升选择容错，但不得改变科学定位。
@@ -154,8 +156,8 @@ SVG 主图必须满足：
 
 ```text
 selected
-  ├─ add-aim ──hover/click──> add-preview ──apply──> saving ──> selected
-  └─ adjust-aim ────────────> adjust-preview ─────> saving ──> selected
+  ├─ add-aim ──click/Enter──> add-preview ──apply──> saving ──> selected
+  └─ adjust-aim ──click/Enter──> adjust-preview ──apply──> saving ──> selected
 
 任意 aim/preview --Esc 或取消--> selected
 ```
@@ -165,12 +167,17 @@ selected
 - 保持选中的模式按钮；
 - 图内就近操作条；
 - 添加模式的候选扫描，或调整模式的“可调整区间”色带；
-- 悬停吸附预览；
+- 指针或键盘当前瞄准位置；移动指针只更新读数，单击或 Enter 才请求预览；
 - before → after 数值；
 - “应用”和“取消”。
 
 点击只产生预览，第二步“应用”才写入。后台最终提交时重新校验真实扫描、revision 和
 允许区间，不能信任浏览器坐标。
+
+“重新定位峰顶”只用于自动标记明显偏离真实局部峰顶的异常事件，不是每个事件的必做步骤。
+进入该模式后，主图自动聚焦允许区间附近的实际曲线，用户以曲线真实最高点为判断依据；
+虚线只表示科学上可调整的原始支持区间，不暗示应选择区间中点。取消或成功应用后恢复进入
+编辑前的图窗。科学支持区间、真实扫描吸附和服务端复验规则保持不变。
 
 ### 4.5 明确拆开的领域动作
 
@@ -283,7 +290,7 @@ UI 文案 lint 至少禁止日常页面出现：`人用`、`machine contract`、
 
 ### 9.1 自动化
 
-1. 现有 84 项科学、项目、审阅、范围、导出和路径安全测试保持通过。
+1. 冻结的 84 项科学回归基线保持通过，当前完整 Python 套件也必须全部通过。
 2. 新增纯 view-model/API contract 测试，覆盖成功、冲突、取消、失败回滚和重开。
 3. Playwright 覆盖鼠标、键盘、焦点、disabled、loading、Esc、preview/apply 和失败注入。
 4. 几何测试覆盖所有 marker 形状、状态、最高/边缘/密集峰、窗口尺寸与缩放。

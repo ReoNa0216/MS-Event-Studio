@@ -516,7 +516,7 @@ def _check_marker_hover_focus_callout(
     before_state = _workbench_state(page)
     before_writes = write_count()
     markers = page.locator(_qa("plot-marker"))
-    labeled_keys = set(
+    labeled_keys_before = set(
         page.locator(_qa("plot-label")).evaluate_all(
             "labels => labels.map(label => label.dataset.eventKey)"
         )
@@ -525,7 +525,7 @@ def _check_marker_hover_focus_callout(
         (
             index
             for index in range(markers.count())
-            if markers.nth(index).get_attribute("data-event-key") not in labeled_keys
+            if markers.nth(index).get_attribute("data-event-key") not in labeled_keys_before
         ),
         None,
     )
@@ -534,20 +534,24 @@ def _check_marker_hover_focus_callout(
     target_key = target.get_attribute("data-event-key")
     _assert(bool(target_key), "hover target lacks its opaque event key")
 
-    callout_expression = (
-        "key => Array.from(document.querySelectorAll('[data-qa=\"plot-label\"]'))"
-        ".some(label => label.dataset.eventKey === key)"
-    )
     target.hover()
-    _wait_for_eval(page, callout_expression, arg=target_key)
+    time.sleep(0.08)
     after_hover = _workbench_state(page)
     _assert(after_hover.get("selectedEventKey") == before_state.get("selectedEventKey"),
             "hovering an event marker changed selection")
+    labeled_keys_after_hover = set(
+        page.locator(_qa("plot-label")).evaluate_all(
+            "labels => labels.map(label => label.dataset.eventKey)"
+        )
+    )
+    _assert(
+        labeled_keys_after_hover == labeled_keys_before,
+        "hovering an event marker changed the persistent time labels",
+    )
 
     page.mouse.move(1, 1)
-    _wait_for_eval(page, f"key => !({callout_expression})(key)", arg=target_key)
     target.focus()
-    _wait_for_eval(page, callout_expression, arg=target_key)
+    time.sleep(0.08)
     _assert(
         target.evaluate("element => document.activeElement === element"),
         "plot marker cannot receive keyboard focus",
@@ -555,6 +559,17 @@ def _check_marker_hover_focus_callout(
     after_focus = _workbench_state(page)
     _assert(after_focus.get("selectedEventKey") == before_state.get("selectedEventKey"),
             "focusing an event marker changed selection")
+    labeled_keys_after_focus = set(
+        page.locator(_qa("plot-label")).evaluate_all(
+            "labels => labels.map(label => label.dataset.eventKey)"
+        )
+    )
+    _assert(
+        labeled_keys_after_focus == labeled_keys_before,
+        "focusing an event marker changed the persistent time labels",
+    )
+    title = target.locator("title").text_content() or ""
+    _assert(bool(title.strip()), "unlabeled marker lacks a stable native detail title")
 
     visible_codes = page.locator(f'{_qa("plot-svg")} text').evaluate_all(
         "nodes => nodes.map(node => (node.textContent || '').trim())"
@@ -575,8 +590,9 @@ def _check_marker_hover_focus_callout(
     _assert(write_count() == before_writes, "marker hover/focus issued a write request")
     return {
         "ok": True,
-        "hover_callout": True,
-        "focus_callout": True,
+        "labels_stable_on_hover": True,
+        "labels_stable_on_focus": True,
+        "marker_detail_title": title,
         "selection_unchanged": True,
         "visible_letter_codes": visible_codes,
         "legend_states": legend_states,
