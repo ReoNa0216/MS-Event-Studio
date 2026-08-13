@@ -1024,7 +1024,7 @@ fieldset:disabled {
   font-size: var(--font-size-caption);
 }
 
-.project-view[data-edit-active="true"] .plot-frame {
+.project-view:is([data-edit-state="aiming"], [data-edit-state="error"]) .plot-frame {
   cursor: crosshair;
 }
 

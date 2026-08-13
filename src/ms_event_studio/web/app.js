@@ -773,9 +773,10 @@ function renderEventEdit() {
   const hasKeyboardTime = edit.keyboardTimeMin !== null && edit.keyboardTimeMin !== "";
   const keyboardTime = hasKeyboardTime ? Number(edit.keyboardTimeMin) : Number.NaN;
   const keyboardReady = Boolean(interval) && Number.isFinite(keyboardTime);
-  element("editPositionFact").hidden = !interval;
+  const aimState = ["aiming", "error"].includes(edit.state);
+  element("editPositionFact").hidden = !interval || !aimState;
   const plotCanAim = keyboardReady
-    && ["aiming", "error"].includes(edit.state)
+    && aimState
     && !edit.busy
     && Boolean(edit.token);
   const plot = element("signalPlot");
@@ -842,6 +843,9 @@ function renderWorkspace() {
   const busy = workbenchBusy();
   element("projectView").setAttribute("aria-busy", String(pendingWorkbenchOperation()));
   element("projectView").dataset.editActive = String(eventEditActive());
+  element("projectView").dataset.editState = eventEditActive()
+    ? state.eventEdit.state
+    : "selected";
   renderWorkspaceHeader();
   renderWorkspaceProgress();
   renderWorkspaceSelection();

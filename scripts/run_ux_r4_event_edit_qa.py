@@ -498,6 +498,8 @@ def _check_standard_fixture_reflow(page: Any, base_url: str) -> dict[str, Any]:
                         ...rect(node),
                       }));
                       return {
+                        state: bar?.dataset.state || '',
+                        positionHidden: Boolean(position?.closest('[hidden]')),
                         document: {
                           clientWidth: root.clientWidth,
                           scrollWidth: root.scrollWidth,
@@ -529,7 +531,7 @@ def _check_standard_fixture_reflow(page: Any, base_url: str) -> dict[str, Any]:
                     bar["scrollWidth"] <= bar["clientWidth"] + 1,
                     f"{fixture}@{viewport['width']} mode bar clips horizontally",
                 )
-                for name in ("copy", "facts", "actions", "position"):
+                for name in ("copy", "facts", "actions"):
                     box = audit["boxes"][name]
                     _assert(box is not None and box["width"] >= 44 and box["height"] >= 16,
                             f"{fixture}@{viewport['width']} lacks visible {name}")
@@ -545,6 +547,23 @@ def _check_standard_fixture_reflow(page: Any, base_url: str) -> dict[str, Any]:
                     _assert(
                         box["textOverflow"] != "ellipsis",
                         f"{fixture}@{viewport['width']} {name} hides content with ellipsis",
+                    )
+                position = audit["boxes"]["position"]
+                if audit["state"] in {"aiming", "error"}:
+                    _assert(
+                        not audit["positionHidden"]
+                        and position is not None
+                        and position["width"] >= 44
+                        and position["height"] >= 16,
+                        f"{fixture}@{viewport['width']} lacks visible aiming position",
+                    )
+                else:
+                    _assert(
+                        audit["positionHidden"]
+                        or position is None
+                        or position["width"] < 1
+                        or position["height"] < 1,
+                        f"{fixture}@{viewport['width']} keeps aiming instructions after preview",
                     )
                 _assert(
                     not any(audit["overlaps"].values()),

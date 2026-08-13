@@ -210,6 +210,19 @@ test("plot labels follow the compact stable LMA treatment", async () => {
   assert.doesNotMatch(css, /\.plot-callout rect/);
 });
 
+test("candidate preview removes aiming instructions and crosshair semantics", async () => {
+  const js = await asset("app.js");
+  const css = await asset("app.css");
+  assert.match(js, /const aimState = \["aiming", "error"\]\.includes\(edit\.state\)/);
+  assert.match(js, /element\("editPositionFact"\)\.hidden = !interval \|\| !aimState/);
+  assert.match(js, /dataset\.editState = eventEditActive\(\)[\s\S]*state\.eventEdit\.state[\s\S]*"selected"/);
+  assert.match(
+    css,
+    /\.project-view:is\(\[data-edit-state="aiming"\], \[data-edit-state="error"\]\) \.plot-frame\s*\{[^}]*cursor:\s*crosshair/s,
+  );
+  assert.doesNotMatch(css, /data-edit-active="true"[^}]*cursor:\s*crosshair/s);
+});
+
 test("committed event edits cannot fall back into the pre-response rollback branch", async () => {
   const js = await asset("app.js");
   const start = js.indexOf("async function applyEventEdit()");
