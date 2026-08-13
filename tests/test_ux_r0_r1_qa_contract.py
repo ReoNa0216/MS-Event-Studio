@@ -174,7 +174,7 @@ class UxR0R1QaContractTest(unittest.TestCase):
                 self.assertEqual(native_windows[scale]["status"], "captured")
                 self.assertEqual(
                     native_windows[scale]["evidence"],
-                    "build/qa/windows-native-r7-dpi-final-agent/report.json",
+                    "build/qa/windows-native-readable-run2/report.json",
                 )
                 self.assertNotIn(f"native:windows:{scale}", pending)
         for scale in (125, 200):
