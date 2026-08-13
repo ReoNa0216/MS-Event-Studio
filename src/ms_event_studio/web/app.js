@@ -701,20 +701,21 @@ function renderEventEditOverlay(geometry) {
   }
   const viewport = state.workspace.window.viewport;
   const hitGeometry = eventEditHitGeometry(interval, viewport, geometry.data);
+  const aimState = ["aiming", "error"].includes(edit.state);
   if (hitGeometry) {
     overlay.setAttribute("x", hitGeometry.visibleLeft);
     overlay.setAttribute("width", Math.max(0, hitGeometry.visibleRight - hitGeometry.visibleLeft));
     hit.setAttribute("x", hitGeometry.hitLeft);
     hit.setAttribute("width", hitGeometry.hitRight - hitGeometry.hitLeft);
     setHidden(overlay, false);
-    setHidden(hit, false);
+    setHidden(hit, !aimState);
   } else {
     setHidden(overlay, true);
     setHidden(hit, true);
   }
   const hasHover = edit.hoverTimeMin !== null && edit.hoverTimeMin !== "";
   const hover = hasHover ? Number(edit.hoverTimeMin) : Number(edit.keyboardTimeMin);
-  if (Number.isFinite(hover) && ["aiming", "error"].includes(edit.state)) {
+  if (Number.isFinite(hover) && aimState) {
     const x = geometry.xForTime(hover);
     aimLine.setAttribute("x1", x);
     aimLine.setAttribute("x2", x);

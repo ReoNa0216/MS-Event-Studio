@@ -470,6 +470,7 @@ def _check_standard_fixture_reflow(page: Any, base_url: str) -> dict[str, Any]:
                       const facts = bar?.querySelector('.edit-mode-bar__facts');
                       const actions = bar?.querySelector('.edit-mode-bar__actions');
                       const position = bar?.querySelector('[data-qa="edit-position-readout"]');
+                      const editHit = document.querySelector('[data-qa="edit-allowed-hit"]');
                       const rect = node => {
                         const box = node?.getBoundingClientRect?.();
                         const style = node ? getComputedStyle(node) : null;
@@ -500,6 +501,8 @@ def _check_standard_fixture_reflow(page: Any, base_url: str) -> dict[str, Any]:
                       return {
                         state: bar?.dataset.state || '',
                         positionHidden: Boolean(position?.closest('[hidden]')),
+                        editHitHidden: Boolean(editHit?.hasAttribute('hidden')),
+                        editHitCursor: editHit ? getComputedStyle(editHit).cursor : '',
                         document: {
                           clientWidth: root.clientWidth,
                           scrollWidth: root.scrollWidth,
@@ -557,6 +560,10 @@ def _check_standard_fixture_reflow(page: Any, base_url: str) -> dict[str, Any]:
                         and position["height"] >= 16,
                         f"{fixture}@{viewport['width']} lacks visible aiming position",
                     )
+                    _assert(
+                        not audit["editHitHidden"] and audit["editHitCursor"] == "crosshair",
+                        f"{fixture}@{viewport['width']} lacks its active plot target",
+                    )
                 else:
                     _assert(
                         audit["positionHidden"]
@@ -564,6 +571,10 @@ def _check_standard_fixture_reflow(page: Any, base_url: str) -> dict[str, Any]:
                         or position["width"] < 1
                         or position["height"] < 1,
                         f"{fixture}@{viewport['width']} keeps aiming instructions after preview",
+                    )
+                    _assert(
+                        audit["editHitHidden"],
+                        f"{fixture}@{viewport['width']} keeps the plot target active after preview",
                     )
                 _assert(
                     not any(audit["overlaps"].values()),

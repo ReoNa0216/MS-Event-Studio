@@ -215,6 +215,7 @@ test("candidate preview removes aiming instructions and crosshair semantics", as
   const css = await asset("app.css");
   assert.match(js, /const aimState = \["aiming", "error"\]\.includes\(edit\.state\)/);
   assert.match(js, /element\("editPositionFact"\)\.hidden = !interval \|\| !aimState/);
+  assert.match(js, /setHidden\(hit, !aimState\)/);
   assert.match(js, /dataset\.editState = eventEditActive\(\)[\s\S]*state\.eventEdit\.state[\s\S]*"selected"/);
   assert.match(
     css,
