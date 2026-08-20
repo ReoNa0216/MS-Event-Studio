@@ -23,6 +23,7 @@ import {
   REVIEW_FILTER_VALUES,
   PLOT_LAYOUT,
   WORKBENCH_FIXTURE_IDS,
+  bulkAcceptBody,
   buildPlotGeometry,
   eventEditAimBody,
   eventEditApplyBody,
@@ -45,6 +46,7 @@ import {
   restoreAutomaticApexBody,
   reviewDecisionBody,
   reviewHistoryBody,
+  timeAxisTicks,
   workspaceRequestBody,
 } from "./workspace-core.js";
 import {
@@ -408,6 +410,10 @@ function renderWorkspaceHeader() {
     : "false";
   setText("headerProjectName", project.displayName);
   setText("headerProjectRange", formatRange(project.analysisRange));
+  setText(
+    "projectMarkerSummary",
+    `主 marker ${project.primaryMarkerMz.toFixed(4)} m/z · 相邻提示 < ${project.collisionGapSec.toFixed(2)} s`,
+  );
 }
 
 function renderWorkspaceProgress() {
@@ -441,7 +447,7 @@ function renderReviewFeedback() {
 
 function renderCoreEvidence() {
   const { core, more } = state.workspace.selection;
-  setText("evidencePc34", workspaceNumber(core.pc34Intensity));
+  setText("evidencePrimaryMarker", workspaceNumber(core.primaryMarkerIntensity));
   setText("evidenceMz", core.measuredMz === null ? "—" : core.measuredMz.toFixed(6));
   setText("evidencePpm", core.massErrorPpm === null ? "—" : `${core.massErrorPpm > 0 ? "+" : ""}${core.massErrorPpm.toFixed(2)} ppm`);
   setText("evidenceQuality", core.quality.label);
@@ -530,6 +536,19 @@ function renderEventList() {
   const events = state.workspace.window.eventOverlay;
   element("eventList").replaceChildren(...events.map(createEventListButton));
   setText("visibleEventCount", `${events.length} 个`);
+  const bulk = state.workspace.window.bulkReview;
+  const eligible = bulk.eligibleCount;
+  const collision = bulk.collisionCount;
+  setText(
+    "bulkReviewSummary",
+    collision
+      ? `可保留 ${eligible} 个；跳过相邻事件 ${collision} 个`
+      : `可保留 ${eligible} 个；没有相邻风险`,
+  );
+  element("bulkAcceptVisible").textContent = eligible
+    ? `保留本窗口 ${eligible} 个安全事件`
+    : "没有可批量保留的事件";
+  element("bulkAcceptVisible").disabled = workbenchBusy() || eligible === 0;
 }
 
 function renderPlotGrid(geometry) {
@@ -542,6 +561,24 @@ function renderPlotGrid(geometry) {
     return `M ${x} ${geometry.content.top} V ${geometry.content.bottom}`;
   });
   element("plotGrid").replaceChildren(svgElement("path", { d: [...horizontal, ...vertical].join(" ") }));
+}
+
+function renderPlotXAxisTicks(geometry) {
+  const viewport = state.workspace.window.viewport;
+  const nodes = [];
+  timeAxisTicks(viewport).forEach((time) => {
+    const x = geometry.xForTime(time);
+    nodes.push(svgElement("line", {
+      x1: x,
+      x2: x,
+      y1: geometry.content.bottom,
+      y2: geometry.content.bottom + 6,
+    }));
+    const label = svgElement("text", { x, y: geometry.content.bottom + 19 });
+    label.textContent = time.toFixed(3);
+    nodes.push(label);
+  });
+  element("plotXAxisTicks").replaceChildren(...nodes);
 }
 
 function createMarkerShape(marker) {
@@ -585,9 +622,18 @@ function renderPlotMarkers(geometry) {
       r: 16,
     });
     const shape = createMarkerShape(marker);
+    const currentRing = marker.event.eventToken === selectedToken
+      ? svgElement("circle", {
+          class: "event-marker-current-ring",
+          cx: marker.x,
+          cy: marker.y,
+          r: marker.radius + 5,
+          "data-qa": "current-event-ring",
+        })
+      : null;
     const title = svgElement("title");
-    title.textContent = `${marker.event.apexTimeMin.toFixed(3)} 分钟，${marker.event.statusLabel}`;
-    group.append(title, hit, shape);
+    title.textContent = `${marker.event.apexTimeMin.toFixed(3)} 分钟，${marker.event.statusLabel}${currentRing ? "，当前事件" : ""}`;
+    group.append(title, hit, ...(currentRing ? [currentRing] : []), shape);
     const choose = () => {
       if (!disabled) selectWorkspaceEvent(marker.event.eventToken);
     };
@@ -667,6 +713,7 @@ function renderPlotLegend() {
 function renderSignalPlot() {
   const geometry = buildPlotGeometry(state.workspace, { logScale: state.workspaceScale === "log" });
   renderPlotGrid(geometry);
+  renderPlotXAxisTicks(geometry);
   const trace = geometry.tracePath
     ? svgElement("path", { class: "trace-line", d: geometry.tracePath })
     : null;
@@ -785,7 +832,7 @@ function renderEventEdit() {
   plot.setAttribute("role", plotCanAim ? "group" : "img");
   plot.setAttribute("aria-label", plotCanAim
     ? `局部峰形选择器，当前位置 ${keyboardTime.toFixed(6)} 分钟。用左右方向键移动，按 Enter 预览。`
-    : "PC34 信号曲线与事件标记");
+    : "主 marker 信号曲线与事件标记");
   const hasPointerAim = edit.hoverTimeMin !== null && edit.hoverTimeMin !== "";
   const displayedAim = hasPointerAim ? Number(edit.hoverTimeMin) : keyboardTime;
   setText("editPositionValue", Number.isFinite(displayedAim) ? `${displayedAim.toFixed(6)} min` : "—");
@@ -1033,6 +1080,14 @@ function submitReviewDecision(status) {
   performReviewMutation(
     API_ENDPOINTS.reviewDecision,
     () => reviewDecisionBody(event, status, element("reviewNote").value),
+  );
+}
+
+function bulkAcceptVisible() {
+  if (!state.workspace?.window.bulkReview.eligibleCount) return;
+  performReviewMutation(
+    API_ENDPOINTS.reviewBulkAccept,
+    () => bulkAcceptBody(element("reviewNote").value),
   );
 }
 
@@ -1550,6 +1605,8 @@ function resetCreate() {
   element("projectName").value = "";
   element("rangeStart").value = "";
   element("rangeEnd").value = "";
+  element("primaryMarkerMz").value = "760.5851";
+  element("collisionGapSec").value = "0.60";
   setText("rangeError", "");
   element("rangeError").hidden = true;
 }
@@ -1639,7 +1696,8 @@ function exportKindCopy(kind) {
         title: "导出完整审计数据包",
         overview: "复核与归档数据",
         help: "包含完整事件与操作记录，适合复核、归档或下游程序读取。",
-        target: "选择文件夹…",
+        target: "选择保存位置…",
+        targetHelp: "应用会在所选位置中创建一个新的数据包文件夹。页面不显示本机路径。",
         submit: "导出完整数据包",
       }
     : {
@@ -1647,6 +1705,7 @@ function exportKindCopy(kind) {
         overview: "审阅结果",
         help: "适合继续分析或交付已确认的审阅结果。",
         target: "选择文件…",
+        targetHelp: "选择 CSV 文件名；页面不显示本机路径。",
         submit: "导出审阅结果",
       };
 }
@@ -1679,6 +1738,7 @@ function renderExportFlow() {
     : estimatedReviewRows(state.workspace.review, flow.includePending);
   setText("exportEstimatedRows", audit ? `${formatCount(rows)} 个事件` : `预计 ${formatCount(rows)} 行`);
   setText("exportTargetName", flow.target?.displayName || "尚未选择");
+  setText("exportTargetHelp", copy.targetHelp);
   element("chooseExportTarget").textContent = copy.target;
   element("chooseExportTarget").disabled = exporting || success;
   element("exportNote").disabled = exporting || success;
@@ -2143,12 +2203,28 @@ function currentRangeValidation() {
   );
 }
 
+function currentScientificSettings() {
+  const primaryMarkerMz = Number(element("primaryMarkerMz").value);
+  const collisionGapSec = Number(element("collisionGapSec").value);
+  return {
+    primaryMarkerMz,
+    collisionGapSec,
+    ok: Number.isFinite(primaryMarkerMz)
+      && primaryMarkerMz >= 1
+      && primaryMarkerMz <= 5000
+      && Number.isFinite(collisionGapSec)
+      && collisionGapSec >= 0.01
+      && collisionGapSec <= 60,
+  };
+}
+
 function canCreate() {
   const projectName = element("projectName").value.trim();
   return state.create.analysisState === "ready"
     && Boolean(state.create.inspection?.inspectionToken)
     && Boolean(state.create.target?.selectionToken)
     && Boolean(projectName)
+    && currentScientificSettings().ok
     && currentRangeValidation().ok;
 }
 
@@ -2215,6 +2291,7 @@ function renderCreate() {
 
   const fieldsEnabled = create.analysisState === "ready" && Boolean(create.inspection);
   element("projectFields").disabled = !fieldsEnabled;
+  element("scientificFields").disabled = Boolean(create.source) || busyCreateState();
   setText("targetDisplayName", create.target?.displayName || "尚未选择位置");
   element("selectSource").disabled = busyCreateState();
   element("selectSource").textContent = create.source ? "重新选择…" : "选择文件…";
@@ -2236,6 +2313,12 @@ async function selectPath(role) {
 
 async function chooseSource() {
   if (state.fixture || busyCreateState()) return;
+  const scientific = currentScientificSettings();
+  if (!scientific.ok) {
+    showToast("请先填写有效的 marker m/z 和相邻事件提示阈值。", "error");
+    element("primaryMarkerMz").focus();
+    return;
+  }
   element("selectSource").disabled = true;
   try {
     const selection = await selectPath(PATH_ROLES.source);
@@ -2281,6 +2364,7 @@ async function startInspection() {
   try {
     const response = await post(API_ENDPOINTS.sourceInspections, {
       source_token: state.create.source.selectionToken,
+      primary_marker_mz: currentScientificSettings().primaryMarkerMz,
     });
     if (generation !== state.pollGeneration) return;
     await applyJob(response);
@@ -2431,6 +2515,7 @@ async function chooseTarget() {
 async function createProject() {
   if (state.fixture || !canCreate()) return;
   const validation = currentRangeValidation();
+  const scientific = currentScientificSettings();
   const error = element("rangeError");
   if (!validation.ok) {
     error.textContent = validation.message;
@@ -2454,6 +2539,8 @@ async function createProject() {
       display_name: element("projectName").value.trim(),
       analysis_start_min: String(validation.start),
       analysis_end_min: String(validation.end),
+      primary_marker_mz: scientific.primaryMarkerMz,
+      collision_gap_sec: scientific.collisionGapSec,
     });
     if (generation !== state.pollGeneration) return;
     await applyJob(response);
@@ -2584,6 +2671,7 @@ function installEvents() {
   element("reviewSegmented").querySelectorAll("[data-decision]").forEach((button) => {
     button.addEventListener("click", () => submitReviewDecision(button.dataset.decision));
   });
+  element("bulkAcceptVisible").addEventListener("click", bulkAcceptVisible);
   element("clearReview").addEventListener("click", () => submitReviewDecision("unreviewed"));
   element("restoreAutomatic").addEventListener("click", restoreAutomaticApex);
   element("undoAction").addEventListener("click", () => mutateReviewHistory("undo"));
@@ -2615,7 +2703,7 @@ function installEvents() {
   element("closeOpen").addEventListener("click", () => closeDialog("open"));
   element("cancelOpen").addEventListener("click", () => closeDialog("open"));
 
-  ["projectName", "rangeStart", "rangeEnd"].forEach((id) => {
+  ["projectName", "rangeStart", "rangeEnd", "primaryMarkerMz", "collisionGapSec"].forEach((id) => {
     element(id).addEventListener("input", () => {
       if (id !== "projectName") element("rangeError").hidden = true;
       renderCreateFooter();

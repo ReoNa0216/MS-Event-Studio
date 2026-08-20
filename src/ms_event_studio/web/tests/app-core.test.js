@@ -125,6 +125,7 @@ test("front-end API paths are same-origin, query-free, and roles are narrow", ()
     API_ENDPOINTS.projects,
     API_ENDPOINTS.openProject,
     API_ENDPOINTS.reviewDecision,
+    API_ENDPOINTS.reviewBulkAccept,
     API_ENDPOINTS.restoreAutomaticApex,
     API_ENDPOINTS.reviewUndo,
     API_ENDPOINTS.reviewRedo,
@@ -149,6 +150,6 @@ test("front-end API paths are same-origin, query-free, and roles are narrow", ()
     open: "project_open",
     target: "project_target",
     reviewExport: "review_export_file",
-    auditExport: "audit_export_target",
+    auditExport: "audit_export_parent",
   });
 });

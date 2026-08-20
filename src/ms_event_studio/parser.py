@@ -15,18 +15,18 @@ import numpy as np
 import pandas as pd
 
 from .errors import CancelledError, InputChangedError, MSParseError
+from .scientific_settings import (
+    DEFAULT_PRIMARY_MARKER_MZ,
+    MARKER_TOLERANCE_PPM,
+    ProjectScientificSettings,
+    QC_MARKER_MZ,
+)
 from .timebase import minutes_to_ns
 
 
 PARSER_VERSION = "ascii-ms-summary-parser-v1"
-TOLERANCE_PPM = 12.0
 PSEUDOCOUNT = 1.0
 EDGE_BYTES = 1_048_576
-
-MARKERS = (
-    ("pc34_760", 760.5851),
-    ("qc_782", 782.5616),
-)
 
 RE_SPECTRUM_LIST = re.compile(r"spectrumList\s*\((\d+)\s+spectra\)")
 RE_INDEX = re.compile(r"^\s*index:\s*(\d+)\s*$")
@@ -58,6 +58,8 @@ class ParseSummary:
     parsed_spectrum_count: int
     size_bytes: int
     tolerance_ppm: float
+    primary_marker_mz: float
+    qc_marker_mz: float
     parser_version: str
     elapsed_sec: float
 
@@ -175,10 +177,18 @@ def _numeric_array(line: str, *, kind: str, spectrum_number: int) -> tuple[np.nd
     return values, declared
 
 
-def _marker_fields(mz: np.ndarray, intensity: np.ndarray) -> dict[str, int | float]:
+def _marker_fields(
+    mz: np.ndarray,
+    intensity: np.ndarray,
+    *,
+    primary_marker_mz: float,
+) -> dict[str, int | float]:
     result: dict[str, int | float] = {}
-    for prefix, target in MARKERS:
-        tolerance = target * TOLERANCE_PPM * 1e-6
+    for prefix, target in (
+        ("primary_marker", primary_marker_mz),
+        ("qc_marker", QC_MARKER_MZ),
+    ):
+        tolerance = target * MARKER_TOLERANCE_PPM * 1e-6
         left = int(np.searchsorted(mz, target - tolerance, side="left"))
         right = int(np.searchsorted(mz, target + tolerance, side="right"))
         selected_mz = mz[left:right]
@@ -204,7 +214,14 @@ def _marker_fields(mz: np.ndarray, intensity: np.ndarray) -> dict[str, int | flo
     return result
 
 
-def _finalize_spectrum(current: dict, mz: np.ndarray | None, intensity: np.ndarray | None, number: int) -> dict:
+def _finalize_spectrum(
+    current: dict,
+    mz: np.ndarray | None,
+    intensity: np.ndarray | None,
+    number: int,
+    *,
+    primary_marker_mz: float,
+) -> dict:
     required = (
         "spectrum_index",
         "scan_id",
@@ -249,7 +266,7 @@ def _finalize_spectrum(current: dict, mz: np.ndarray | None, intensity: np.ndarr
     row["scan_start_time_sec"] = float(time_decimal * Decimal(60))
     row["mz_array_length_parsed"] = len(mz)
     row["intensity_array_length_parsed"] = len(intensity)
-    row.update(_marker_fields(mz, intensity))
+    row.update(_marker_fields(mz, intensity, primary_marker_mz=primary_marker_mz))
     return row
 
 
@@ -270,18 +287,18 @@ def _add_derived_columns(rows: list[dict]) -> pd.DataFrame:
         raise MSParseError("source contains no spectra")
     scan.insert(0, "scan_row_index", np.arange(len(scan), dtype=np.int64))
     scan["scan_step_sec"] = scan["scan_start_time_sec"].diff()
-    scan["has_pc34_760"] = scan["pc34_760_n_mz"] > 0
-    scan["has_qc_782"] = scan["qc_782_n_mz"] > 0
-    scan["has_both_markers"] = scan["has_pc34_760"] & scan["has_qc_782"]
-    scan["ratio_760_782_max_pseudo1"] = (
-        scan["pc34_760_max_intensity"] + PSEUDOCOUNT
-    ) / (scan["qc_782_max_intensity"] + PSEUDOCOUNT)
-    scan["ratio_760_782_sum_pseudo1"] = (
-        scan["pc34_760_sum_intensity"] + PSEUDOCOUNT
-    ) / (scan["qc_782_sum_intensity"] + PSEUDOCOUNT)
+    scan["has_primary_marker"] = scan["primary_marker_n_mz"] > 0
+    scan["has_qc_marker"] = scan["qc_marker_n_mz"] > 0
+    scan["has_both_markers"] = scan["has_primary_marker"] & scan["has_qc_marker"]
+    scan["primary_qc_max_ratio_pseudo1"] = (
+        scan["primary_marker_max_intensity"] + PSEUDOCOUNT
+    ) / (scan["qc_marker_max_intensity"] + PSEUDOCOUNT)
+    scan["primary_qc_sum_ratio_pseudo1"] = (
+        scan["primary_marker_sum_intensity"] + PSEUDOCOUNT
+    ) / (scan["qc_marker_sum_intensity"] + PSEUDOCOUNT)
     scan["log10_tic"] = np.log10(scan.get("tic", pd.Series(np.zeros(len(scan)))).fillna(0).clip(lower=0) + 1.0)
-    scan["log10_pc34_760_max"] = np.log10(scan["pc34_760_max_intensity"] + 1.0)
-    scan["log10_qc_782_max"] = np.log10(scan["qc_782_max_intensity"] + 1.0)
+    scan["log10_primary_marker_max"] = np.log10(scan["primary_marker_max_intensity"] + 1.0)
+    scan["log10_qc_marker_max"] = np.log10(scan["qc_marker_max_intensity"] + 1.0)
     return scan
 
 
@@ -291,10 +308,14 @@ def parse_ms_scan_summary(
     cancel_check: Callable[[], bool] | None = None,
     progress_callback: Callable[[ParseProgress], None] | None = None,
     progress_interval_bytes: int = 64 * 1024 * 1024,
+    primary_marker_mz: float = DEFAULT_PRIMARY_MARKER_MZ,
 ) -> ParseResult:
     """Parse once, hash the complete byte stream, and reject every ambiguity."""
 
     started = time.monotonic()
+    primary_marker_mz = ProjectScientificSettings(
+        primary_marker_mz=primary_marker_mz
+    ).primary_marker_mz
     source = Path(path).resolve()
     if not source.is_file():
         raise MSParseError(f"MS source is not a regular file: {source}")
@@ -349,7 +370,13 @@ def parse_ms_scan_summary(
                         if implicit is None:
                             raise MSParseError(f"truncated spectrum {len(rows) + 1} before next spectrum")
                         rows.append(
-                            _finalize_spectrum(current, implicit[0], implicit[1], len(rows) + 1)
+                            _finalize_spectrum(
+                                current,
+                                implicit[0],
+                                implicit[1],
+                                len(rows) + 1,
+                                primary_marker_mz=primary_marker_mz,
+                            )
                         )
                     current = {}
                     mz_array = None
@@ -445,7 +472,13 @@ def parse_ms_scan_summary(
                     else:
                         intensity_array = values
                         current["intensity_array_declared_length"] = declared
-                        row = _finalize_spectrum(current, mz_array, intensity_array, len(rows) + 1)
+                        row = _finalize_spectrum(
+                            current,
+                            mz_array,
+                            intensity_array,
+                            len(rows) + 1,
+                            primary_marker_mz=primary_marker_mz,
+                        )
                         rows.append(row)
                         current = None
                         mz_array = None
@@ -462,7 +495,15 @@ def parse_ms_scan_summary(
         implicit = _implicit_empty_arrays(current, array_declarations)
         if implicit is None:
             raise MSParseError(f"truncated spectrum {len(rows) + 1} at end of file")
-        rows.append(_finalize_spectrum(current, implicit[0], implicit[1], len(rows) + 1))
+        rows.append(
+            _finalize_spectrum(
+                current,
+                implicit[0],
+                implicit[1],
+                len(rows) + 1,
+                primary_marker_mz=primary_marker_mz,
+            )
+        )
     if metadata_count is None:
         raise MSParseError("missing spectrum count metadata")
     if metadata_count != len(rows):
@@ -494,7 +535,9 @@ def parse_ms_scan_summary(
         metadata_spectrum_count=metadata_count,
         parsed_spectrum_count=len(rows),
         size_bytes=after.size_bytes,
-        tolerance_ppm=TOLERANCE_PPM,
+        tolerance_ppm=MARKER_TOLERANCE_PPM,
+        primary_marker_mz=primary_marker_mz,
+        qc_marker_mz=QC_MARKER_MZ,
         parser_version=PARSER_VERSION,
         elapsed_sec=time.monotonic() - started,
     )

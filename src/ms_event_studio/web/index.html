@@ -45,7 +45,7 @@
         <div class="welcome-card__copy">
           <span class="eyebrow">MS EVENT STUDIO</span>
           <h1 id="welcomeTitle">从清晰的信号开始审阅</h1>
-          <p class="welcome-lead">分析 PC34 信号，逐个核对事件，并在一个项目中保留完整的审阅过程。</p>
+          <p class="welcome-lead">分析细胞事件 marker 信号，逐个核对事件，并在一个项目中保留完整的审阅过程。</p>
 
           <div class="welcome-actions" aria-label="开始使用">
             <button id="welcomeCreate" class="button button--primary button--large" type="button">
@@ -64,7 +64,7 @@
 
         <div class="signal-preview" aria-hidden="true">
           <div class="signal-preview__head">
-            <span>PC34 信号</span>
+            <span>marker 信号</span>
             <span class="signal-preview__badge">待审阅</span>
           </div>
           <svg class="signal-preview__chart" viewBox="0 0 520 236" preserveAspectRatio="none">
@@ -124,6 +124,10 @@
               下一事件
             </button>
           </div>
+          <div class="bulk-review-action bulk-review-action--sidebar">
+            <span id="bulkReviewSummary">仅处理当前窗口内的未审阅事件</span>
+            <button id="bulkAcceptVisible" class="button button--secondary" type="button" disabled data-qa="bulk-accept-visible">批量保留安全事件</button>
+          </div>
         </section>
 
         <section id="noSelectionCard" class="no-selection-card" aria-live="polite">
@@ -165,7 +169,7 @@
           <section class="core-evidence" aria-labelledby="coreEvidenceTitle" data-qa="core-evidence">
             <h3 id="coreEvidenceTitle">核心证据</h3>
             <dl class="evidence-grid">
-              <div><dt>PC34 强度</dt><dd id="evidencePc34">—</dd></div>
+              <div><dt>主 marker 强度</dt><dd id="evidencePrimaryMarker">—</dd></div>
               <div><dt>实测 m/z</dt><dd id="evidenceMz">—</dd></div>
               <div><dt>质量误差</dt><dd id="evidencePpm">—</dd></div>
               <div><dt>质量结论</dt><dd id="evidenceQuality">—</dd></div>
@@ -207,7 +211,7 @@
         </div>
       </aside>
 
-      <section class="workspace-main" aria-label="PC34 信号工作区">
+      <section class="workspace-main" aria-label="主 marker 信号工作区">
         <div class="panel plot-toolbar" aria-label="信号图查看工具">
           <div class="toolbar-group toolbar-window" aria-label="显示窗口">
             <label for="windowStart">起点 min</label>
@@ -271,7 +275,7 @@
         <section class="panel plot-panel" aria-labelledby="plotTitle">
           <header class="plot-panel__header">
             <div>
-              <p class="section-kicker">PC34 / MS760</p>
+              <p id="projectMarkerSummary" class="section-kicker">细胞事件 marker</p>
               <h2 id="plotTitle">信号与事件</h2>
             </div>
             <p id="plotWindowSummary">—</p>
@@ -279,7 +283,7 @@
 
           <div id="plotFrame" class="plot-frame">
             <svg id="signalPlot" class="signal-plot" viewBox="0 0 1000 600" role="img" tabindex="-1" aria-labelledby="plotTitle plotDescription" data-qa="plot-svg">
-              <desc id="plotDescription">PC34 信号曲线与事件标记；使用事件列表或图中标记选择事件。</desc>
+              <desc id="plotDescription">主 marker 信号曲线与事件标记；使用事件列表或图中标记选择事件。</desc>
               <defs>
                 <clipPath id="plotContentClip">
                   <rect x="62" y="26" width="918" height="516" rx="2"></rect>
@@ -287,9 +291,10 @@
               </defs>
               <rect class="plot-content" x="62" y="26" width="918" height="516" rx="2" data-qa="plot-content"></rect>
               <g id="plotGrid" class="plot-grid" aria-hidden="true"></g>
+              <g id="plotXAxisTicks" class="plot-axis-ticks" aria-hidden="true"></g>
               <g class="plot-axis" aria-hidden="true">
-                <text x="62" y="578">时间（min）</text>
-                <text x="20" y="286" transform="rotate(-90 20 286)">PC34 强度</text>
+                <text x="521" y="590" text-anchor="middle">时间（min）</text>
+                <text x="20" y="286" transform="rotate(-90 20 286)">marker 强度</text>
               </g>
               <g id="editRangeLayer" class="edit-range-layer" clip-path="url(#plotContentClip)" aria-hidden="true">
                 <rect id="editAllowedOverlay" class="edit-allowed-overlay" y="26" height="516" data-qa="edit-allowed-range" hidden></rect>
@@ -312,8 +317,10 @@
 
         <section class="panel event-strip" aria-labelledby="eventListTitle">
           <div class="event-strip__heading">
-            <h2 id="eventListTitle">窗口内事件</h2>
-            <span id="visibleEventCount">0 个</span>
+            <div>
+              <h2 id="eventListTitle">窗口内事件</h2>
+              <span id="visibleEventCount">0 个</span>
+            </div>
           </div>
           <div id="eventList" class="event-list" role="listbox" aria-label="选择事件"></div>
         </section>
@@ -344,6 +351,22 @@
       </ol>
 
       <div class="modal__body">
+        <fieldset id="scientificFields" class="project-fields scientific-settings">
+          <legend>科学设置（选源前确认）</legend>
+          <div class="field-grid">
+            <label class="field" for="primaryMarkerMz">
+              <span>细胞事件 marker m/z</span>
+              <input id="primaryMarkerMz" name="primary_marker_mz" type="number" inputmode="decimal" min="1" max="5000" step="0.0001" value="760.5851">
+              <small>用于从每个扫描提取主信号；质量窗口固定为 ±12 ppm。</small>
+            </label>
+            <label class="field" for="collisionGapSec">
+              <span>相邻事件提示阈值（s）</span>
+              <input id="collisionGapSec" name="collision_gap_sec" type="number" inputmode="decimal" min="0.01" max="60" step="0.01" value="0.60">
+              <small>只决定哪些事件需要人工判断，不改变峰识别结果。</small>
+            </label>
+          </div>
+        </fieldset>
+
         <section class="form-section" aria-labelledby="sourceSectionTitle">
           <div class="form-section__heading">
             <div>
@@ -556,7 +579,7 @@
           <p id="exportKindHelp">适合继续分析或交付已确认的审阅结果。</p>
         </section>
         <section class="export-target" aria-labelledby="exportTargetTitle">
-          <div class="operation-heading"><div><h3 id="exportTargetTitle">保存目标</h3><p>页面只显示名称，不显示本机路径。</p></div><button id="chooseExportTarget" class="button button--secondary" type="button" data-qa="export-choose-target">选择文件…</button></div>
+          <div class="operation-heading"><div><h3 id="exportTargetTitle">保存目标</h3><p id="exportTargetHelp">页面只显示名称，不显示本机路径。</p></div><button id="chooseExportTarget" class="button button--secondary" type="button" data-qa="export-choose-target">选择文件…</button></div>
           <div class="selection-readout"><span class="selection-readout__icon selection-readout__icon--folder" aria-hidden="true"></span><div><span class="selection-readout__label">已选择</span><strong id="exportTargetName" data-qa="export-target-name">尚未选择</strong></div></div>
         </section>
         <label class="field" for="exportNote"><span>导出备注（可选）</span><textarea id="exportNote" rows="2" maxlength="500" placeholder="记录本次导出的用途"></textarea></label>

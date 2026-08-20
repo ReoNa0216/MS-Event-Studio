@@ -37,14 +37,14 @@ def packaged_scientific_smoke() -> dict[str, Any]:
             "scan_time_ns": np.rint(time_sec * 1_000_000_000).astype(np.int64),
             "scan_start_time_sec": time_sec,
             "scan_start_time_min": time_sec / 60.0,
-            "pc34_760_max_intensity": signal,
-            "qc_782_max_intensity": np.full(count, 10.0),
+            "primary_marker_max_intensity": signal,
+            "qc_marker_max_intensity": np.full(count, 10.0),
             "tic": np.full(count, 1e7),
             "array_length": np.full(count, 7000, dtype=np.int64),
             "base_peak_mz": np.full(count, 760.5851),
-            "pc34_760_ppm_error_at_max_intensity": np.zeros(count),
-            "qc_782_ppm_error_at_max_intensity": np.zeros(count),
-            "ratio_760_782_max_pseudo1": (signal + 1.0) / 11.0,
+            "primary_marker_ppm_error_at_max_intensity": np.zeros(count),
+            "qc_marker_ppm_error_at_max_intensity": np.zeros(count),
+            "primary_qc_max_ratio_pseudo1": (signal + 1.0) / 11.0,
         }
     )
     analysis = AnalysisRange(0, 120_000_000_000)

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from _fixtures import PC34_MZ, QC782_MZ, spectrum_lines, write_ms_file
+from _fixtures import PRIMARY_MARKER_MZ, QC782_MZ, spectrum_lines, write_ms_file
 from ms_event_studio.errors import CancelledError, InputChangedError, MSParseError
 from ms_event_studio.parser import parse_ms_scan_summary
 
@@ -37,7 +37,7 @@ class ParserContractTest(unittest.TestCase):
         self.assertEqual(result.summary.metadata_spectrum_count, 2)
         self.assertEqual(result.summary.parsed_spectrum_count, 2)
         self.assertEqual(result.scans["array_length"].astype(int).tolist(), [0, 4])
-        self.assertEqual(result.scans["pc34_760_max_intensity"].tolist(), [0.0, 0.0])
+        self.assertEqual(result.scans["primary_marker_max_intensity"].tolist(), [0.0, 0.0])
 
     def test_zero_length_requires_both_array_declarations(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -94,10 +94,10 @@ class ParserContractTest(unittest.TestCase):
                 parse_ms_scan_summary(negative_time)
 
     def test_closed_12ppm_window_and_complete_stream_hash(self):
-        lower = PC34_MZ * (1.0 - 12e-6)
-        upper = PC34_MZ * (1.0 + 12e-6)
-        outside = PC34_MZ * (1.0 + 12.001e-6)
-        mz = [100.0, lower, PC34_MZ, upper, outside, QC782_MZ, 900.0]
+        lower = PRIMARY_MARKER_MZ * (1.0 - 12e-6)
+        upper = PRIMARY_MARKER_MZ * (1.0 + 12e-6)
+        outside = PRIMARY_MARKER_MZ * (1.0 + 12.001e-6)
+        mz = [100.0, lower, PRIMARY_MARKER_MZ, upper, outside, QC782_MZ, 900.0]
         intensity = [0.0, 100.0, 200.0, 300.0, 9999.0, 400.0, 0.0]
         with tempfile.TemporaryDirectory() as tmp:
             source = write_ms_file(
@@ -113,12 +113,32 @@ class ParserContractTest(unittest.TestCase):
         self.assertEqual(result.summary.metadata_spectrum_count, 1)
         self.assertEqual(result.summary.parsed_spectrum_count, 1)
         row = result.scans.iloc[0]
-        self.assertEqual(int(row["pc34_760_n_mz"]), 3)
-        self.assertAlmostEqual(float(row["pc34_760_max_intensity"]), 300.0)
-        self.assertAlmostEqual(float(row["pc34_760_sum_intensity"]), 600.0)
-        self.assertAlmostEqual(float(row["pc34_760_ppm_error_at_max_intensity"]), 12.0, places=8)
-        self.assertEqual(int(row["qc_782_n_mz"]), 1)
+        self.assertEqual(int(row["primary_marker_n_mz"]), 3)
+        self.assertAlmostEqual(float(row["primary_marker_max_intensity"]), 300.0)
+        self.assertAlmostEqual(float(row["primary_marker_sum_intensity"]), 600.0)
+        self.assertAlmostEqual(
+            float(row["primary_marker_ppm_error_at_max_intensity"]),
+            12.0,
+            places=8,
+        )
+        self.assertEqual(int(row["qc_marker_n_mz"]), 1)
         self.assertEqual(int(row["scan_time_ns"]), 74_074_073_400)
+
+    def test_custom_primary_marker_changes_extraction_without_widening_ppm_window(self):
+        custom_marker = 500.1234
+        mz = [100.0, custom_marker, PRIMARY_MARKER_MZ, QC782_MZ, 900.0]
+        intensities = [0.0, 321.0, 900.0, 10.0, 0.0]
+        with tempfile.TemporaryDirectory() as tmp:
+            source = write_ms_file(
+                Path(tmp) / "custom-marker.txt",
+                [spectrum_lines(0, 1, "0", mz_values=mz, intensities=intensities)],
+            )
+            parsed = parse_ms_scan_summary(source, primary_marker_mz=custom_marker)
+        row = parsed.scans.iloc[0]
+        self.assertEqual(parsed.summary.primary_marker_mz, custom_marker)
+        self.assertEqual(parsed.summary.tolerance_ppm, 12.0)
+        self.assertEqual(float(row["primary_marker_max_intensity"]), 321.0)
+        self.assertEqual(float(row["primary_marker_mz_at_max_intensity"]), custom_marker)
 
     def test_metadata_count_mismatch_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -175,7 +195,7 @@ class ParserContractTest(unittest.TestCase):
                 0,
                 1,
                 0,
-                mz_values=[PC34_MZ, 100.0, 900.0],
+                mz_values=[PRIMARY_MARKER_MZ, 100.0, 900.0],
                 intensities=[10.0, 0.0, 0.0],
             )
             unsorted_path.write_text("\n".join(lines), encoding="ascii")

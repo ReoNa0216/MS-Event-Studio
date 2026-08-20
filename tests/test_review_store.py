@@ -100,6 +100,63 @@ class ReviewStoreContractTest(unittest.TestCase):
             self.assertEqual([row["action"] for row in reopened.audit_events()], ["set_status", "undo", "redo"])
             reopened.close()
 
+    def test_bulk_status_is_atomic_and_one_undo_redo_step(self):
+        rows = automatic_rows()
+        second = dict(rows[0])
+        second.update(
+            auto_event_id="AE_" + "3" * 64,
+            scan_id="100004",
+            scan_row_index=4,
+            spectrum_index=4,
+            scan_time_ns=400_000_000,
+            apex_time_sec=0.4,
+            left_sec=0.35,
+            right_sec=0.45,
+        )
+        rows.append(second)
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            store = ReviewStore.create(
+                Path(tmp) / "review.sqlite",
+                project_id="project-1",
+                generation_id="GEN_" + "2" * 64,
+                automatic_events=rows,
+            )
+            events = store.list_events()
+            with self.assertRaises(ReviewConflict):
+                store.set_status_bulk(
+                    [
+                        (events[0]["event_id"], events[0]["revision"]),
+                        (events[1]["event_id"], events[1]["revision"] + 1),
+                    ],
+                    "accepted",
+                    actor="tester",
+                    session_id="s1",
+                )
+            self.assertEqual(
+                [event["status"] for event in store.list_events()],
+                ["unreviewed", "unreviewed"],
+            )
+            updated = store.set_status_bulk(
+                [(event["event_id"], event["revision"]) for event in events],
+                "accepted",
+                actor="tester",
+                session_id="s1",
+            )
+            self.assertEqual([event["status"] for event in updated], ["accepted", "accepted"])
+            self.assertEqual([event["status"] for event in store.list_events()], ["accepted", "accepted"])
+
+            store.undo(actor="tester", session_id="s1")
+            self.assertEqual([event["status"] for event in store.list_events()], ["unreviewed", "unreviewed"])
+            self.assertEqual(store.history_state(), {"can_undo": False, "can_redo": True})
+
+            store.redo(actor="tester", session_id="s1")
+            self.assertEqual([event["status"] for event in store.list_events()], ["accepted", "accepted"])
+            self.assertEqual(store.history_state(), {"can_undo": True, "can_redo": False})
+            self.assertEqual(
+                [row["action"] for row in store.audit_events()],
+                ["bulk_set_status", "bulk_set_status", "undo", "undo", "redo", "redo"],
+            )
+
     def test_manual_add_snaps_to_real_local_peak_and_defaults_accepted(self):
         signal = np.zeros(20)
         signal[10] = 500.0

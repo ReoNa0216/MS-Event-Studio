@@ -1,76 +1,41 @@
-# GitHub Actions desktop builds
+# GitHub Actions 桌面构建与公开测试
 
-Status on 2026-08-13 (UX-R8): the `0.3.0.dev1` source uses one production
-pywebview renderer. The native-runner path pins pywebview 6.2.1, uses platform
-WebView specs, copies and validates the Windows `.exe.config`, bundles
-HTML/CSS/JS/SVG assets, rejects Tk/Tcl and alternate renderer files, and
-requires an executable hidden-WebView/API/scientific smoke report whose version
-matches `pyproject.toml`. These checked-in guards are not evidence that a new
-native candidate has passed until the exact archived bytes have their own
-smoke, hash, native screenshots and independent review. See
-[`MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md`](MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md).
+MS Event Studio 只使用一个公开仓库：
+[`ReoNa0216/MS-Event-Studio`](https://github.com/ReoNa0216/MS-Event-Studio)。源码、问题反馈、
+Windows x64 与 macOS Apple Silicon 下载都在同一仓库；不再维护单独的 Releases 仓库。
 
-The workflow mirrors LMA Studio's native-runner policy:
+## 日常候选构建
 
-- manual runs default to a macOS ARM64 candidate;
-- `macos-14` builds and verifies the real `.app` with an ARM64 Python runtime;
-- `windows-2022` builds the x64 onedir bundle;
-- both platforms run the full unit suite, screenshot-matrix schema gate, and
-  hidden WebView/API/scientific packaged smoke before archiving;
-- artifacts include a ZIP and a SHA-256 sidecar;
-- a `v*` tag builds both platforms and publishes a stable GitHub Release;
-- a manual run publishes nothing unless `publish_prerelease` is explicitly
-  enabled.
+在 GitHub 打开 **Actions → Build and release desktop packages → Run workflow**：
 
-The macOS candidate is ad-hoc signed for bundle integrity but is not Apple
-notarized. The `0.3.0.dev1` candidate must receive packaged smoke, the standard
-screenshot/agent pre-UAT gate, and mouse UAT on a real Apple Silicon Mac before
-Phase 2R exit. No local Windows build or browser proxy can satisfy that gate.
+1. `platform` 选 `all`，确保 Windows 与 macOS 来自同一个提交；
+2. `version` 填应用版本，例如 `0.4.0`，不要加 `.dev1`；
+3. 首次审计保持 `publish_prerelease` 关闭，只下载 Actions artifacts 检查；
+4. 两个平台构建和隐藏启动均通过后，再以相同提交运行并打开
+   `publish_prerelease`，供真实用户下载测试。
 
-## Remote builds and public test release
+手动候选的 GitHub 标签为 `candidate-<version>`，但软件内部版本和 ZIP 文件名仍是干净的
+`<version>`。正式稳定版使用 `v<version>` Git 标签；工作流会移除标签前缀 `v` 后再生成
+ZIP，因此文件名不会出现多余的 `v`。
 
-The private repository is connected at
-[`ReoNa0216/MS-Event-Studio`](https://github.com/ReoNa0216/MS-Event-Studio), and
-local `main` tracks `origin/main`. The final unpublished macOS audit ran from
-commit `684e0e19915b2bdc6991d2ee658fbcdb1fc34965` as
-[Actions run 31678141049](https://github.com/ReoNa0216/MS-Event-Studio/actions/runs/31678141049).
-It completed 152 tests, built the ARM64 `.app`, launched the signed package with
-the Cocoa backend, passed the DOM/API/scientific smoke, verified the final
-signature and bundle manifest, and uploaded the ZIP plus SHA-256 sidecar. It did
-not create a prerelease or stable tag.
+## 每个平台实际证明什么
 
-After Windows UAT accepted the final interaction and label changes, commit
-`7f5622d7b6bc5a08c72d281d09ce29a8ab1c9d2e` was rebuilt by
-[Actions run 31696372038](https://github.com/ReoNa0216/MS-Event-Studio/actions/runs/31696372038).
-The ARM64 job passed with the Cocoa backend and produced
-`MS-Event-Studio-0.3.0-dev1-macos-arm64.zip`; its SHA-256 is
-`b72740ac43c05a54fdcd1026b2d2c19428a501c7552762d20a19ac078cc8e785`.
-That exact ZIP and sidecar, together with the accepted Windows x64 archive, are
-available as the public cross-platform prerelease
-[`v0.3.0-test1`](https://github.com/ReoNa0216/MS-Event-Studio-Releases/releases/tag/v0.3.0-test1).
-The development repository remains private so its historical local paths and
-internal evidence are not exposed; the public repository contains only the
-download guide, release assets, checksum and issue tracker.
+- Windows 由 `windows-2022` 构建 x64 onedir 包，强制 Edge Chromium/WebView2，拒绝
+  Tk/Tcl、Android、旧 MSHTML 和非 x64 Loader。
+- macOS 由 `macos-14` 的 ARM64 Python 构建 `.app`，强制 Cocoa，执行隐藏 WebView/API/
+  科学冒烟，ad-hoc 签名后再次验证并刷新最终清单。
+- 两边都先运行完整 Python 测试与截图矩阵结构检查，再生成 ZIP 和 SHA-256 sidecar。
+- Actions 的 macOS 隐藏启动不能替代 Apple Silicon 真机上的 Retina 可见界面和鼠标体验；
+  因此首次跨平台发布应标为 prerelease，收到真机反馈后再转为正式版。
 
-For another audit candidate, open GitHub **Actions → Build and release desktop
-packages → Run workflow**:
+## 本地成品目录
 
-1. choose `macos`;
-2. use the filesystem-safe WebView candidate label recorded by Phase 2R
-   (`0.3.0-dev1`; the Python package version remains `0.3.0.dev1`);
-3. leave `publish_prerelease` off for the first audit;
-4. download the `ms-event-studio-macos-arm64` artifact after the run succeeds;
-5. verify the ZIP next to its sidecar with `shasum -a 256 -c <file>.sha256`;
-6. Provide only an artifact built from the currently accepted source to an
-   Apple Silicon tester for the separate Retina/mouse UAT. Packaged smoke is
-   already part of the workflow and does not need to be rerun by the tester.
+`dist/` 只保留当前平台的最终候选：Windows 为 `dist/windows`，macOS runner 为
+`dist/macos`。中间构建、截图和诊断证据放在 ignored 的 `build/`，发布 ZIP 放在
+`release/`。不要再创建 `dist/windows-ux-*` 之类的临时目录。
 
-Use a `v*` tag only after both native candidates and mouse UAT are accepted.
+## 版本 0.4.0
 
-Current evidence covers the complete 36×3 browser matrix and the exact final R8
-Windows candidate at physical 100%, 125%, 150%, and 200% native DPI. The local
-display was restored to its original 150% after the additional captures.
-`qa/screenshot_matrix.json` now leaves only macOS Retina as `planned`: the
-successful rebuilt Actions candidate and Cocoa hidden smoke prove package
-execution, but do not replace visible Retina screenshots or mouse UAT on Apple
-Silicon. The current public test release is the candidate for that final gate.
+`0.4.0` 是新的 `ms-event-project-v2` 测试版。它增加项目级主 marker、相邻事件提示阈值、
+当前窗口安全事件批量保留、跨平台导出修复和启动优化。旧测试项目必须从只读 MS 原始文件
+重新创建，不做可能错误解释科学列的兼容迁移。

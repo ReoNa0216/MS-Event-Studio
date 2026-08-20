@@ -22,16 +22,23 @@ from .desktop_model import (
     filter_events,
 )
 from .display import WindowRequest, choose_event_labels
-from .errors import ExistingEventNavigation, ReviewConflict, SnapError
+from .errors import (
+    ExistingEventNavigation,
+    ReviewConflict,
+    SnapError,
+    WorkspaceRequestError,
+)
 from .export import export_human_csv, export_machine_contract
 from .paths import resolve_project_path
 from .project import Project
+from .scientific_settings import ProjectScientificSettings
 from .timebase import NANOSECONDS_PER_MINUTE, minutes_to_ns, seconds_to_ns
 from .web_models import (
     AdjustmentRangeView,
     AllowedIntervalView,
     AnalysisRangeView,
     ApexPointView,
+    BulkReviewSummaryView,
     CoreEvidenceView,
     EventEditAimView,
     EventEditCandidateView,
@@ -69,6 +76,7 @@ FILTER_OPTIONS = (
 )
 FILTER_VALUES = frozenset(value for value, _label in FILTER_OPTIONS)
 DEFAULT_WORKSPACE_WINDOW_NS = 10 * NANOSECONDS_PER_MINUTE
+SELECTION_EDGE_CONTEXT_FRACTION = 0.08
 DECISION_STATUSES = {
     "keep": "accepted",
     "exclude": "rejected",
@@ -82,14 +90,6 @@ STATUS_LABELS = {
     "pending": "待定",
 }
 QUALITY_FIELDS = tuple(QUALITY_FLAG_LABELS)
-
-
-class WorkspaceRequestError(ValueError):
-    """A browser request that cannot be mapped to a safe scientific action."""
-
-    def __init__(self, message: str, *, code: str = "invalid_workspace_request") -> None:
-        super().__init__(message)
-        self.code = code
 
 
 @dataclass(frozen=True, slots=True)
@@ -335,10 +335,10 @@ class BrowserWorkspaceService:
             return None, None
         scan = snapshot.selected_scan or {}
         automatic = snapshot.selected_automatic
-        measured_mz = _optional_number(scan.get("pc34_760_mz_at_max_intensity"))
-        mass_error = _optional_number(scan.get("pc34_760_ppm_error_at_max_intensity"))
+        measured_mz = _optional_number(scan.get("primary_marker_mz_at_max_intensity"))
+        mass_error = _optional_number(scan.get("primary_marker_ppm_error_at_max_intensity"))
         core = CoreEvidenceView(
-            pc34_intensity=float(event["current_apex_intensity"]),
+            primary_marker_intensity=float(event["current_apex_intensity"]),
             measured_mz=measured_mz,
             mass_error_ppm=mass_error,
             quality=self._quality(automatic),
@@ -353,7 +353,7 @@ class BrowserWorkspaceService:
         more = MoreEvidenceView(
             scan_number=str(event.get("current_scan_id") or "—"),
             ms782_intensity=_optional_number(
-                scan.get("qc_782_max_intensity"),
+                scan.get("qc_marker_max_intensity"),
                 non_negative=True,
             ),
             tic=_optional_number(scan.get("tic"), non_negative=True),
@@ -382,6 +382,36 @@ class BrowserWorkspaceService:
             return len(rows)
         field = "origin" if value.startswith("manual_") else "status"
         return sum(str(row.get(field)) == value for row in rows)
+
+    def _bulk_review_candidates(
+        self,
+        rows: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Return visible safe candidates and visible collision-risk events."""
+
+        visible = [
+            row
+            for row in filter_events(rows, self._status_filter)
+            if self._start <= int(row["current_apex_time_ns"]) <= self._end
+            and str(row.get("status")) == "unreviewed"
+        ]
+        automatic = self._window_service.automatic
+        collision_auto_ids: set[str] = set()
+        if {"auto_event_id", "collision_risk_high"}.issubset(automatic.columns):
+            collision_rows = automatic[
+                automatic["collision_risk_high"].fillna(False).astype(bool)
+            ]
+            collision_auto_ids = set(collision_rows["auto_event_id"].astype(str))
+
+        collision: list[dict[str, Any]] = []
+        eligible: list[dict[str, Any]] = []
+        for row in visible:
+            automatic_id = row.get("original_auto_event_id") or row.get("auto_event_id")
+            if automatic_id is not None and str(automatic_id) in collision_auto_ids:
+                collision.append(row)
+            else:
+                eligible.append(row)
+        return eligible, collision
 
     @staticmethod
     def _next_unreviewed(
@@ -414,7 +444,12 @@ class BrowserWorkspaceService:
         )
         return unreviewed or (str(rows[0]["event_id"]) if rows else None)
 
-    def _keep_changed_selection_visible(self, rows: list[dict[str, Any]]) -> None:
+    def _keep_changed_selection_visible(
+        self,
+        rows: list[dict[str, Any]],
+        *,
+        add_edge_context: bool = True,
+    ) -> None:
         """Pan minimally when a newly presented selection is outside the viewport.
 
         The remembered identity/apex pair distinguishes selection changes from
@@ -446,14 +481,25 @@ class BrowserWorkspaceService:
             return
 
         target_ns = anchor[1]
-        if self._start <= target_ns <= self._end:
+        window_width = self._end - self._start
+        context = (
+            max(0, round(window_width * SELECTION_EDGE_CONTEXT_FRACTION))
+            if add_edge_context
+            else 0
+        )
+        safe_start = self._start + context
+        safe_end = self._end - context
+        if safe_start <= target_ns <= safe_end:
             return
 
         analysis_start = self._window_service.analysis_start_ns
         analysis_end = self._window_service.analysis_end_ns
-        window_width = self._end - self._start
         latest_start = analysis_end - window_width
-        desired_start = target_ns if target_ns < self._start else target_ns - window_width
+        desired_start = (
+            target_ns - context
+            if target_ns < safe_start
+            else target_ns - (window_width - context)
+        )
         self._start = max(analysis_start, min(desired_start, latest_start))
         self._end = self._start + window_width
 
@@ -598,7 +644,14 @@ class BrowserWorkspaceService:
                 self._selected_identity = self._selected(active)
             else:
                 self._selected_identity = selected
-            self._keep_changed_selection_visible(active)
+            self._keep_changed_selection_visible(
+                active,
+                add_edge_context=not bool(
+                    payload is not None
+                    and "start_min" in payload
+                    and "end_min" in payload
+                ),
+            )
             sequence = {
                 str(row["event_id"]): index
                 for index, row in enumerate(active, start=1)
@@ -653,12 +706,18 @@ class BrowserWorkspaceService:
                 self._window_service.analysis_start_ns,
                 self._window_service.analysis_end_ns,
             )
+            project_settings = ProjectScientificSettings.from_manifest(
+                self.project.manifest["scientific_settings"]
+            )
             project = ProjectSummaryView(
                 display_name=str(self.project.manifest["display_name"]),
                 analysis_range=project_range,
                 event_count=len(active),
+                primary_marker_mz=project_settings.primary_marker_mz,
+                collision_gap_sec=project_settings.collision_gap_sec,
             )
             history = self._window_service.review_store.history_state()
+            bulk_eligible, bulk_collision = self._bulk_review_candidates(active)
             view = WorkspaceView(
                 project=project,
                 review=ReviewProgressView(
@@ -698,13 +757,17 @@ class BrowserWorkspaceService:
                     trace=tuple(
                         TracePointView(
                             time_min=float(row["scan_start_time_sec"]) / 60.0,
-                            intensity=float(row["pc34_760_max_intensity"]),
+                            intensity=float(row["primary_marker_max_intensity"]),
                         )
                         for row in display.trace.to_dict(orient="records")
                     ),
                     event_overlay=overlay,
                     label_event_tokens=tuple(
                         self._event_token(identity) for identity in label_identities
+                    ),
+                    bulk_review=BulkReviewSummaryView(
+                        eligible_count=len(bulk_eligible),
+                        collision_count=len(bulk_collision),
                     ),
                 ),
                 history=HistoryView(
@@ -713,6 +776,48 @@ class BrowserWorkspaceService:
                 ),
             )
             return view.to_dict()
+
+    def bulk_accept_visible(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        if not isinstance(payload, Mapping) or set(payload).difference({"confirmed", "note"}):
+            raise WorkspaceRequestError("批量审阅请求包含不支持的字段。")
+        if payload.get("confirmed") is not True:
+            raise WorkspaceRequestError("请明确确认批量保留。", code="confirmation_required")
+        reason = _note(payload.get("note"))
+        with self._lock:
+            self._require_open()
+            active = self._active_events(self._window_service.all_events())
+            eligible, collision = self._bulk_review_candidates(active)
+            if not eligible:
+                return {
+                    "ok": True,
+                    "message": "当前窗口没有可批量保留的未审阅事件。",
+                    "workspace": self.workspace(),
+                }
+            self._window_service.review_store.set_status_bulk(
+                [
+                    (str(row["event_id"]), int(row["revision"]))
+                    for row in eligible
+                ],
+                "accepted",
+                actor=self._actor,
+                session_id=self._session_id,
+                reason=reason,
+            )
+            self._invalidate_actions()
+            self._invalidate_edits()
+            if collision:
+                self._selected_identity = str(collision[0]["event_id"])
+            else:
+                refreshed = self._active_events(self._window_service.all_events())
+                self._selected_identity = self._next_unreviewed(
+                    refreshed,
+                    str(eligible[-1]["event_id"]),
+                ) or str(eligible[-1]["event_id"])
+            skipped = len(collision)
+            message = f"已批量保留 {len(eligible)} 个事件。"
+            if skipped:
+                message += f" 已跳过 {skipped} 个相邻事件，请逐个判断。"
+            return {"ok": True, "message": message, "workspace": self.workspace()}
 
     @property
     def _project_identity(self) -> str:
@@ -956,7 +1061,7 @@ class BrowserWorkspaceService:
                 candidate_spectrum=int(snapped["spectrum_index"]),
                 candidate_time_ns=int(snapped["scan_time_ns"]),
                 candidate_time_sec=float(snapped["scan_start_time_sec"]),
-                candidate_intensity=float(snapped["pc34_760_max_intensity"]),
+                candidate_intensity=float(snapped["primary_marker_max_intensity"]),
                 offset_sec=offset,
             )
             self._preview_tokens[preview_token] = preview
@@ -996,7 +1101,7 @@ class BrowserWorkspaceService:
                 abs_tol=1e-12,
             )
             and math.isclose(
-                float(snapped["pc34_760_max_intensity"]),
+                float(snapped["primary_marker_max_intensity"]),
                 preview.candidate_intensity,
                 rel_tol=0.0,
                 abs_tol=0.0,
@@ -1292,5 +1397,4 @@ __all__ = [
     "DEFAULT_WORKSPACE_WINDOW_NS",
     "DECISION_STATUSES",
     "FILTER_OPTIONS",
-    "WorkspaceRequestError",
 ]

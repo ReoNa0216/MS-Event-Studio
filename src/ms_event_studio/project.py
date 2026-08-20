@@ -27,10 +27,14 @@ from .parser import (
 )
 from .paths import resolve_project_path
 from .review import REVIEW_SCHEMA_VERSION, ReviewStore
+from .scientific_settings import (
+    DEFAULT_PRIMARY_MARKER_MZ,
+    ProjectScientificSettings,
+)
 from .timebase import AnalysisRange
 
 
-PROJECT_SCHEMA = "ms-event-project-v1"
+PROJECT_SCHEMA = "ms-event-project-v2"
 MANIFEST_NAME = "ms_event_project.json"
 REQUIRED_ARTIFACT_ROLES = frozenset(
     {
@@ -51,6 +55,9 @@ class CreateProjectRequest:
     display_name: str
     analysis_start_min: str
     analysis_end_min: str
+    scientific_settings: ProjectScientificSettings = field(
+        default_factory=ProjectScientificSettings
+    )
     cancel_check: Callable[[], bool] | None = field(default=None, repr=False)
     progress_callback: Callable[[ParseProgress], None] | None = field(default=None, repr=False)
 
@@ -69,6 +76,7 @@ class PreparedProjectSource:
     parsed: ParseResult
     start_ns: int
     end_ns: int
+    primary_marker_mz: float
 
 
 def inspect_project_source(
@@ -76,18 +84,21 @@ def inspect_project_source(
     *,
     cancel_check: Callable[[], bool] | None = None,
     progress_callback: Callable[[ParseProgress], None] | None = None,
+    primary_marker_mz: float = DEFAULT_PRIMARY_MARKER_MZ,
 ) -> PreparedProjectSource:
     source = Path(source_path).resolve()
     parsed = parse_ms_scan_summary(
         source,
         cancel_check=cancel_check,
         progress_callback=progress_callback,
+        primary_marker_mz=primary_marker_mz,
     )
     return PreparedProjectSource(
         source_path=source,
         parsed=parsed,
         start_ns=int(parsed.scans["scan_time_ns"].iloc[0]),
         end_ns=int(parsed.scans["scan_time_ns"].iloc[-1]),
+        primary_marker_mz=parsed.summary.primary_marker_mz,
     )
 
 
@@ -170,6 +181,7 @@ def create_project(
     display_name = str(request.display_name).strip()
     if not display_name:
         raise ValueError("project display_name cannot be empty")
+    settings = request.scientific_settings
     analysis_range = AnalysisRange.from_minutes(
         request.analysis_start_min,
         request.analysis_end_min,
@@ -196,12 +208,15 @@ def create_project(
                 source,
                 cancel_check=request.cancel_check,
                 progress_callback=request.progress_callback,
+                primary_marker_mz=settings.primary_marker_mz,
             )
         else:
             if prepared_source.source_path.resolve() != source:
                 raise ValueError("prepared source belongs to a different MS file")
             if prepared_source.parsed.summary.parser_version != PARSER_VERSION:
                 raise ValueError("prepared source parser version is no longer supported")
+            if prepared_source.primary_marker_mz != settings.primary_marker_mz:
+                raise ValueError("prepared source belongs to a different primary marker")
             verify_source_fingerprint(source, prepared_source.parsed.fingerprint)
             parsed = prepared_source.parsed
             if request.progress_callback is not None:
@@ -226,6 +241,8 @@ def create_project(
             parsed.scans,
             source_sha256=parsed.fingerprint.sha256,
             analysis_range=analysis_range,
+            primary_marker_mz=settings.primary_marker_mz,
+            collision_gap_sec=settings.collision_gap_sec,
         )
         if request.cancel_check is not None and request.cancel_check():
             raise CancelledError("project creation cancelled")
@@ -259,6 +276,7 @@ def create_project(
             "parameters": detected.parameters,
             "event_columns": list(detected.events.columns),
             "scientific_rule": "full trace detection followed by closed current-apex ownership",
+            "scientific_settings": settings.as_dict(),
         }
         _write_json(staging / "provenance/detector_protocol.json", detector_protocol)
 
@@ -317,6 +335,7 @@ def create_project(
             "application": {"name": "MS Event Studio", "version": __version__},
             "generation_id": detected.generation_id,
             "analysis_range": analysis_range.as_dict(),
+            "scientific_settings": settings.as_dict(),
             "source": {
                 "mode": "external_reference",
                 "input_manifest_path": "provenance/input_manifest.json",
@@ -363,6 +382,12 @@ def _open_project(project_dir: Path) -> Project:
         raise ProjectValidationError(f"invalid project manifest: {exc}") from exc
     if manifest.get("schema") != PROJECT_SCHEMA:
         raise ProjectValidationError("unsupported project manifest schema")
+    try:
+        settings = ProjectScientificSettings.from_manifest(
+            manifest.get("scientific_settings")
+        )
+    except ValueError as exc:
+        raise ProjectValidationError(str(exc)) from exc
     project_id = manifest.get("project_id")
     generation = manifest.get("generation_id")
     if not isinstance(project_id, str) or not project_id or not isinstance(generation, str) or not generation:
@@ -470,12 +495,18 @@ def _open_project(project_dir: Path) -> Project:
         raise ProjectValidationError("detector protocol generation binding mismatch")
     if detector_protocol.get("analysis_range") != manifest.get("analysis_range"):
         raise ProjectValidationError("detector protocol analysis-range binding mismatch")
+    if detector_protocol.get("scientific_settings") != settings.as_dict():
+        raise ProjectValidationError("detector protocol scientific-settings binding mismatch")
     if source_binding.get("mode") != "external_reference":
         raise ProjectValidationError("unsupported source binding mode")
 
     scan_summary = input_manifest.get("parse_summary")
     if not isinstance(scan_summary, dict):
         raise ProjectValidationError("input parse-summary binding is missing")
+    if scan_summary.get("primary_marker_mz") != settings.primary_marker_mz or scan_summary.get(
+        "tolerance_ppm"
+    ) != settings.marker_tolerance_ppm:
+        raise ProjectValidationError("input parse-summary scientific-settings binding mismatch")
     scan_path = resolve_project_path(root, str(by_role["scan_summary"]["path"]))
     event_path = resolve_project_path(root, str(by_role["automatic_events"]["path"]))
     try:

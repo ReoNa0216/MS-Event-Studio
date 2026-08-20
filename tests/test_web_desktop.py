@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -119,11 +121,23 @@ class WebViewPathDialogTest(unittest.TestCase):
             self.assertEqual(options["save_filename"], "MS_Event_Studio_审阅结果.csv")
             self.assertEqual(options["file_types"], ("CSV 文件 (*.csv)",))
 
-            audit = provider(role="audit_export_target", title="导出完整审计数据包")
+            audit = provider(role="audit_export_parent", title="选择审计数据包保存位置")
             self.assertFalse(audit["cancelled"])
             self.assertEqual(webview.window.dialog_calls[2][0], _FileDialog.FOLDER)
             with self.assertRaises(ValueError):
                 provider(role="export_file")
+
+    def test_cocoa_save_string_is_not_truncated_and_gets_csv_suffix(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            selected = Path(tmp) / "审阅结果"
+            webview = _WebView(selected=str(selected))
+            provider = desktop.WebViewPathDialog(webview.window, webview)
+
+            result = provider(role="review_export_file", title="导出审阅结果")
+
+            self.assertFalse(result["cancelled"])
+            self.assertEqual(Path(result["path"]), selected.with_suffix(".csv").resolve())
+            self.assertEqual(webview.window.dialog_calls[0][0], _FileDialog.SAVE)
 
     def test_cancel_never_invents_a_path(self):
         webview = _WebView(selected=None)
@@ -136,6 +150,21 @@ class WebViewPathDialogTest(unittest.TestCase):
 
 
 class WebDesktopLifecycleTest(unittest.TestCase):
+    def test_host_import_does_not_eagerly_load_the_scientific_stack(self):
+        code = (
+            "import sys; import ms_event_studio.web_desktop; "
+            "blocked=('numpy','pandas','scipy','pyarrow','ms_event_studio.project',"
+            "'ms_event_studio.web_review_service'); "
+            "print(','.join(name for name in blocked if name in sys.modules))"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.stdout.strip(), "")
+
     def test_native_minimum_tracks_css_size_at_each_monitor_dpi(self):
         self.assertEqual(desktop.minimum_window_size_for_dpi(96), (960, 640))
         self.assertEqual(desktop.minimum_window_size_for_dpi(120), (1200, 800))

@@ -366,6 +366,28 @@ class WebViewPathDialog:
         self._window = window
         self._webview = webview_module
 
+    @staticmethod
+    def _selected_path(value: Any) -> str:
+        """Normalize pywebview's platform-specific dialog return value.
+
+        Cocoa returns a plain string for SAVE while WinForms returns a
+        one-element tuple.  OPEN/FOLDER also return sequences.  Treating every
+        result as a sequence truncates a macOS path to its first character.
+        """
+
+        if value is None:
+            return ""
+        if isinstance(value, (str, os.PathLike)):
+            selected = os.fspath(value)
+        else:
+            try:
+                selected = next(iter(value), "")
+            except TypeError:
+                return ""
+        if not isinstance(selected, (str, os.PathLike)):
+            return ""
+        return os.fspath(selected).strip()
+
     def __call__(
         self,
         *,
@@ -379,7 +401,7 @@ class WebViewPathDialog:
             "project_open",
             "project_target",
             "review_export_file",
-            "audit_export_target",
+            "audit_export_parent",
         }:
             raise ValueError("不支持的路径选择用途")
         initial = Path(initial_dir).expanduser() if str(initial_dir).strip() else Path.home()
@@ -410,8 +432,10 @@ class WebViewPathDialog:
                 directory=directory,
                 allow_multiple=False,
             )
-        first = selected[0] if selected else None
-        path = "" if first in {None, ""} else str(Path(first).expanduser().resolve())
+        raw_path = self._selected_path(selected)
+        if role == "review_export_file" and raw_path and not Path(raw_path).suffix:
+            raw_path = f"{raw_path}.csv"
+        path = "" if not raw_path else str(Path(raw_path).expanduser().resolve())
         return {"path": path, "cancelled": not bool(path)}
 
 

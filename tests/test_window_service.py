@@ -53,7 +53,7 @@ class WindowServiceContractTest(unittest.TestCase):
             self.assertEqual(snapshot.sqlite_snapshot_count, 1)
             self.assertEqual(snapshot.selected_event["event_id"], first_event["event_id"])
             self.assertEqual(snapshot.selected_scan["scan_id"], first_event["current_scan_id"])
-            self.assertIn("pc34_760_ppm_error_at_max_intensity", snapshot.selected_scan)
+            self.assertIn("primary_marker_ppm_error_at_max_intensity", snapshot.selected_scan)
             self.assertTrue((project.project_dir / "cache/display_pyramids/manifest.json").is_file())
             service.close()
 

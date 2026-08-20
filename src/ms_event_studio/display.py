@@ -25,15 +25,15 @@ from .errors import ProjectValidationError
 
 
 DISPLAY_CACHE_SCHEMA = "ms-event-display-pyramid-v1"
-DISPLAY_SIGNAL = "pc34_760_max_intensity"
+DISPLAY_SIGNAL = "primary_marker_max_intensity"
 DISPLAY_COLUMNS = (
     "scan_row_index",
     "spectrum_index",
     "scan_id",
     "scan_time_ns",
     "scan_start_time_sec",
-    "pc34_760_max_intensity",
-    "qc_782_max_intensity",
+    "primary_marker_max_intensity",
+    "qc_marker_max_intensity",
     "tic",
 )
 DEFAULT_BUCKET_SIZES = (4, 16, 64, 256, 1024, 4096)

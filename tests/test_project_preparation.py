@@ -14,6 +14,7 @@ from ms_event_studio.project import (
     create_project,
     inspect_project_source,
 )
+from ms_event_studio.scientific_settings import ProjectScientificSettings
 
 
 def make_source(path: Path) -> Path:
@@ -56,6 +57,36 @@ class PreparedProjectSourceContractTest(unittest.TestCase):
                     prepared_source=prepared,
                 )
             self.assertTrue((project.project_dir / "cache").is_dir())
+            self.assertEqual(
+                project.manifest["scientific_settings"],
+                {
+                    "primary_marker_mz": 760.5851,
+                    "marker_tolerance_ppm": 12.0,
+                    "collision_gap_sec": 0.60,
+                },
+            )
+
+    def test_prepared_source_cannot_be_reused_with_a_different_marker(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            source = make_source(root / "source.txt")
+            prepared = inspect_project_source(source)
+            target = root / "project"
+            with self.assertRaisesRegex(ValueError, "different primary marker"):
+                create_project(
+                    CreateProjectRequest(
+                        source_path=source,
+                        project_dir=target,
+                        display_name="Wrong marker",
+                        analysis_start_min="0",
+                        analysis_end_min="2",
+                        scientific_settings=ProjectScientificSettings(
+                            primary_marker_mz=500.1234
+                        ),
+                    ),
+                    prepared_source=prepared,
+                )
+            self.assertFalse(target.exists())
 
     def test_change_after_inspection_fails_without_publishing(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:

@@ -10,6 +10,7 @@ import {
   RESPONSIVE_FIXTURE_IDS,
   WORKBENCH_FIXTURE_IDS,
   buildPlotGeometry,
+  bulkAcceptBody,
   eventEditAimBody,
   eventEditApplyBody,
   eventEditCancelBody,
@@ -31,6 +32,7 @@ import {
   restoreAutomaticApexBody,
   reviewDecisionBody,
   reviewHistoryBody,
+  timeAxisTicks,
   workspaceRequestBody,
 } from "../workspace-core.js";
 
@@ -263,6 +265,10 @@ test("review mutation bodies are closed, opaque, and preserve the operation note
     note: "恢复位置",
   });
   assert.deepEqual(reviewHistoryBody("撤销判断"), { note: "撤销判断" });
+  assert.deepEqual(bulkAcceptBody("批量确认"), {
+    confirmed: true,
+    note: "批量确认",
+  });
   assert.throws(() => reviewDecisionBody({}, "accepted"), /操作凭据/);
   assert.throws(() => reviewDecisionBody(event, "unknown"), /审阅结论/);
 });
@@ -317,6 +323,24 @@ test("workspace normalizer exposes only browser-safe keys", () => {
   }
   assert.equal(workspace.events[0].eventToken, "opaque-event");
   assert.equal(workspace.events[0].actionToken, "opaque-action");
+  assert.deepEqual(workspace.window.bulkReview, {
+    eligibleCount: 0,
+    collisionCount: 0,
+  });
+});
+
+test("bulk review fixture distinguishes safe and collision-risk events", () => {
+  const workspace = fixtureWorkspace("review-unreviewed-auto");
+  assert.ok(workspace.window.bulkReview.eligibleCount > 0);
+  assert.equal(workspace.window.bulkReview.collisionCount, 1);
+});
+
+test("time axis exposes stable endpoint-inclusive minute ticks", () => {
+  assert.deepEqual(
+    timeAxisTicks({ start_min: 2, end_min: 3 }, 5),
+    [2, 2.25, 2.5, 2.75, 3],
+  );
+  assert.deepEqual(timeAxisTicks({ start_min: 2, end_min: 2 }), []);
 });
 
 test("filters preserve the frozen canonical order", () => {

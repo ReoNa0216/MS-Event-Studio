@@ -152,11 +152,11 @@ def evidence_lines(
         f"扫描编号：{event.get('current_scan_id', '—')}",
         f"峰顶时间：{_fmt(apex_min)} min  ({_fmt(apex_sec)} s)",
         (
-            f"PC34：强度 {_fmt(event.get('current_apex_intensity'))}  ·  "
-            f"m/z {_fmt(scan.get('pc34_760_mz_at_max_intensity'), 9)}  ·  "
-            f"误差 {_fmt(scan.get('pc34_760_ppm_error_at_max_intensity'))} ppm"
+            f"主 marker：强度 {_fmt(event.get('current_apex_intensity'))}  ·  "
+            f"m/z {_fmt(scan.get('primary_marker_mz_at_max_intensity'), 9)}  ·  "
+            f"误差 {_fmt(scan.get('primary_marker_ppm_error_at_max_intensity'))} ppm"
         ),
-        f"MS782：{_fmt(scan.get('qc_782_max_intensity'))}  ·  TIC：{_fmt(scan.get('tic'))}",
+        f"质量对照 marker：{_fmt(scan.get('qc_marker_max_intensity'))}  ·  TIC：{_fmt(scan.get('tic'))}",
     ]
     if automatic:
         lines.extend(

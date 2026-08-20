@@ -1150,6 +1150,18 @@ fieldset:disabled {
   font-size: var(--font-size-caption);
 }
 
+.plot-axis-ticks line {
+  stroke: var(--color-plot-axis);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.plot-axis-ticks text {
+  fill: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+  text-anchor: middle;
+}
+
 .trace-line {
   fill: none;
   stroke: var(--color-signal);
@@ -1221,8 +1233,17 @@ fieldset:disabled {
   stroke-width: 2;
 }
 
+.event-marker-current-ring {
+  fill: var(--color-surface);
+  fill-opacity: 0.74;
+  stroke: var(--color-current-event);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
 .event-marker[data-selected="true"] .event-marker-shape {
-  filter: drop-shadow(0 0 2px var(--color-focus));
+  filter: drop-shadow(0 0 2px var(--color-current-event));
   stroke-width: 2;
 }
 
@@ -1245,6 +1266,10 @@ fieldset:disabled {
   font-size: var(--font-size-compact);
   font-weight: var(--font-weight-bold);
   user-select: none;
+}
+
+.plot-callout[data-selected="true"] text {
+  fill: var(--color-current-event);
 }
 
 .plot-legend {
@@ -1278,6 +1303,51 @@ fieldset:disabled {
   font-size: var(--font-size-section);
 }
 
+.event-strip__heading {
+  flex-wrap: wrap;
+}
+
+.event-strip__heading > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.bulk-review-action {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.bulk-review-action span {
+  text-align: right;
+}
+
+.bulk-review-action--sidebar {
+  display: grid;
+  justify-content: stretch;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.bulk-review-action--sidebar span {
+  text-align: left;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-body);
+}
+
+.bulk-review-action--sidebar .button {
+  width: 100%;
+  min-height: var(--control-height);
+  height: auto;
+  white-space: normal;
+}
+
 .event-strip__heading span {
   color: var(--color-text-muted);
   font-size: var(--font-size-caption);
@@ -1308,8 +1378,8 @@ fieldset:disabled {
 }
 
 .event-row[aria-selected="true"] {
-  border-color: var(--color-accent);
-  background: var(--color-selection);
+  border-color: var(--color-current-event);
+  background: var(--color-current-event-soft);
 }
 
 .event-row[aria-selected="true"] .event-row__copy small {

@@ -51,17 +51,19 @@ class RangeChangeWebContractTest(unittest.TestCase):
             session = open_session(root, project)
             entered = threading.Event()
             release = threading.Event()
+            from ms_event_studio.range_change import preview_range_change as real_preview
 
             def slow_preview(*args, **kwargs):
-                from ms_event_studio.range_change import preview_range_change as real_preview
-
                 entered.set()
                 if not release.wait(5):
                     raise TimeoutError("test did not release preview")
                 return real_preview(*args, **kwargs)
 
             try:
-                with patch("ms_event_studio.web_app.preview_range_change", side_effect=slow_preview):
+                with patch(
+                    "ms_event_studio.range_change.preview_range_change",
+                    side_effect=slow_preview,
+                ):
                     started = session.start_range_preview({"start_min": "0.75", "end_min": "2"})
                     self.assertTrue(entered.wait(5))
                     self.assertTrue(session.busy)
@@ -201,7 +203,7 @@ class RangeChangeWebContractTest(unittest.TestCase):
                 )
                 token = ready["result"]["range_preview"]["preview_token"]
                 with patch(
-                    "ms_event_studio.web_app.apply_range_change",
+                    "ms_event_studio.range_change.apply_range_change",
                     side_effect=ProjectValidationError("injected safe failure"),
                 ):
                     failed = wait_job(
@@ -286,22 +288,17 @@ class ExportWebContractTest(unittest.TestCase):
             finally:
                 session.close()
 
-    def test_audit_target_must_be_empty_and_failure_cleans_staging_and_consumes_token(self):
+    def test_audit_export_creates_package_inside_selected_folder_and_cleans_failure(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             root = Path(tmp)
             _source, project = create_guided_project(root)
             session = open_session(root, project)
             try:
-                occupied = root / "occupied"
-                occupied.mkdir()
-                (occupied / "keep.txt").write_text("keep", encoding="utf-8")
-                with self.assertRaises(WebBoundaryError) as nonempty:
-                    session.register_path("audit_export_target", occupied)
-                self.assertEqual(nonempty.exception.code, "target_not_empty")
-
-                target = root / "failed-package"
-                target.mkdir()
-                selection = session.register_path("audit_export_target", target)
+                parent = root / "exports"
+                parent.mkdir()
+                keep = parent / "keep.txt"
+                keep.write_text("keep", encoding="utf-8")
+                selection = session.register_path("audit_export_parent", parent)
                 with patch("pandas.DataFrame.to_parquet", side_effect=OSError("injected")):
                     failed = wait_job(
                         session,
@@ -310,19 +307,15 @@ class ExportWebContractTest(unittest.TestCase):
                         ),
                     )
                 self.assertEqual(failed["state"], "failed")
-                self.assertEqual(list(target.iterdir()), [])
-                self.assertEqual(
-                    list(root.glob(".failed-package.machine-exporting-*")),
-                    [],
-                )
+                self.assertEqual(list(parent.iterdir()), [keep])
+                self.assertEqual(list(parent.glob(".*.machine-exporting-*")), [])
                 with self.assertRaises(WebBoundaryError) as replay:
                     session.start_audit_export(
                         {"target_token": selection["selection_token"]}
                     )
                 self.assertEqual(replay.exception.code, "stale_selection")
 
-                successful_target = root / "complete-package"
-                selection = session.register_path("audit_export_target", successful_target)
+                selection = session.register_path("audit_export_parent", parent)
                 succeeded = wait_job(
                     session,
                     session.start_audit_export(
@@ -331,6 +324,13 @@ class ExportWebContractTest(unittest.TestCase):
                 )
                 self.assertEqual(succeeded["state"], "succeeded")
                 self.assertEqual(succeeded["result"]["export"]["row_count"], 3)
+                packages = [path for path in parent.iterdir() if path.is_dir()]
+                self.assertEqual(len(packages), 1)
+                successful_target = packages[0]
+                self.assertEqual(
+                    succeeded["result"]["export"]["display_name"],
+                    successful_target.name,
+                )
                 self.assertEqual(
                     sorted(path.name for path in successful_target.iterdir()),
                     ["checksums.sha256", "events.parquet", "manifest.json"],

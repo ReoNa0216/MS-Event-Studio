@@ -1,7 +1,7 @@
 # Native desktop builds
 
 PyInstaller must run on the target operating system; it is not a
-cross-compiler. The `0.3.0.dev1` application builds one pywebview renderer from
+cross-compiler. The `0.4.0` application builds one pywebview renderer from
 the platform specs under `packaging/windows/` and `packaging/macos/`. The
 historical `0.2.0.dev3` Tk package is regression evidence only; its legacy UI
 source has been removed. The production source path/entry point cannot import it,
@@ -20,7 +20,7 @@ To run the same test/build/archive path as CI on Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File desktop_bundle/build_windows.ps1 `
-  -Version 0.3.0-dev1
+  -Version 0.4.0
 ```
 
 Without `-PythonExe`, the local script creates and reuses an ignored interpreter
@@ -30,7 +30,7 @@ system/base Python. CI may pass its disposable runner interpreter explicitly.
 On an Apple Silicon Mac:
 
 ```bash
-MS_EVENT_STUDIO_VERSION=0.3.0-dev1 bash desktop_bundle/build_macos.sh
+MS_EVENT_STUDIO_VERSION=0.4.0 bash desktop_bundle/build_macos.sh
 ```
 
 The macOS script likewise defaults to `build/venv/macos`; `PYTHON_BIN` is an
@@ -45,7 +45,7 @@ WebView, await the read-only frontend readiness hook, call health/bootstrap
 APIs, and complete the NumPy/SciPy, Parquet, SQLite, display-cache, and export
 round trip. An import-only probe is rejected by the report validator.
 The smoke `application_version` must equal the PEP 440 package version in
-`pyproject.toml` (`0.3.0.dev1`); `0.3.0-dev1` is only the filesystem-safe
+`pyproject.toml` (`0.4.0`); `0.4.0` is also the filesystem-safe
 archive/workflow label. Windows smoke must report `edgechromium`; macOS smoke
 must report `cocoa`.
 

@@ -14,6 +14,7 @@ from _fixtures import spectrum_lines, write_ms_file
 from ms_event_studio.demo import create_guided_source
 from ms_event_studio.project import CreateProjectRequest, create_project
 from ms_event_studio.web_app import WebBoundaryError, WebSession, create_http_server
+from ms_event_studio.web_review_service import BrowserWorkspaceService
 from ms_event_studio.window_service import ProjectWindowService
 
 
@@ -271,6 +272,43 @@ class WorkspaceReadContractTest(unittest.TestCase):
 
 
 class ReviewWriteContractTest(unittest.TestCase):
+    def test_bulk_accept_skips_collision_risk_and_is_one_history_step(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            _source, project = create_guided_project(root)
+            service = BrowserWorkspaceService(project)
+            try:
+                automatic = service._window_service.automatic
+                automatic.loc[:, "collision_risk_high"] = False
+                automatic.loc[automatic.index[0], "collision_risk_high"] = True
+
+                initial = service.workspace()
+                self.assertEqual(
+                    initial["window"]["bulk_review"],
+                    {"eligible_count": 2, "collision_count": 1},
+                )
+                saved = service.bulk_accept_visible(
+                    {"confirmed": True, "note": "批量确认自动识别良好的峰"}
+                )
+                self.assertEqual(saved["workspace"]["review"]["accepted"], 2)
+                self.assertEqual(saved["workspace"]["review"]["unreviewed"], 1)
+                self.assertIn("已跳过 1 个相邻事件", saved["message"])
+                self.assertIn(
+                    "相邻事件距离较近",
+                    saved["workspace"]["selection"]["core_evidence"]["quality"]["notes"],
+                )
+
+                undone = service.undo({})["workspace"]
+                self.assertEqual(undone["review"]["accepted"], 0)
+                self.assertEqual(undone["review"]["unreviewed"], 3)
+                self.assertTrue(undone["history"]["can_redo"])
+
+                redone = service.redo({})["workspace"]
+                self.assertEqual(redone["review"]["accepted"], 2)
+                self.assertEqual(redone["review"]["unreviewed"], 1)
+            finally:
+                service.close()
+
     def test_u_a_r_p_notes_auto_advance_undo_redo_and_reopen(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             root = Path(tmp)

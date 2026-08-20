@@ -914,16 +914,18 @@ def _check_exports(
     ):
         _select_target_and_submit(page)
         _wait_workbench(page, "exportState", "error", timeout=20_000)
-    failed_target = output_paths["audit_failure"]
-    _assert(failed_target.is_dir() and list(failed_target.iterdir()) == [],
-            "failed audit export left files in its target")
-    _assert(list(failed_target.parent.glob(f".{failed_target.name}.machine-exporting-*")) == [],
+    failed_parent = output_paths["audit_failure_parent"]
+    _assert(
+        sorted(path.name for path in failed_parent.iterdir()) == ["keep.txt"],
+        "failed audit export changed the selected parent folder",
+    )
+    _assert(list(failed_parent.glob(".*.machine-exporting-*")) == [],
             "failed audit export left a staging directory")
     alert = page.locator(_qa("export-error"))
     _assert(alert.is_visible() and alert.get_attribute("role") == "alert",
             "failed audit export lacks accessible error")
     results["audit_failure"] = {
-        "target_empty": True,
+        "selected_parent_unchanged": True,
         "staging_cleaned": True,
         "alert": alert.inner_text().strip(),
     }
@@ -955,8 +957,10 @@ def _check_exports(
                 "Escape closed a non-cancellable export")
         release.set()
         _wait_workbench(page, "exportState", "success", timeout=30_000)
-    target = output_paths["audit_success"]
-    results["audit_package"] = _read_audit_contract(target)
+    parent = output_paths["audit_success_parent"]
+    packages = [path for path in parent.iterdir() if path.is_dir()]
+    _assert(len(packages) == 1, "audit export did not create exactly one package folder")
+    results["audit_package"] = _read_audit_contract(packages[0])
     return {"ok": True, **results}
 
 
@@ -1108,17 +1112,24 @@ def main(argv: list[str] | None = None) -> int:
                 outputs = {
                     "review_default": root / "accepted.csv",
                     "review_pending": root / "accepted-pending.csv",
-                    "audit_success": root / "audit-package",
+                    "audit_failure_parent": root / "audit-failure-parent",
+                    "audit_success_parent": root / "audit-success-parent",
                 }
+                outputs["audit_failure_parent"].mkdir()
+                outputs["audit_success_parent"].mkdir()
+                (outputs["audit_failure_parent"] / "keep.txt").write_text(
+                    "keep", encoding="utf-8"
+                )
+                (outputs["audit_success_parent"] / "keep.txt").write_text(
+                    "keep", encoding="utf-8"
+                )
                 role_queue = [
                     ("cancel:review_export_file", None),
                     ("review_export_file", outputs["review_default"]),
                     ("review_export_file", outputs["review_pending"]),
-                    ("audit_export_target", root / "audit-failure"),
-                    ("audit_export_target", outputs["audit_success"]),
+                    ("audit_export_parent", outputs["audit_failure_parent"]),
+                    ("audit_export_parent", outputs["audit_success_parent"]),
                 ]
-                outputs["audit_failure"] = root / "audit-failure"
-                outputs["audit_failure"].mkdir()
 
                 def path_dialog(*, role: str, **_unused: Any) -> dict[str, Any]:
                     _assert(role_queue, f"unexpected native path request for {role}")

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-PC34_MZ = 760.5851
+PRIMARY_MARKER_MZ = 760.5851
 QC782_MZ = 782.5616
 
 
@@ -20,7 +20,7 @@ def spectrum_lines(
     tic: float = 2_000_000.0,
     default_length: int | None = None,
 ) -> list[str]:
-    mz_values = mz_values or [100.0, PC34_MZ, QC782_MZ, 900.0]
+    mz_values = mz_values or [100.0, PRIMARY_MARKER_MZ, QC782_MZ, 900.0]
     intensities = intensities or [0.0, 0.0, 0.0, 0.0]
     length = len(mz_values) if default_length is None else default_length
     mz_payload = " ".join(f"{value:.15g}" for value in mz_values)
@@ -30,7 +30,7 @@ def spectrum_lines(
         f"  index: {index}",
         f"  id: scanId={scan_id}",
         f"  defaultArrayLength: {length}",
-        f"  cvParam: base peak m/z, {PC34_MZ}",
+        f"  cvParam: base peak m/z, {PRIMARY_MARKER_MZ}",
         f"  cvParam: base peak intensity, {max(intensities)}",
         f"  cvParam: total ion current, {tic}, number of detector counts",
         f"  cvParam: lowest observed m/z, {min(mz_values)}",
@@ -65,13 +65,13 @@ def detector_scan(signal: np.ndarray, *, dt_sec: float = 0.1) -> pd.DataFrame:
             "scan_time_ns": np.rint(time_sec * 1_000_000_000).astype("int64"),
             "scan_start_time_min": time_sec / 60.0,
             "scan_start_time_sec": time_sec,
-            "pc34_760_max_intensity": signal,
-            "qc_782_max_intensity": np.ones(n, dtype=float),
-            "pc34_760_ppm_error_at_max_intensity": np.zeros(n, dtype=float),
-            "qc_782_ppm_error_at_max_intensity": np.zeros(n, dtype=float),
+            "primary_marker_max_intensity": signal,
+            "qc_marker_max_intensity": np.ones(n, dtype=float),
+            "primary_marker_ppm_error_at_max_intensity": np.zeros(n, dtype=float),
+            "qc_marker_ppm_error_at_max_intensity": np.zeros(n, dtype=float),
             "tic": np.full(n, 2_000_000.0),
-            "ratio_760_782_max_pseudo1": (signal + 1.0) / 2.0,
+            "primary_qc_max_ratio_pseudo1": (signal + 1.0) / 2.0,
             "array_length": np.full(n, 7000, dtype=int),
-            "base_peak_mz": np.full(n, PC34_MZ),
+            "base_peak_mz": np.full(n, PRIMARY_MARKER_MZ),
         }
     )

@@ -41,3 +41,11 @@ class ExistingEventNavigation(MSEventStudioError):
 
 class ProjectValidationError(MSEventStudioError):
     """A project is incomplete, inconsistent, or has changed on disk."""
+
+
+class WorkspaceRequestError(ValueError):
+    """A browser request that cannot be mapped to a safe scientific action."""
+
+    def __init__(self, message: str, *, code: str = "invalid_workspace_request") -> None:
+        super().__init__(message)
+        self.code = code
