@@ -435,6 +435,10 @@ export function normalizeReviewEvent(value) {
     },
     apexModified: Boolean(row.apex_modified),
     canRestoreAutomaticApex: Boolean(row.can_restore_automatic_apex),
+    originalAutoCollisionRisk: row.original_auto_collision_risk === null
+      ? null
+      : Boolean(row.original_auto_collision_risk),
+    currentApexCollisionRisk: Boolean(row.current_apex_collision_risk),
   };
 }
 
@@ -605,7 +609,9 @@ function normalizeWindow(value, project) {
     labelEventTokens: labels.slice(0, 200),
     bulkReview: {
       eligibleCount: boundedInteger(bulkReview.eligible_count),
-      collisionCount: boundedInteger(bulkReview.collision_count),
+      skippedCount: boundedInteger(bulkReview.skipped_count),
+      originalRiskCount: boundedInteger(bulkReview.original_risk_count),
+      currentRiskCount: boundedInteger(bulkReview.current_risk_count),
     },
   };
 }
@@ -855,6 +861,8 @@ function fixtureEvent(index, status = "unreviewed", origin = "automatic", overri
     marker: { shape: meta.shape, code: meta.code, dash: origin === "automatic" ? [] : [4, 2] },
     apex_modified: origin === "manual_adjusted",
     can_restore_automatic_apex: origin === "manual_adjusted",
+    original_auto_collision_risk: origin === "manual_added" ? null : false,
+    current_apex_collision_risk: false,
     ...overrides,
   };
 }
@@ -874,7 +882,9 @@ function fixtureTrace(start, end, events, points = 240) {
 function rawFixtureWorkspace(id) {
   let events = [
     fixtureEvent(0, "accepted"),
-    fixtureEvent(1, "unreviewed"),
+    fixtureEvent(1, "unreviewed", "automatic", {
+      original_auto_collision_risk: true,
+    }),
     fixtureEvent(2, "pending"),
     fixtureEvent(3, "rejected"),
     fixtureEvent(4, "unreviewed"),
@@ -895,6 +905,8 @@ function rawFixtureWorkspace(id) {
       apex_time_sec: 1910.52,
       apex_modified: true,
       can_restore_automatic_apex: true,
+      original_auto_collision_risk: false,
+      current_apex_collision_risk: true,
     });
   }
   if (visualId === "review-highest") {
@@ -936,6 +948,9 @@ function rawFixtureWorkspace(id) {
     event.apex_time_min >= start && event.apex_time_min <= end
   ));
   const visibleUnreviewed = visibleEvents.filter((event) => event.status === "unreviewed");
+  const skippedUnreviewed = visibleUnreviewed.filter((event) => (
+    event.original_auto_collision_risk === true || event.current_apex_collision_risk === true
+  ));
   const reviewed = events.filter((event) => event.status !== "unreviewed").length;
   const counts = Object.fromEntries(
     ["unreviewed", "accepted", "rejected", "pending"].map((status) => [
@@ -1022,8 +1037,14 @@ function rawFixtureWorkspace(id) {
       event_overlay: visibleEvents,
       label_event_tokens: visibleEvents.filter((_, index) => index % 3 === 0).map((event) => event.event_token),
       bulk_review: {
-        eligible_count: Math.max(0, visibleUnreviewed.length - (visibleUnreviewed.length ? 1 : 0)),
-        collision_count: visibleUnreviewed.length ? 1 : 0,
+        eligible_count: visibleUnreviewed.length - skippedUnreviewed.length,
+        skipped_count: skippedUnreviewed.length,
+        original_risk_count: skippedUnreviewed.filter(
+          (event) => event.original_auto_collision_risk === true,
+        ).length,
+        current_risk_count: skippedUnreviewed.filter(
+          (event) => event.current_apex_collision_risk === true,
+        ).length,
       },
     },
     history: visualId === "undo-empty"

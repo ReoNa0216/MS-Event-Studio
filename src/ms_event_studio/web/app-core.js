@@ -285,7 +285,7 @@ const fixtureRecentProjects = Object.freeze([
 
 function fixtureBootstrap() {
   return normalizeBootstrap({
-    app: { name: "MS Event Studio", version: "0.4.0", language: "zh-CN" },
+    app: { name: "MS Event Studio", version: "0.4.1", language: "zh-CN" },
     view: "welcome",
     recent_projects: fixtureRecentProjects,
     active_project: null,

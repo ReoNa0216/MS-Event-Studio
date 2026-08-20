@@ -1,14 +1,12 @@
 # Native desktop builds
 
 PyInstaller must run on the target operating system; it is not a
-cross-compiler. The `0.4.0` application builds one pywebview renderer from
+cross-compiler. The `0.4.1` application builds one pywebview renderer from
 the platform specs under `packaging/windows/` and `packaging/macos/`. The
-historical `0.2.0.dev3` Tk package is regression evidence only; its legacy UI
-source has been removed. The production source path/entry point cannot import it,
-and a final candidate containing Tk/Tcl or another renderer is rejected. Do not
-treat the commands below as proof that a Phase 2R WebView candidate is accepted; follow
-[`../docs/MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md`](../docs/MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md)
-for the required pywebview migration and release gates.
+production source path cannot import the removed Tk UI, and a final candidate
+containing Tk/Tcl or another renderer is rejected. Current release status and
+remaining human gates are recorded in
+[`../docs/product_status.md`](../docs/product_status.md).
 
 ```powershell
 python -m pip install -e ".[packaging]"
@@ -20,7 +18,7 @@ To run the same test/build/archive path as CI on Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File desktop_bundle/build_windows.ps1 `
-  -Version 0.4.0
+  -Version 0.4.1
 ```
 
 Without `-PythonExe`, the local script creates and reuses an ignored interpreter
@@ -30,7 +28,7 @@ system/base Python. CI may pass its disposable runner interpreter explicitly.
 On an Apple Silicon Mac:
 
 ```bash
-MS_EVENT_STUDIO_VERSION=0.4.0 bash desktop_bundle/build_macos.sh
+MS_EVENT_STUDIO_VERSION=0.4.1 bash desktop_bundle/build_macos.sh
 ```
 
 The macOS script likewise defaults to `build/venv/macos`; `PYTHON_BIN` is an
@@ -45,7 +43,7 @@ WebView, await the read-only frontend readiness hook, call health/bootstrap
 APIs, and complete the NumPy/SciPy, Parquet, SQLite, display-cache, and export
 round trip. An import-only probe is rejected by the report validator.
 The smoke `application_version` must equal the PEP 440 package version in
-`pyproject.toml` (`0.4.0`); `0.4.0` is also the filesystem-safe
+`pyproject.toml` (`0.4.1`); `0.4.1` is also the filesystem-safe
 archive/workflow label. Windows smoke must report `edgechromium`; macOS smoke
 must report `cocoa`.
 
@@ -89,10 +87,7 @@ macOS gate. The macOS CI candidate is ad-hoc signed, checked with `codesign`,
 signing and notarization remain later release operations. The workflow keeps
 the native-runner and opt-in candidate policy used by LMA Studio.
 
-The final R8 Windows candidate passed packaged smoke and native 100%, 125%,
-150%, and 200% DPI capture on physical Windows displays; every sample retained
-the logical 960×640 outer-window minimum, reachable actions, and zero horizontal
-overflow. The first unpublished macOS Actions audit also built the ARM64 app and
-passed its signed Cocoa hidden-WebView/API/scientific smoke. macOS Retina visual
-and mouse UAT still require an Apple Silicon Mac; CSS scaling and the hidden
-smoke are not substitutes for that final native sample.
+Windows candidates require packaged smoke and native 100%, 125%, 150%, and 200%
+DPI evidence. macOS Actions build and smoke the ARM64 Cocoa app, but Retina
+visual and mouse UAT still require an Apple Silicon Mac; CSS scaling and a
+hidden smoke are not substitutes for that final native sample.

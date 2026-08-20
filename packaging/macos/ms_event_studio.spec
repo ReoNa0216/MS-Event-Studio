@@ -15,9 +15,9 @@ from PyInstaller.utils.hooks import (
 
 repo_root = Path(SPECPATH).parents[1]
 source_root = repo_root / "src"
-release_version = os.environ.get("MS_EVENT_STUDIO_VERSION", "0.4.0").lstrip("v")
+release_version = os.environ.get("MS_EVENT_STUDIO_VERSION", "0.4.1").lstrip("v")
 version_match = re.match(r"\d+(?:\.\d+){0,2}", release_version)
-bundle_version = version_match.group(0) if version_match else "0.4.0"
+bundle_version = version_match.group(0) if version_match else "0.4.1"
 
 
 def production_submodule(name):

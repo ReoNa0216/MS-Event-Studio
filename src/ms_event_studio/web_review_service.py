@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from pandas.api.types import is_bool_dtype
+
 from .desktop_model import (
     ORIGIN_LABELS,
     QUALITY_FLAG_LABELS,
@@ -132,6 +134,24 @@ class _PreviewCapability:
     candidate_time_sec: float
     candidate_intensity: float
     offset_sec: float
+
+
+@dataclass(frozen=True, slots=True)
+class _CollisionRiskFlags:
+    original_auto: bool | None
+    current_apex: bool
+
+    @property
+    def should_skip(self) -> bool:
+        return bool(self.original_auto) or self.current_apex
+
+
+@dataclass(frozen=True, slots=True)
+class _BulkReviewCandidates:
+    eligible: tuple[dict[str, Any], ...]
+    skipped: tuple[dict[str, Any], ...]
+    original_risk_count: int
+    current_risk_count: int
 
 
 def _optional_number(value: object, *, non_negative: bool = False) -> float | None:
@@ -287,6 +307,7 @@ class BrowserWorkspaceService:
         row: Mapping[str, Any],
         *,
         sequence_by_identity: Mapping[str, int],
+        collision_risk: _CollisionRiskFlags,
     ) -> WorkspaceEventView:
         identity = str(row["event_id"])
         status = ReviewStatus(str(row["status"]))
@@ -312,18 +333,26 @@ class BrowserWorkspaceService:
             ),
             apex_modified=modified,
             can_restore_automatic_apex=bool(row.get("original_auto_event_id")) and modified,
+            original_auto_collision_risk=collision_risk.original_auto,
+            current_apex_collision_risk=collision_risk.current_apex,
         )
 
     @staticmethod
     def _quality(automatic: Mapping[str, Any] | None) -> QualityConclusionView:
+        if automatic is None:
+            return QualityConclusionView("ok", "不适用（人工补充）", ())
         evidence = automatic or {}
         notes = tuple(
-            QUALITY_FLAG_LABELS[field]
+            (
+                "自动识别时相邻事件距离较近"
+                if field == "collision_risk_high"
+                else QUALITY_FLAG_LABELS[field]
+            )
             for field in QUALITY_FIELDS
             if bool(evidence.get(field, False))
         )
         if notes:
-            return QualityConclusionView("attention", "存在需要关注的质量提示", notes)
+            return QualityConclusionView("attention", "需要人工关注", notes)
         return QualityConclusionView("ok", "未发现明显异常", ())
 
     def _evidence(
@@ -383,11 +412,76 @@ class BrowserWorkspaceService:
         field = "origin" if value.startswith("manual_") else "status"
         return sum(str(row.get(field)) == value for row in rows)
 
+    def _collision_risks(
+        self,
+        rows: list[dict[str, Any]],
+    ) -> dict[str, _CollisionRiskFlags]:
+        """Derive immutable original and current-apex proximity risk separately."""
+
+        rows = [row for row in rows if row.get("generation_state") != "stale"]
+        automatic = self._window_service.automatic
+        required = {"auto_event_id", "collision_risk_high"}
+        if not required.issubset(automatic.columns):
+            raise WorkspaceRequestError(
+                "项目的原始相邻风险证据不完整，不能进行批量保留。",
+                code="invalid_project_evidence",
+            )
+        evidence = automatic[["auto_event_id", "collision_risk_high"]]
+        if (
+            not is_bool_dtype(evidence["collision_risk_high"].dtype)
+            or evidence["auto_event_id"].isna().any()
+            or evidence["collision_risk_high"].isna().any()
+            or evidence["auto_event_id"].astype(str).duplicated().any()
+        ):
+            raise WorkspaceRequestError(
+                "项目的原始相邻风险证据无效，不能进行批量保留。",
+                code="invalid_project_evidence",
+            )
+        original_risk_by_auto_id = {
+            str(row["auto_event_id"]): bool(row["collision_risk_high"])
+            for row in evidence.to_dict(orient="records")
+        }
+
+        current_risk = {str(row["event_id"]): False for row in rows}
+        project_settings = ProjectScientificSettings.from_manifest(
+            self.project.manifest["scientific_settings"]
+        )
+        threshold_ns = seconds_to_ns(project_settings.collision_gap_sec)
+        ordered = sorted(
+            rows,
+            key=lambda row: (int(row["current_apex_time_ns"]), str(row["event_id"])),
+        )
+        for left, right in zip(ordered, ordered[1:]):
+            gap_ns = int(right["current_apex_time_ns"]) - int(left["current_apex_time_ns"])
+            if gap_ns < threshold_ns:
+                current_risk[str(left["event_id"])] = True
+                current_risk[str(right["event_id"])] = True
+
+        result: dict[str, _CollisionRiskFlags] = {}
+        for row in rows:
+            identity = str(row["event_id"])
+            automatic_id = row.get("original_auto_event_id") or row.get("auto_event_id")
+            if automatic_id is None:
+                original = None
+            elif str(automatic_id) not in original_risk_by_auto_id:
+                raise WorkspaceRequestError(
+                    "项目事件与原始相邻风险证据不一致，不能进行批量保留。",
+                    code="invalid_project_evidence",
+                )
+            else:
+                original = original_risk_by_auto_id[str(automatic_id)]
+            result[identity] = _CollisionRiskFlags(
+                original_auto=original,
+                current_apex=current_risk[identity],
+            )
+        return result
+
     def _bulk_review_candidates(
         self,
         rows: list[dict[str, Any]],
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Return visible safe candidates and visible collision-risk events."""
+        risks: Mapping[str, _CollisionRiskFlags],
+    ) -> _BulkReviewCandidates:
+        """Return visible unreviewed candidates after the two-risk OR gate."""
 
         visible = [
             row
@@ -395,23 +489,24 @@ class BrowserWorkspaceService:
             if self._start <= int(row["current_apex_time_ns"]) <= self._end
             and str(row.get("status")) == "unreviewed"
         ]
-        automatic = self._window_service.automatic
-        collision_auto_ids: set[str] = set()
-        if {"auto_event_id", "collision_risk_high"}.issubset(automatic.columns):
-            collision_rows = automatic[
-                automatic["collision_risk_high"].fillna(False).astype(bool)
-            ]
-            collision_auto_ids = set(collision_rows["auto_event_id"].astype(str))
-
-        collision: list[dict[str, Any]] = []
+        skipped: list[dict[str, Any]] = []
         eligible: list[dict[str, Any]] = []
         for row in visible:
-            automatic_id = row.get("original_auto_event_id") or row.get("auto_event_id")
-            if automatic_id is not None and str(automatic_id) in collision_auto_ids:
-                collision.append(row)
+            risk = risks[str(row["event_id"])]
+            if risk.should_skip:
+                skipped.append(row)
             else:
                 eligible.append(row)
-        return eligible, collision
+        return _BulkReviewCandidates(
+            eligible=tuple(eligible),
+            skipped=tuple(skipped),
+            original_risk_count=sum(
+                bool(risks[str(row["event_id"])].original_auto) for row in skipped
+            ),
+            current_risk_count=sum(
+                risks[str(row["event_id"])].current_apex for row in skipped
+            ),
+        )
 
     @staticmethod
     def _next_unreviewed(
@@ -656,6 +751,7 @@ class BrowserWorkspaceService:
                 str(row["event_id"]): index
                 for index, row in enumerate(active, start=1)
             }
+            collision_risks = self._collision_risks(active)
             display = self._window_service.pyramid.read_window(
                 WindowRequest(
                     start_ns=self._start,
@@ -670,15 +766,17 @@ class BrowserWorkspaceService:
                 selected_event_id=self._selected_identity,
             )
             all_views = tuple(
-                self._event_view(row, sequence_by_identity=sequence) for row in active
+                self._event_view(
+                    row,
+                    sequence_by_identity=sequence,
+                    collision_risk=collision_risks[str(row["event_id"])],
+                )
+                for row in active
             )
             by_identity = {
                 str(row["event_id"]): view for row, view in zip(active, all_views)
             }
-            overlay = tuple(
-                self._event_view(row, sequence_by_identity=sequence)
-                for row in display.events
-            )
+            overlay = tuple(by_identity[str(row["event_id"])] for row in display.events)
             selected_view = (
                 None
                 if self._selected_identity is None
@@ -717,7 +815,7 @@ class BrowserWorkspaceService:
                 collision_gap_sec=project_settings.collision_gap_sec,
             )
             history = self._window_service.review_store.history_state()
-            bulk_eligible, bulk_collision = self._bulk_review_candidates(active)
+            bulk = self._bulk_review_candidates(active, collision_risks)
             view = WorkspaceView(
                 project=project,
                 review=ReviewProgressView(
@@ -766,8 +864,10 @@ class BrowserWorkspaceService:
                         self._event_token(identity) for identity in label_identities
                     ),
                     bulk_review=BulkReviewSummaryView(
-                        eligible_count=len(bulk_eligible),
-                        collision_count=len(bulk_collision),
+                        eligible_count=len(bulk.eligible),
+                        skipped_count=len(bulk.skipped),
+                        original_risk_count=bulk.original_risk_count,
+                        current_risk_count=bulk.current_risk_count,
                     ),
                 ),
                 history=HistoryView(
@@ -786,37 +886,57 @@ class BrowserWorkspaceService:
         with self._lock:
             self._require_open()
             active = self._active_events(self._window_service.all_events())
-            eligible, collision = self._bulk_review_candidates(active)
-            if not eligible:
+            risks = self._collision_risks(active)
+            bulk = self._bulk_review_candidates(active, risks)
+            if not bulk.eligible:
+                if bulk.skipped:
+                    message = (
+                        f"当前窗口的 {len(bulk.skipped)} 个未审阅事件都与相邻事件距离过近，"
+                        "未作修改，需要逐个判断。"
+                    )
+                else:
+                    message = "当前窗口没有可批量保留的未审阅事件。"
                 return {
                     "ok": True,
-                    "message": "当前窗口没有可批量保留的未审阅事件。",
+                    "message": message,
                     "workspace": self.workspace(),
                 }
             self._window_service.review_store.set_status_bulk(
                 [
                     (str(row["event_id"]), int(row["revision"]))
-                    for row in eligible
+                    for row in bulk.eligible
                 ],
                 "accepted",
                 actor=self._actor,
                 session_id=self._session_id,
                 reason=reason,
+                expected_active_revisions={
+                    str(row["event_id"]): int(row["revision"]) for row in active
+                },
+                audit_details={
+                    "bulk_policy": "original_or_current_collision_risk_v1",
+                    "collision_gap_sec": ProjectScientificSettings.from_manifest(
+                        self.project.manifest["scientific_settings"]
+                    ).collision_gap_sec,
+                    "skipped_count": len(bulk.skipped),
+                    "original_risk_count": bulk.original_risk_count,
+                    "current_risk_count": bulk.current_risk_count,
+                },
             )
             self._invalidate_actions()
             self._invalidate_edits()
-            if collision:
-                self._selected_identity = str(collision[0]["event_id"])
+            if bulk.skipped:
+                self._selected_identity = str(bulk.skipped[0]["event_id"])
             else:
                 refreshed = self._active_events(self._window_service.all_events())
                 self._selected_identity = self._next_unreviewed(
                     refreshed,
-                    str(eligible[-1]["event_id"]),
-                ) or str(eligible[-1]["event_id"])
-            skipped = len(collision)
-            message = f"已批量保留 {len(eligible)} 个事件。"
+                    str(bulk.eligible[-1]["event_id"]),
+                ) or str(bulk.eligible[-1]["event_id"])
+            skipped = len(bulk.skipped)
+            message = f"已批量保留 {len(bulk.eligible)} 个事件。"
             if skipped:
-                message += f" 已跳过 {skipped} 个相邻事件，请逐个判断。"
+                message += f" 已跳过 {skipped} 个与相邻事件距离过近的事件，需要逐个判断。"
             return {"ok": True, "message": message, "workspace": self.workspace()}
 
     @property

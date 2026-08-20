@@ -9,7 +9,7 @@ Windows x64 与 macOS Apple Silicon 下载都在同一仓库；不再维护单�
 在 GitHub 打开 **Actions → Build and release desktop packages → Run workflow**：
 
 1. `platform` 选 `all`，确保 Windows 与 macOS 来自同一个提交；
-2. `version` 填应用版本，例如 `0.4.0`，不要加 `.dev1`；
+2. `version` 填应用版本，例如 `0.4.1`，不要加 `.dev1`；
 3. 首次审计保持 `publish_prerelease` 关闭，只下载 Actions artifacts 检查；
 4. 两个平台构建和隐藏启动均通过后，再以相同提交运行并打开
    `publish_prerelease`，供真实用户下载测试。
@@ -37,5 +37,11 @@ ZIP，因此文件名不会出现多余的 `v`。
 ## 版本 0.4.0
 
 `0.4.0` 是新的 `ms-event-project-v2` 测试版。它增加项目级主 marker、相邻事件提示阈值、
-当前窗口安全事件批量保留、跨平台导出修复和启动优化。旧测试项目必须从只读 MS 原始文件
+当前窗口无相邻提示事件批量保留、跨平台导出修复和启动优化。旧测试项目必须从只读 MS 原始文件
 重新创建，不做可能错误解释科学列的兼容迁移。
+
+## 版本 0.4.1
+
+`0.4.1` 在不改变 marker、±12 ppm、检测器和 `0.60 s` 默认阈值的前提下，把批量保留改为
+同时检查不可变的原始自动近邻风险和按当前 active 峰顶派生的实时近邻风险；任一项成立就跳过。
+Windows `dist` 人工验收已经通过；`0.4.1` 从同一提交构建 Windows 和 macOS 包，并发布在同一个公开 prerelease。

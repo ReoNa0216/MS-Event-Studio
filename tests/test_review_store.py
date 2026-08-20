@@ -141,6 +141,9 @@ class ReviewStoreContractTest(unittest.TestCase):
                 "accepted",
                 actor="tester",
                 session_id="s1",
+                expected_active_revisions={
+                    event["event_id"]: event["revision"] for event in events
+                },
             )
             self.assertEqual([event["status"] for event in updated], ["accepted", "accepted"])
             self.assertEqual([event["status"] for event in store.list_events()], ["accepted", "accepted"])
@@ -156,6 +159,49 @@ class ReviewStoreContractTest(unittest.TestCase):
                 [row["action"] for row in store.audit_events()],
                 ["bulk_set_status", "bulk_set_status", "undo", "undo", "redo", "redo"],
             )
+
+    def test_bulk_status_rejects_a_changed_non_candidate_event(self):
+        rows = automatic_rows()
+        second = dict(rows[0])
+        second.update(
+            auto_event_id="AE_" + "3" * 64,
+            scan_id="100004",
+            scan_row_index=4,
+            spectrum_index=4,
+            scan_time_ns=900_000_000,
+            apex_time_sec=0.9,
+            left_sec=0.8,
+            right_sec=1.0,
+        )
+        rows.append(second)
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            store = ReviewStore.create(
+                Path(tmp) / "review.sqlite",
+                project_id="project-1",
+                generation_id="GEN_" + "2" * 64,
+                automatic_events=rows,
+            )
+            before = store.list_events()
+            store.set_status(
+                before[1]["event_id"],
+                "pending",
+                expected_revision=before[1]["revision"],
+                actor="other-window",
+                session_id="s2",
+            )
+            with self.assertRaises(ReviewConflict):
+                store.set_status_bulk(
+                    [(before[0]["event_id"], before[0]["revision"])],
+                    "accepted",
+                    actor="tester",
+                    session_id="s1",
+                    expected_active_revisions={
+                        event["event_id"]: event["revision"] for event in before
+                    },
+                )
+            current = store.list_events()
+            self.assertEqual(current[0]["status"], "unreviewed")
+            self.assertEqual(current[1]["status"], "pending")
 
     def test_manual_add_snaps_to_real_local_peak_and_defaults_accepted(self):
         signal = np.zeros(20)

@@ -8,7 +8,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterable, Iterator, Mapping
 
 import numpy as np
 import pandas as pd
@@ -434,6 +434,8 @@ class ReviewStore:
         actor: str,
         session_id: str,
         reason: str = "",
+        expected_active_revisions: Mapping[str, int] | None = None,
+        audit_details: Mapping[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """Apply one status to several events as one durable command.
 
@@ -450,6 +452,21 @@ class ReviewStore:
             return []
 
         with self._transaction() as connection:
+            if expected_active_revisions is not None:
+                rows = connection.execute("SELECT state_json FROM events").fetchall()
+                current_active = {
+                    str(state["event_id"]): int(state["revision"])
+                    for state in (json.loads(row["state_json"]) for row in rows)
+                    if state.get("generation_state") != "stale"
+                }
+                expected_active = {
+                    str(event_id): int(revision)
+                    for event_id, revision in expected_active_revisions.items()
+                }
+                if current_active != expected_active:
+                    raise ReviewConflict(
+                        "active event set changed before bulk review could be committed"
+                    )
             before_states: list[dict[str, Any]] = []
             after_states: list[dict[str, Any]] = []
             for event_id, expected_revision in requested:
@@ -484,6 +501,9 @@ class ReviewStore:
                 ),
             )
             for before, after in zip(before_states, after_states):
+                details = {"event_count": len(after_states)}
+                if audit_details:
+                    details.update(dict(audit_details))
                 self._append_audit(
                     connection,
                     event_id=str(before["event_id"]),
@@ -493,7 +513,7 @@ class ReviewStore:
                     reason=reason,
                     before=before,
                     after=after,
-                    details={"event_count": len(after_states)},
+                    details=details,
                 )
             return after_states
 

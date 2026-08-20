@@ -1,8 +1,10 @@
 # MS Event Studio agent rules
 
-Before changing the desktop UI, read
-`docs/MS_EVENT_STUDIO_UI_REBUILD_HANDOFF.md` completely. It is the source of
-truth for the Phase 2R rebuild.
+Before changing product behavior, read `docs/product_status.md`,
+`docs/scientific_contract.md`, `docs/marker_mz_principles_zh.md`, and
+`docs/project_and_export_contracts.md`. They describe the current product and
+scientific boundaries; Git history is the source for completed Phase 1/2
+implementation details.
 
 - Treat `../lma-studio` as a frozen, read-only reference at v0.4.4. Reuse its
   product language, WebView architecture, design tokens, and component ideas by

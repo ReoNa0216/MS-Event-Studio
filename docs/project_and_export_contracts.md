@@ -30,6 +30,13 @@ primary marker is also bound to source inspection and parser output. A marker
 change therefore creates a new v2 project; v1 projects are not reinterpreted or
 migrated.
 
+This binding guarantees reproducibility, not scientific equivalence between
+markers. The default 760.5851 path has real-source regression evidence; an
+alternative marker currently has only synthetic extraction/serialization tests
+until a marker-specific real dataset is adjudicated. The nearby-event threshold
+is stored with the project but remains review-risk policy: it does not enter the
+automatic-event identity or suppress detection.
+
 ## Range generation changes
 
 An analysis-range change is preview-only until explicit confirmation. The

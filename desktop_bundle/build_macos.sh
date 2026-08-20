@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-version="${MS_EVENT_STUDIO_VERSION:-0.4.0}"
+version="${MS_EVENT_STUDIO_VERSION:-0.4.1}"
 
 if [[ ! "$version" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
   echo "Version may contain only letters, digits, period, underscore, and hyphen (maximum 64 characters)." >&2

@@ -283,6 +283,8 @@ class WorkspaceEventView:
     marker: MarkerView
     apex_modified: bool
     can_restore_automatic_apex: bool
+    original_auto_collision_risk: bool | None
+    current_apex_collision_risk: bool
 
     def __post_init__(self) -> None:
         if isinstance(self.sequence, bool) or int(self.sequence) < 1:
@@ -290,6 +292,13 @@ class WorkspaceEventView:
         _finite_number(self.apex_time_min, "apex_time_min")
         _finite_number(self.apex_time_sec, "apex_time_sec")
         _finite_number(self.apex_intensity, "apex_intensity", non_negative=True)
+        if self.original_auto_collision_risk is not None and not isinstance(
+            self.original_auto_collision_risk,
+            bool,
+        ):
+            raise ValueError("original_auto_collision_risk must be boolean or null")
+        if not isinstance(self.current_apex_collision_risk, bool):
+            raise ValueError("current_apex_collision_risk must be boolean")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -306,6 +315,8 @@ class WorkspaceEventView:
             "marker": self.marker.to_dict(),
             "apex_modified": bool(self.apex_modified),
             "can_restore_automatic_apex": bool(self.can_restore_automatic_apex),
+            "original_auto_collision_risk": self.original_auto_collision_risk,
+            "current_apex_collision_risk": bool(self.current_apex_collision_risk),
         }
 
 
@@ -594,7 +605,6 @@ class RangeImpactView:
             value = getattr(self, name)
             if isinstance(value, bool) or int(value) < 0:
                 raise ValueError(f"{name} must be a non-negative integer")
-
     def to_dict(self) -> dict[str, int]:
         return {
             "reusable_count": int(self.reusable_count),
@@ -664,18 +674,31 @@ class ViewportView:
 @dataclass(frozen=True, slots=True)
 class BulkReviewSummaryView:
     eligible_count: int
-    collision_count: int
+    skipped_count: int
+    original_risk_count: int
+    current_risk_count: int
 
     def __post_init__(self) -> None:
-        for name in ("eligible_count", "collision_count"):
+        for name in (
+            "eligible_count",
+            "skipped_count",
+            "original_risk_count",
+            "current_risk_count",
+        ):
             value = getattr(self, name)
             if isinstance(value, bool) or int(value) < 0:
                 raise ValueError(f"{name} must be a non-negative integer")
+        if self.original_risk_count > self.skipped_count:
+            raise ValueError("original_risk_count cannot exceed skipped_count")
+        if self.current_risk_count > self.skipped_count:
+            raise ValueError("current_risk_count cannot exceed skipped_count")
 
     def to_dict(self) -> dict[str, int]:
         return {
             "eligible_count": int(self.eligible_count),
-            "collision_count": int(self.collision_count),
+            "skipped_count": int(self.skipped_count),
+            "original_risk_count": int(self.original_risk_count),
+            "current_risk_count": int(self.current_risk_count),
         }
 
 

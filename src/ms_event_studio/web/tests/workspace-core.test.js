@@ -325,14 +325,26 @@ test("workspace normalizer exposes only browser-safe keys", () => {
   assert.equal(workspace.events[0].actionToken, "opaque-action");
   assert.deepEqual(workspace.window.bulkReview, {
     eligibleCount: 0,
-    collisionCount: 0,
+    skippedCount: 0,
+    originalRiskCount: 0,
+    currentRiskCount: 0,
   });
 });
 
 test("bulk review fixture distinguishes safe and collision-risk events", () => {
   const workspace = fixtureWorkspace("review-unreviewed-auto");
   assert.ok(workspace.window.bulkReview.eligibleCount > 0);
-  assert.equal(workspace.window.bulkReview.collisionCount, 1);
+  assert.equal(workspace.window.bulkReview.skippedCount, 1);
+  assert.equal(workspace.window.bulkReview.originalRiskCount, 1);
+  assert.equal(workspace.window.bulkReview.currentRiskCount, 0);
+  assert.equal(workspace.selection.event.originalAutoCollisionRisk, true);
+  assert.equal(workspace.selection.event.currentApexCollisionRisk, false);
+});
+
+test("manual adjustment fixture separates original and current-apex risk", () => {
+  const workspace = fixtureWorkspace("review-manual");
+  assert.equal(workspace.selection.event.originalAutoCollisionRisk, false);
+  assert.equal(workspace.selection.event.currentApexCollisionRisk, true);
 });
 
 test("time axis exposes stable endpoint-inclusive minute ticks", () => {

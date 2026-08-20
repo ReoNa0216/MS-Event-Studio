@@ -447,6 +447,7 @@ function renderReviewFeedback() {
 
 function renderCoreEvidence() {
   const { core, more } = state.workspace.selection;
+  const event = selectedWorkspaceEvent();
   setText("evidencePrimaryMarker", workspaceNumber(core.primaryMarkerIntensity));
   setText("evidenceMz", core.measuredMz === null ? "—" : core.measuredMz.toFixed(6));
   setText("evidencePpm", core.massErrorPpm === null ? "—" : `${core.massErrorPpm > 0 ? "+" : ""}${core.massErrorPpm.toFixed(2)} ppm`);
@@ -458,6 +459,18 @@ function renderCoreEvidence() {
     return item;
   }));
   notes.hidden = core.quality.notes.length === 0;
+  const originalRisk = event.originalAutoCollisionRisk;
+  const originalRiskText = originalRisk === null
+    ? "不适用（人工补充）"
+    : originalRisk ? "与相邻事件距离过近" : "未发现距离过近";
+  setText("originalCollisionRisk", originalRiskText);
+  element("originalCollisionRisk").dataset.risk = originalRisk === true ? "true" : "false";
+  setText("currentCollisionRisk", event.currentApexCollisionRisk ? "与相邻事件距离过近" : "未发现距离过近");
+  element("currentCollisionRisk").dataset.risk = event.currentApexCollisionRisk ? "true" : "false";
+  setText(
+    "nearbyRiskRule",
+    `判定标准：与前后任一有效事件的峰顶间隔小于 ${state.workspace.project.collisionGapSec.toFixed(2)} s。任一项距离过近时，此事件不会被批量保留，需要逐个判断。`,
+  );
   setText("evidenceScan", more.scanNumber);
   setText("evidenceMs782", workspaceNumber(more.ms782Intensity));
   setText("evidenceTic", workspaceNumber(more.tic));
@@ -538,16 +551,22 @@ function renderEventList() {
   setText("visibleEventCount", `${events.length} 个`);
   const bulk = state.workspace.window.bulkReview;
   const eligible = bulk.eligibleCount;
-  const collision = bulk.collisionCount;
+  const skipped = bulk.skippedCount;
+  const unreviewed = eligible + skipped;
+  const bulkSummary = unreviewed === 0
+    ? "当前窗口没有可批量处理的未审阅事件。"
+    : skipped === 0
+      ? `本窗口有 ${unreviewed} 个未审阅事件，均未发现与相邻事件距离过近，可以批量保留。`
+      : eligible === 0
+        ? `本窗口有 ${unreviewed} 个未审阅事件，均与相邻事件距离过近，需要逐个判断。`
+        : `本窗口有 ${unreviewed} 个未审阅事件：${eligible} 个可以批量保留；${skipped} 个与相邻事件距离过近，需要逐个判断。`;
   setText(
     "bulkReviewSummary",
-    collision
-      ? `可保留 ${eligible} 个；跳过相邻事件 ${collision} 个`
-      : `可保留 ${eligible} 个；没有相邻风险`,
+    bulkSummary,
   );
   element("bulkAcceptVisible").textContent = eligible
-    ? `保留本窗口 ${eligible} 个安全事件`
-    : "没有可批量保留的事件";
+    ? `批量保留这 ${eligible} 个事件`
+    : "需要逐个判断";
   element("bulkAcceptVisible").disabled = workbenchBusy() || eligible === 0;
 }
 

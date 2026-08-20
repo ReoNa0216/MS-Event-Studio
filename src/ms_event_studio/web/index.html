@@ -125,8 +125,8 @@
             </button>
           </div>
           <div class="bulk-review-action bulk-review-action--sidebar">
-            <span id="bulkReviewSummary">仅处理当前窗口内的未审阅事件</span>
-            <button id="bulkAcceptVisible" class="button button--secondary" type="button" disabled data-qa="bulk-accept-visible">批量保留安全事件</button>
+            <span id="bulkReviewSummary" role="status" aria-live="polite" aria-atomic="true">仅处理当前窗口内的未审阅事件</span>
+            <button id="bulkAcceptVisible" class="button button--secondary" type="button" aria-describedby="bulkReviewSummary" disabled data-qa="bulk-accept-visible">批量保留可处理事件</button>
           </div>
         </section>
 
@@ -172,9 +172,17 @@
               <div><dt>主 marker 强度</dt><dd id="evidencePrimaryMarker">—</dd></div>
               <div><dt>实测 m/z</dt><dd id="evidenceMz">—</dd></div>
               <div><dt>质量误差</dt><dd id="evidencePpm">—</dd></div>
-              <div><dt>质量结论</dt><dd id="evidenceQuality">—</dd></div>
+              <div><dt>自动检测质量</dt><dd id="evidenceQuality">—</dd></div>
             </dl>
             <ul id="qualityNotes" class="quality-notes" hidden></ul>
+            <div class="nearby-risk" role="status" aria-live="polite" aria-atomic="true" data-qa="nearby-risk" aria-label="相邻事件距离判断">
+              <h4>与相邻事件的距离</h4>
+              <dl>
+                <div><dt>自动识别时</dt><dd id="originalCollisionRisk" data-qa="original-collision-risk">—</dd></div>
+                <div><dt>按当前峰顶</dt><dd id="currentCollisionRisk" data-qa="current-collision-risk">—</dd></div>
+              </dl>
+              <p id="nearbyRiskRule">任一项距离过近时，此事件不会被批量保留，需要逐个判断。</p>
+            </div>
           </section>
 
           <section class="more-evidence-section">
@@ -378,7 +386,7 @@
           <div class="selection-readout">
             <span class="selection-readout__icon selection-readout__icon--file" aria-hidden="true"></span>
             <div>
-              <span class="selection-readout__label">已选择</span>
+              <span class="selection-readout__label">源文件</span>
               <strong id="sourceDisplayName">尚未选择文件</strong>
             </div>
           </div>
@@ -447,7 +455,7 @@
               <div class="selection-readout selection-readout--target">
                 <span class="selection-readout__icon selection-readout__icon--folder" aria-hidden="true"></span>
                 <div>
-                  <span class="selection-readout__label">已选择</span>
+                  <span class="selection-readout__label">项目保存位置</span>
                   <strong id="targetDisplayName">尚未选择位置</strong>
                 </div>
               </div>
@@ -580,7 +588,7 @@
         </section>
         <section class="export-target" aria-labelledby="exportTargetTitle">
           <div class="operation-heading"><div><h3 id="exportTargetTitle">保存目标</h3><p id="exportTargetHelp">页面只显示名称，不显示本机路径。</p></div><button id="chooseExportTarget" class="button button--secondary" type="button" data-qa="export-choose-target">选择文件…</button></div>
-          <div class="selection-readout"><span class="selection-readout__icon selection-readout__icon--folder" aria-hidden="true"></span><div><span class="selection-readout__label">已选择</span><strong id="exportTargetName" data-qa="export-target-name">尚未选择</strong></div></div>
+          <div class="selection-readout"><span class="selection-readout__icon selection-readout__icon--folder" aria-hidden="true"></span><div><span class="selection-readout__label">保存目标</span><strong id="exportTargetName" data-qa="export-target-name">尚未选择</strong></div></div>
         </section>
         <label class="field" for="exportNote"><span>导出备注（可选）</span><textarea id="exportNote" rows="2" maxlength="500" placeholder="记录本次导出的用途"></textarea></label>
         <section id="exportProgressRegion" class="operation-progress" role="status" aria-live="polite" data-qa="export-progress" hidden>

@@ -41,6 +41,9 @@ test("review workbench exposes stable semantic QA hooks", async () => {
     "review-pending",
     "review-clear",
     "core-evidence",
+    "nearby-risk",
+    "original-collision-risk",
+    "current-collision-risk",
     "evidence-toggle",
     "more-evidence",
     "review-note",
@@ -93,6 +96,8 @@ test("review workbench exposes stable semantic QA hooks", async () => {
     assert.match(html, new RegExp(`data-qa="${hook}"`), hook);
   }
   assert.match(html, /id="reviewSegmented"[^>]+role="radiogroup"/);
+  assert.match(html, /id="bulkAcceptVisible"[^>]+aria-describedby="bulkReviewSummary"/);
+  assert.match(html, /class="nearby-risk"[^>]+role="status"[^>]+aria-live="polite"/);
   assert.match(html, /id="reviewError"[^>]+role="alert"[^>]+data-qa="review-error"/);
   assert.match(html, /id="eventList"[^>]+role="listbox"/);
   assert.match(html, /id="eventLayer"[^>]+clip-path="url\(#plotContentClip\)"/);
@@ -101,6 +106,21 @@ test("review workbench exposes stable semantic QA hooks", async () => {
   assert.match(html, /id="signalPlot"[^>]+role="img"[^>]+tabindex="-1"[^>]+data-qa="plot-svg"/);
   assert.match(html, /id="editPositionValue"[^>]+aria-live="polite"[^>]+data-qa="edit-position-readout"/);
   assert.doesNotMatch(html, /type="range"|id="editPosition"/);
+});
+
+test("selection and nearby-distance copy states the user task directly", async () => {
+  const html = await asset("index.html");
+  const app = await asset("app.js");
+  assert.doesNotMatch(html, /selection-readout__label">已选择</);
+  assert.match(html, /selection-readout__label">源文件</);
+  assert.match(html, /selection-readout__label">项目保存位置</);
+  assert.match(html, /selection-readout__label">保存目标</);
+  assert.match(html, /<h4>与相邻事件的距离<\/h4>/);
+  assert.match(html, /<dt>自动识别时<\/dt>/);
+  assert.match(html, /<dt>按当前峰顶<\/dt>/);
+  assert.match(app, /与相邻事件距离过近/);
+  assert.match(app, /需要逐个判断/);
+  assert.doesNotMatch(app, /原因：原始位置/);
 });
 
 test("design tokens are a single shared source for the approved family palette", async () => {

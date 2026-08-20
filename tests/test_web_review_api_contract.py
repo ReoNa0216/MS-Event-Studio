@@ -12,7 +12,9 @@ import numpy as np
 
 from _fixtures import spectrum_lines, write_ms_file
 from ms_event_studio.demo import create_guided_source
+from ms_event_studio.errors import WorkspaceRequestError
 from ms_event_studio.project import CreateProjectRequest, create_project
+from ms_event_studio.scientific_settings import ProjectScientificSettings
 from ms_event_studio.web_app import WebBoundaryError, WebSession, create_http_server
 from ms_event_studio.web_review_service import BrowserWorkspaceService
 from ms_event_studio.window_service import ProjectWindowService
@@ -44,7 +46,12 @@ def create_guided_project(root: Path, *, add_manual: bool = False):
     return source, project
 
 
-def create_adjustable_project(root: Path):
+def create_adjustable_project(
+    root: Path,
+    *,
+    adjust: bool = True,
+    collision_gap_sec: float = 0.6,
+):
     count = 1201
     positions = np.arange(count, dtype=float)
     signal = 1000.0 * np.exp(-0.5 * ((positions - 300.0) / 30.0) ** 2)
@@ -76,34 +83,38 @@ def create_adjustable_project(root: Path):
             display_name="可恢复峰顶项目",
             analysis_start_min="0",
             analysis_end_min="2",
+            scientific_settings=ProjectScientificSettings(
+                collision_gap_sec=collision_gap_sec,
+            ),
         )
     )
-    with ProjectWindowService.open(project.project_dir) as service:
-        event = min(
-            service.all_events(),
-            key=lambda row: abs(int(row["current_spectrum_index"]) - 300),
-        )
-        accepted = service.review_store.set_status(
-            event["event_id"],
-            "accepted",
-            expected_revision=int(event["revision"]),
-            actor="fixture",
-            session_id="fixture",
-            reason="确认真实峰",
-        )
-        adjusted = service.review_store.adjust_apex(
-            event["event_id"],
-            click_time_sec=31.0,
-            scans=service.scans,
-            analysis_start_ns=service.analysis_start_ns,
-            analysis_end_ns=service.analysis_end_ns,
-            expected_revision=int(accepted["revision"]),
-            actor="fixture",
-            session_id="fixture",
-            reason="调整到相邻局部峰",
-        )
-        if int(adjusted["current_spectrum_index"]) != 310:
-            raise AssertionError("adjustable fixture did not snap to its intended real scan")
+    if adjust:
+        with ProjectWindowService.open(project.project_dir) as service:
+            event = min(
+                service.all_events(),
+                key=lambda row: abs(int(row["current_spectrum_index"]) - 300),
+            )
+            accepted = service.review_store.set_status(
+                event["event_id"],
+                "accepted",
+                expected_revision=int(event["revision"]),
+                actor="fixture",
+                session_id="fixture",
+                reason="确认真实峰",
+            )
+            adjusted = service.review_store.adjust_apex(
+                event["event_id"],
+                click_time_sec=31.0,
+                scans=service.scans,
+                analysis_start_ns=service.analysis_start_ns,
+                analysis_end_ns=service.analysis_end_ns,
+                expected_revision=int(accepted["revision"]),
+                actor="fixture",
+                session_id="fixture",
+                reason="调整到相邻局部峰",
+            )
+            if int(adjusted["current_spectrum_index"]) != 310:
+                raise AssertionError("adjustable fixture did not snap to its intended real scan")
     return source, project
 
 
@@ -285,17 +296,37 @@ class ReviewWriteContractTest(unittest.TestCase):
                 initial = service.workspace()
                 self.assertEqual(
                     initial["window"]["bulk_review"],
-                    {"eligible_count": 2, "collision_count": 1},
+                    {
+                        "eligible_count": 2,
+                        "skipped_count": 1,
+                        "original_risk_count": 1,
+                        "current_risk_count": 0,
+                    },
                 )
+                first = initial["events"][0]
+                self.assertTrue(first["original_auto_collision_risk"])
+                self.assertFalse(first["current_apex_collision_risk"])
                 saved = service.bulk_accept_visible(
                     {"confirmed": True, "note": "批量确认自动识别良好的峰"}
                 )
                 self.assertEqual(saved["workspace"]["review"]["accepted"], 2)
                 self.assertEqual(saved["workspace"]["review"]["unreviewed"], 1)
-                self.assertIn("已跳过 1 个相邻事件", saved["message"])
+                self.assertIn("已跳过 1 个与相邻事件距离过近的事件", saved["message"])
                 self.assertIn(
-                    "相邻事件距离较近",
+                    "自动识别时相邻事件距离较近",
                     saved["workspace"]["selection"]["core_evidence"]["quality"]["notes"],
+                )
+                audit = service._window_service.review_store.audit_events()
+                self.assertEqual(
+                    audit[0]["details"],
+                    {
+                        "event_count": 2,
+                        "bulk_policy": "original_or_current_collision_risk_v1",
+                        "collision_gap_sec": 0.6,
+                        "skipped_count": 1,
+                        "original_risk_count": 1,
+                        "current_risk_count": 0,
+                    },
                 )
 
                 undone = service.undo({})["workspace"]
@@ -306,8 +337,168 @@ class ReviewWriteContractTest(unittest.TestCase):
                 redone = service.redo({})["workspace"]
                 self.assertEqual(redone["review"]["accepted"], 2)
                 self.assertEqual(redone["review"]["unreviewed"], 1)
+                no_change = service.bulk_accept_visible({"confirmed": True})
+                self.assertIn(
+                    "1 个未审阅事件都与相邻事件距离过近，未作修改",
+                    no_change["message"],
+                )
+                self.assertEqual(no_change["workspace"]["review"], redone["review"])
             finally:
                 service.close()
+
+    def test_live_collision_risk_is_global_strict_and_combined_with_original(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            _source, project = create_guided_project(root)
+            service = BrowserWorkspaceService(project)
+            try:
+                service._window_service.automatic.loc[:, "collision_risk_high"] = False
+                active = service._active_events(service._window_service.all_events())
+                base_ns = 30_000_000_000
+                active[0]["current_apex_time_ns"] = base_ns
+                active[0]["current_apex_time_sec"] = 30.0
+                active[0]["status"] = "accepted"
+                active[1]["current_apex_time_ns"] = base_ns + 590_000_000
+                active[1]["current_apex_time_sec"] = 30.59
+                # Exactly 0.60 s from the second event: strict '<' must not
+                # make this third event risky.
+                active[2]["current_apex_time_ns"] = base_ns + 1_190_000_000
+                active[2]["current_apex_time_sec"] = 31.19
+
+                risks = service._collision_risks(active)
+                first, second, third = [risks[str(row["event_id"])] for row in active]
+                self.assertTrue(first.current_apex)
+                self.assertTrue(second.current_apex)
+                self.assertFalse(third.current_apex)
+                self.assertFalse(second.original_auto)
+
+                # The accepted first event is hidden from the candidate set,
+                # but it must still protect its unreviewed neighbour.
+                bulk = service._bulk_review_candidates(active, risks)
+                self.assertEqual(
+                    [str(row["event_id"]) for row in bulk.skipped],
+                    [str(active[1]["event_id"])],
+                )
+                self.assertEqual(
+                    [str(row["event_id"]) for row in bulk.eligible],
+                    [str(active[2]["event_id"])],
+                )
+                self.assertEqual(bulk.original_risk_count, 0)
+                self.assertEqual(bulk.current_risk_count, 1)
+
+                stale_first = dict(active[0], generation_state="stale")
+                without_stale = service._collision_risks(
+                    [stale_first, active[1], active[2]]
+                )
+                self.assertFalse(without_stale[str(active[1]["event_id"])].current_apex)
+                self.assertFalse(without_stale[str(active[2]["event_id"])].current_apex)
+
+                manual = dict(active[2])
+                manual["event_id"] = "manual-test-event"
+                manual["origin"] = "manual_added"
+                manual["original_auto_event_id"] = None
+                manual["auto_event_id"] = None
+                manual["current_apex_time_ns"] = base_ns + 3_000_000_000
+                manual_risk = service._collision_risks([manual])["manual-test-event"]
+                self.assertIsNone(manual_risk.original_auto)
+                self.assertFalse(manual_risk.current_apex)
+            finally:
+                service.close()
+
+    def test_missing_original_collision_evidence_fails_closed(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            _source, project = create_guided_project(root)
+            service = BrowserWorkspaceService(project)
+            try:
+                service._window_service.automatic["collision_risk_high"] = "False"
+                with self.assertRaisesRegex(
+                    WorkspaceRequestError,
+                    "原始相邻风险证据无效",
+                ):
+                    service.workspace()
+                service._window_service.automatic.drop(
+                    columns=["collision_risk_high"],
+                    inplace=True,
+                )
+                with self.assertRaisesRegex(
+                    WorkspaceRequestError,
+                    "原始相邻风险证据不完整",
+                ):
+                    service.workspace()
+            finally:
+                service.close()
+
+    def test_adjust_undo_redo_reopen_refreshes_live_risk_and_bulk_gate(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            _source, project = create_adjustable_project(
+                root,
+                adjust=False,
+                collision_gap_sec=30.0,
+            )
+            session = open_session(root, project)
+            try:
+                initial = session.workspace()
+                first = min(
+                    initial["events"],
+                    key=lambda row: abs(float(row["apex_time_sec"]) - 30.0),
+                )
+                self.assertFalse(first["original_auto_collision_risk"])
+                self.assertFalse(first["current_apex_collision_risk"])
+                selected = session.workspace({"selected_event_token": first["event_token"]})
+                aim = session.begin_event_edit(
+                    {
+                        "mode": "adjust",
+                        "action_token": selected["selection"]["event"]["action_token"],
+                    }
+                )
+                preview = session.preview_event_edit(
+                    {"aim_token": aim["aim_token"], "click_time_min": 31.0 / 60.0}
+                )
+                adjusted = session.apply_event_edit(
+                    {"preview_token": preview["preview_token"], "note": "形成近邻测试"}
+                )["workspace"]
+                self.assertTrue(
+                    adjusted["selection"]["event"]["current_apex_collision_risk"]
+                )
+                self.assertFalse(
+                    adjusted["selection"]["event"]["original_auto_collision_risk"]
+                )
+
+                undone = session.undo_review({})["workspace"]
+                self.assertFalse(
+                    undone["selection"]["event"]["current_apex_collision_risk"]
+                )
+                redone = session.redo_review({})["workspace"]
+                self.assertTrue(
+                    redone["selection"]["event"]["current_apex_collision_risk"]
+                )
+            finally:
+                session.close()
+
+            reopened = open_session(root, project)
+            try:
+                persisted = reopened.workspace()
+                adjusted_event = min(
+                    persisted["events"],
+                    key=lambda row: abs(float(row["apex_time_sec"]) - 31.0),
+                )
+                self.assertTrue(adjusted_event["current_apex_collision_risk"])
+                self.assertEqual(
+                    persisted["window"]["bulk_review"],
+                    {
+                        "eligible_count": 1,
+                        "skipped_count": 2,
+                        "original_risk_count": 0,
+                        "current_risk_count": 2,
+                    },
+                )
+                saved = reopened.bulk_accept_visible({"confirmed": True})
+                self.assertEqual(saved["workspace"]["review"]["accepted"], 1)
+                self.assertEqual(saved["workspace"]["review"]["unreviewed"], 2)
+            finally:
+                reopened.close()
 
     def test_u_a_r_p_notes_auto_advance_undo_redo_and_reopen(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:

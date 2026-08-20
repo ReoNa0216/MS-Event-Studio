@@ -823,11 +823,10 @@ fieldset:disabled {
 
 .evidence-grid dd {
   margin-top: 2px;
-  overflow: hidden;
   font-size: var(--font-size-secondary);
   font-weight: var(--font-weight-bold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
 }
 
 .quality-notes {
@@ -835,6 +834,56 @@ fieldset:disabled {
   padding-left: var(--space-7);
   color: var(--color-warning);
   font-size: var(--font-size-caption);
+}
+
+.nearby-risk {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.nearby-risk h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-secondary);
+}
+
+.nearby-risk dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.nearby-risk dl > div {
+  min-width: 0;
+}
+
+.nearby-risk dt,
+.nearby-risk dd,
+.nearby-risk p {
+  margin: 0;
+}
+
+.nearby-risk dt,
+.nearby-risk p {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+}
+
+.nearby-risk dd {
+  margin-top: 2px;
+  font-size: var(--font-size-secondary);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-body);
+}
+
+.nearby-risk dd[data-risk="true"] {
+  color: var(--color-warning);
+}
+
+.nearby-risk p {
+  margin-top: var(--space-2);
+  line-height: var(--line-height-body);
 }
 
 .evidence-toggle {
