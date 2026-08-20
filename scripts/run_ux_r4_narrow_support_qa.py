@@ -206,7 +206,7 @@ def _support_evidence(project_dir: Path) -> dict[str, float | str]:
                 float(first["original_right_sec"]) - float(first["original_left_sec"])
             ),
             "candidate_time_sec": float(candidate["scan_start_time_sec"]),
-            "candidate_intensity": float(candidate["pc34_760_max_intensity"]),
+            "candidate_intensity": float(candidate["primary_marker_max_intensity"]),
             "status": str(first["status"]),
             "origin": str(first["origin"]),
         }

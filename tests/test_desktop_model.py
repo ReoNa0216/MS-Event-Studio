@@ -130,9 +130,9 @@ class DesktopModelContractTest(unittest.TestCase):
                 "snap_offset_sec": 0.02,
             },
             {
-                "pc34_760_mz_at_max_intensity": 760.585,
-                "pc34_760_ppm_error_at_max_intensity": -0.13,
-                "qc_782_max_intensity": 5.0,
+                "primary_marker_mz_at_max_intensity": 760.585,
+                "primary_marker_ppm_error_at_max_intensity": -0.13,
+                "qc_marker_max_intensity": 5.0,
                 "tic": 1e7,
             },
             {

@@ -15,7 +15,7 @@ on:
       version:
         description: Artifact version for a manual candidate build
         required: true
-        default: 0.3.0-dev1
+        default: 0.4.0
         type: string
       publish_prerelease:
         description: Publish successful manual-build artifacts as a candidate prerelease
@@ -49,7 +49,7 @@ jobs:
         shell: pwsh
         run: |
           if ($env:GITHUB_REF_TYPE -eq "tag") {
-            $version = $env:GITHUB_REF_NAME
+            $version = $env:GITHUB_REF_NAME -replace '^v', ''
           } else {
             $version = $env:INPUT_VERSION
           }
@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            version="$GITHUB_REF_NAME"
+            version="${GITHUB_REF_NAME#v}"
           else
             version="$INPUT_VERSION"
           fi

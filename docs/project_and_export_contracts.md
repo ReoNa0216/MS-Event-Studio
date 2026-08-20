@@ -1,6 +1,6 @@
 # Project and export contracts
 
-## Project v1
+## Project v2
 
 `ms_event_project.json` is the root manifest. All runtime paths are portable
 project-relative paths and are rejected if they are absolute, drive-relative,
@@ -22,6 +22,13 @@ The original multi-GB source is externally referenced and read only. Its
 absolute path is deliberately not serialized; the input manifest stores file
 name, complete SHA-256, size, mtime, and head/tail hashes. Recalculation must ask
 the user to reselect a source and verify its fingerprint.
+
+The manifest and detector protocol bind one `scientific_settings` object:
+the project primary marker m/z, fixed closed ±12 ppm extraction window, fixed
+782.5616 quality-control marker, and the nearby-event review threshold. The
+primary marker is also bound to source inspection and parser output. A marker
+change therefore creates a new v2 project; v1 projects are not reinterpreted or
+migrated.
 
 ## Range generation changes
 
@@ -70,6 +77,8 @@ An atomic machine-export directory contains:
 
 The table contains all review statuses from the active generation. Stale
 generation history is preserved in the project but excluded from both export
-contracts. Consumers must filter review status explicitly. This contract is not
-permission to overwrite an LMA Studio `ms_events.parquet`; formal LMA import
-remains Phase 3.
+contracts. The desktop export chooser selects an existing parent directory and
+the application publishes a new, uniquely named child directory atomically;
+the user never has to prepare an empty target. Consumers must filter review
+status explicitly. This contract is not permission to overwrite an LMA Studio
+`ms_events.parquet`.

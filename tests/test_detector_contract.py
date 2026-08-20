@@ -42,6 +42,14 @@ class DetectorContractTest(unittest.TestCase):
         )
         self.assertEqual(result.events["scan_row_index"].astype(int).tolist(), truth)
         self.assertEqual(result.events["collision_risk_high"].tolist(), [True, True])
+        tighter = detect_events(
+            detector_scan(signal),
+            source_sha256="f" * 64,
+            analysis_range=AnalysisRange.from_minutes("0", "4"),
+            collision_gap_sec=0.20,
+        )
+        self.assertEqual(tighter.events["auto_event_id"].tolist(), result.events["auto_event_id"].tolist())
+        self.assertEqual(tighter.events["collision_risk_high"].tolist(), [False, False])
 
     def test_wide_peak_is_quality_evidence_not_identity_suppression(self):
         signal = np.zeros(101)
@@ -50,7 +58,7 @@ class DetectorContractTest(unittest.TestCase):
         )
         scan = detector_scan(signal, dt_sec=0.1)
         params = {
-            "signal_col": "pc34_760_max_intensity",
+            "signal_col": "primary_marker_max_intensity",
             "scan_step_sec": 0.1,
             "peak_height": 100.0,
             "peak_prominence": 100.0,
@@ -63,6 +71,7 @@ class DetectorContractTest(unittest.TestCase):
             generation_id="GEN_" + "1" * 64,
             parameter_hash="2" * 64,
             source_sha256="3" * 64,
+            collision_gap_sec=0.60,
         )
         self.assertEqual(len(events), 1)
         self.assertGreater(float(events.iloc[0]["peak_width_sec"]), 1.5)
@@ -97,7 +106,7 @@ class DetectorContractTest(unittest.TestCase):
 
     def test_exact_two_minute_endpoint_is_accounted_once(self):
         scan = detector_scan(np.zeros(1201), dt_sec=0.1)
-        bins, _ = build_bin_summary(scan, "pc34_760_max_intensity", 0.1)
+        bins, _ = build_bin_summary(scan, "primary_marker_max_intensity", 0.1)
         self.assertEqual(int(bins["scan_count"].sum()), len(scan))
 
     def test_zero_inflated_fallback_matches_v044_golden(self):
@@ -122,7 +131,7 @@ class DetectorContractTest(unittest.TestCase):
             ]
         )
         params, _ = estimate_parameters(
-            scan, "pc34_760_max_intensity", bins, localmax, 0.1
+            scan, "primary_marker_max_intensity", bins, localmax, 0.1
         )
         called = call_peak_indices(scan, params)
         self.assertEqual(called.tolist(), peaks.tolist())
@@ -162,7 +171,7 @@ class DetectorContractTest(unittest.TestCase):
             scan["scan_start_time_sec"] * 1_000_000_000
         ).astype("int64")
         params = {
-            "signal_col": "pc34_760_max_intensity",
+            "signal_col": "primary_marker_max_intensity",
             "scan_step_sec": 0.1,
             "peak_height": 1.0,
             "peak_prominence": 1.0,
@@ -175,6 +184,7 @@ class DetectorContractTest(unittest.TestCase):
             generation_id="GEN_" + "1" * 64,
             parameter_hash="2" * 64,
             source_sha256="3" * 64,
+            collision_gap_sec=0.60,
         )
         row = events.iloc[0]
         self.assertAlmostEqual(

@@ -74,7 +74,7 @@ class WorkspaceViewportContractTest(unittest.TestCase):
             self.assertEqual(len(workspace["events"]), 2)
             self.assertEqual(len(workspace["window"]["event_overlay"]), 1)
 
-    def test_selecting_an_out_of_view_event_pans_minimally_and_keeps_it_visible(self):
+    def test_selecting_an_out_of_view_event_keeps_a_small_time_context(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             root = Path(tmp)
             project = _create_project(root, duration_min=11)
@@ -85,9 +85,10 @@ class WorkspaceViewportContractTest(unittest.TestCase):
 
             start, end = _viewport(selected)
             apex = Decimal(str(selected["selection"]["event"]["apex_time_min"]))
-            self.assertEqual((start, end), (Decimal("0.5"), Decimal("10.5")))
+            self.assertEqual((start, end), (Decimal("1"), Decimal("11")))
             self.assertLessEqual(start, apex)
             self.assertLessEqual(apex, end)
+            self.assertGreater(end - apex, Decimal("0"))
             self.assertIn(
                 selected["selection"]["event"]["event_token"],
                 {event["event_token"] for event in selected["window"]["event_overlay"]},
@@ -109,9 +110,10 @@ class WorkspaceViewportContractTest(unittest.TestCase):
 
             start, end = _viewport(advanced)
             apex = Decimal(str(advanced["selection"]["event"]["apex_time_min"]))
-            self.assertEqual((start, end), (Decimal("0.5"), Decimal("10.5")))
+            self.assertEqual((start, end), (Decimal("1"), Decimal("11")))
             self.assertLessEqual(start, apex)
             self.assertLessEqual(apex, end)
+            self.assertGreater(end - apex, Decimal("0"))
 
     def test_explicit_window_with_selection_at_closed_end_does_not_drift(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:

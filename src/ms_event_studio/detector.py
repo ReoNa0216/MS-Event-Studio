@@ -1,4 +1,4 @@
-"""Versioned PC34/MS760 event detector.
+"""Versioned configurable-primary-marker event detector.
 
 The adaptive threshold model intentionally follows the LMA Studio v0.4.4
 behavior.  This version fixes exact 2-minute bin ownership and converts SciPy
@@ -17,19 +17,23 @@ from scipy.signal import find_peaks, peak_prominences, peak_widths
 from .canonical import content_sha256
 from .identity import auto_event_id, generation_id as make_generation_id
 from .parser import PARSER_VERSION
+from .scientific_settings import (
+    DEFAULT_COLLISION_GAP_SEC,
+    DEFAULT_PRIMARY_MARKER_MZ,
+    ProjectScientificSettings,
+)
 from .timebase import AnalysisRange
 
 
-DETECTOR_VERSION = "pc34-adaptive-v1.1-physical-width"
+DETECTOR_VERSION = "primary-marker-adaptive-v2"
 BOUNDARY_RULE = "closed_current_apex_v1"
 BIN_SIZE_MIN = 2.0
-COLLISION_GAP_SEC = 0.60
 BROAD_PEAK_WIDTH_SEC = 1.50
 LOW_TIC_THRESHOLD = 1e6
 LOW_ARRAY_LENGTH_THRESHOLD = 6000
 LOW_ARRAY_LENGTH_SEVERE = 1000
-PC34_FALLBACK_HEIGHT_FRACTION = 0.10
-PC34_FALLBACK_PROMINENCE_FRACTION = 0.10
+PRIMARY_FALLBACK_HEIGHT_FRACTION = 0.10
+PRIMARY_FALLBACK_PROMINENCE_FRACTION = 0.10
 
 
 EVENT_COLUMNS = (
@@ -55,12 +59,12 @@ EVENT_COLUMNS = (
     "right_sec",
     "local_scan_interval_sec",
     "window_scan_count",
-    "pc34_760_apex",
-    "qc_782_apex",
-    "pc34_760_ppm_error_at_apex",
-    "qc_782_ppm_error_at_apex",
+    "primary_marker_apex",
+    "qc_marker_apex",
+    "primary_marker_ppm_error_at_apex",
+    "qc_marker_ppm_error_at_apex",
     "tic_apex",
-    "ratio_760_782_max_pseudo1",
+    "primary_qc_max_ratio_pseudo1",
     "array_length_apex",
     "base_peak_mz_apex",
     "low_array_length_lt_6000_window",
@@ -315,7 +319,7 @@ def estimate_parameters(
     body_candidate = np.nan
     positive_noise_candidate = np.nan
     peak_height_model = "default"
-    if signal_col == "pc34_760_max_intensity":
+    if signal_col == "primary_marker_max_intensity":
         body_candidate = float(max(6.0 * quiet_scan_p90, 4.0 * quiet_localmax_p75))
         height = body_candidate
         peak_height_model = "background_body_multiplier"
@@ -340,22 +344,24 @@ def estimate_parameters(
     fallback_reason = ""
     sparse_high_contrast_trace = 2 <= len(quiet_peaks) <= 5
     if (
-        signal_col == "pc34_760_max_intensity"
+        signal_col == "primary_marker_max_intensity"
         and signal_max > 0
         and (not np.isfinite(height) or height >= signal_max)
         and sparse_high_contrast_trace
     ):
-        height = float(max(np.nextafter(0.0, 1.0), PC34_FALLBACK_HEIGHT_FRACTION * signal_max))
+        height = float(
+            max(np.nextafter(0.0, 1.0), PRIMARY_FALLBACK_HEIGHT_FRACTION * signal_max)
+        )
         prominence = float(
             max(
                 np.nextafter(0.0, 1.0),
-                min(prominence, PC34_FALLBACK_PROMINENCE_FRACTION * height),
+                min(prominence, PRIMARY_FALLBACK_PROMINENCE_FRACTION * height),
             )
         )
         fallback_reason = "quiet_threshold_exceeded_signal_range"
         peak_height_model = "sparse_high_contrast_range_fallback"
 
-    preliminary_distance = 2 if signal_col == "pc34_760_max_intensity" else 3
+    preliminary_distance = 2 if signal_col == "primary_marker_max_intensity" else 3
     preliminary, _ = find_peaks(
         signal,
         height=height,
@@ -366,12 +372,14 @@ def estimate_parameters(
         gap_q10 = float(np.quantile(np.diff(times_sec[preliminary]), 0.10))
         min_distance_sec = (
             float(2.0 * dt_sec)
-            if signal_col == "pc34_760_max_intensity"
+            if signal_col == "primary_marker_max_intensity"
             else float(np.clip(gap_q10, 6.0 * dt_sec, 15.0 * dt_sec))
         )
     else:
         gap_q10 = np.nan
-        min_distance_sec = float((2.0 if signal_col == "pc34_760_max_intensity" else 6.0) * dt_sec)
+        min_distance_sec = float(
+            (2.0 if signal_col == "primary_marker_max_intensity" else 6.0) * dt_sec
+        )
 
     parameters: dict[str, Any] = {
         "signal_col": signal_col,
@@ -446,6 +454,7 @@ def build_event_table(
     generation_id: str,
     parameter_hash: str,
     source_sha256: str,
+    collision_gap_sec: float,
 ) -> pd.DataFrame:
     signal_col = str(parameters["signal_col"])
     _validate_scan(scan, signal_col)
@@ -499,7 +508,7 @@ def build_event_table(
                 "source_sha256": source_sha256,
                 "detector_version": DETECTOR_VERSION,
                 "parameter_hash": parameter_hash,
-                "event_strategy": "pc34_primary",
+                "event_strategy": "primary_marker",
                 "primary_signal_col": signal_col,
                 "scan_row_index": int(apex["scan_row_index"]),
                 "spectrum_index": int(apex["spectrum_index"]),
@@ -518,12 +527,20 @@ def build_event_table(
                     times_sec, int(peak_index)
                 ),
                 "window_scan_count": int(len(window)),
-                "pc34_760_apex": _as_float(apex, "pc34_760_max_intensity", 0.0),
-                "qc_782_apex": _as_float(apex, "qc_782_max_intensity", 0.0),
-                "pc34_760_ppm_error_at_apex": _as_float(apex, "pc34_760_ppm_error_at_max_intensity"),
-                "qc_782_ppm_error_at_apex": _as_float(apex, "qc_782_ppm_error_at_max_intensity"),
+                "primary_marker_apex": _as_float(
+                    apex, "primary_marker_max_intensity", 0.0
+                ),
+                "qc_marker_apex": _as_float(apex, "qc_marker_max_intensity", 0.0),
+                "primary_marker_ppm_error_at_apex": _as_float(
+                    apex, "primary_marker_ppm_error_at_max_intensity"
+                ),
+                "qc_marker_ppm_error_at_apex": _as_float(
+                    apex, "qc_marker_ppm_error_at_max_intensity"
+                ),
                 "tic_apex": _as_float(apex, "tic", 0.0),
-                "ratio_760_782_max_pseudo1": _as_float(apex, "ratio_760_782_max_pseudo1", 0.0),
+                "primary_qc_max_ratio_pseudo1": _as_float(
+                    apex, "primary_qc_max_ratio_pseudo1", 0.0
+                ),
                 "array_length_apex": _as_int(apex, "array_length", 0),
                 "base_peak_mz_apex": _as_float(apex, "base_peak_mz"),
                 "low_array_length_lt_6000_window": low_array,
@@ -555,7 +572,7 @@ def build_event_table(
         ]
         row["nearest_event_gap_sec"] = min(finite_gaps) if finite_gaps else np.nan
         row["collision_risk_high"] = bool(
-            finite_gaps and row["nearest_event_gap_sec"] < COLLISION_GAP_SEC
+            finite_gaps and row["nearest_event_gap_sec"] < collision_gap_sec
         )
         row["low_quality_scan_window"] = bool(
             row["low_array_length_lt_6000_window"]
@@ -570,8 +587,15 @@ def detect_events(
     scan: pd.DataFrame,
     source_sha256: str,
     analysis_range: AnalysisRange,
+    *,
+    primary_marker_mz: float = DEFAULT_PRIMARY_MARKER_MZ,
+    collision_gap_sec: float = DEFAULT_COLLISION_GAP_SEC,
 ) -> DetectionResult:
-    signal_col = "pc34_760_max_intensity"
+    settings = ProjectScientificSettings(
+        primary_marker_mz=primary_marker_mz,
+        collision_gap_sec=collision_gap_sec
+    )
+    signal_col = "primary_marker_max_intensity"
     _validate_scan(scan, signal_col)
     if len(source_sha256) != 64 or any(character not in "0123456789abcdef" for character in source_sha256.lower()):
         raise ValueError("source_sha256 must contain 64 hexadecimal characters")
@@ -584,10 +608,11 @@ def detect_events(
             "parameters": parameters,
             "constants": {
                 "bin_size_min": BIN_SIZE_MIN,
-                "collision_gap_sec": COLLISION_GAP_SEC,
+                "primary_marker_mz": settings.primary_marker_mz,
+                "marker_tolerance_ppm": settings.marker_tolerance_ppm,
                 "broad_peak_width_sec": BROAD_PEAK_WIDTH_SEC,
-                "fallback_height_fraction": PC34_FALLBACK_HEIGHT_FRACTION,
-                "fallback_prominence_fraction": PC34_FALLBACK_PROMINENCE_FRACTION,
+                "fallback_height_fraction": PRIMARY_FALLBACK_HEIGHT_FRACTION,
+                "fallback_prominence_fraction": PRIMARY_FALLBACK_PROMINENCE_FRACTION,
             },
         }
     )
@@ -607,6 +632,7 @@ def detect_events(
         generation_id=generation,
         parameter_hash=parameter_hash,
         source_sha256=source_sha256.lower(),
+        collision_gap_sec=settings.collision_gap_sec,
     )
     if full_events.empty:
         events = full_events
@@ -628,6 +654,7 @@ def detect_events(
             "analysis_end_ns": analysis_range.end_ns,
             "boundary_rule": BOUNDARY_RULE,
             "detection_scope": "full_trace_then_closed_apex_crop",
+            "collision_gap_sec": settings.collision_gap_sec,
         }
     )
     return DetectionResult(

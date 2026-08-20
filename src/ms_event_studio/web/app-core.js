@@ -3,6 +3,7 @@ export const API_ENDPOINTS = Object.freeze({
   workspace: "/api/workspace",
   workspaceWindow: "/api/workspace/window",
   reviewDecision: "/api/review/decision",
+  reviewBulkAccept: "/api/review/bulk-accept",
   restoreAutomaticApex: "/api/review/restore-automatic-apex",
   reviewUndo: "/api/review/undo",
   reviewRedo: "/api/review/redo",
@@ -34,7 +35,7 @@ export const PATH_ROLES = Object.freeze({
   open: "project_open",
   target: "project_target",
   reviewExport: "review_export_file",
-  auditExport: "audit_export_target",
+  auditExport: "audit_export_parent",
 });
 
 export const FIXTURE_IDS = Object.freeze([
@@ -176,7 +177,7 @@ export function phaseLabel(value) {
   if (phase.includes("read") || phase.includes("pars")) return "正在读取扫描数据";
   if (phase.includes("finger") || phase.includes("hash") || phase.includes("verify")) return "正在核对文件完整性";
   if (phase.includes("prepar") || phase.includes("final")) return "正在整理分析结果";
-  if (phase.includes("detect")) return "正在识别 PC34 信号";
+  if (phase.includes("detect")) return "正在识别主 marker 信号";
   return "正在检查源文件";
 }
 
@@ -219,6 +220,12 @@ export function normalizeProject(value) {
       end_min: Number(range.end_min),
     },
     eventCount: Math.max(0, Number(project.event_count) || 0),
+    primaryMarkerMz: Number.isFinite(Number(project.primary_marker_mz))
+      ? Number(project.primary_marker_mz)
+      : 760.5851,
+    collisionGapSec: Number.isFinite(Number(project.collision_gap_sec))
+      ? Number(project.collision_gap_sec)
+      : 0.60,
   };
 }
 
@@ -278,7 +285,7 @@ const fixtureRecentProjects = Object.freeze([
 
 function fixtureBootstrap() {
   return normalizeBootstrap({
-    app: { name: "MS Event Studio", version: "0.3.0.dev1", language: "zh-CN" },
+    app: { name: "MS Event Studio", version: "0.4.0", language: "zh-CN" },
     view: "welcome",
     recent_projects: fixtureRecentProjects,
     active_project: null,

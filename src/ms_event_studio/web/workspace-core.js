@@ -83,6 +83,16 @@ export const PLOT_LAYOUT = Object.freeze({
 // readable while selection and hover still replace one slot on demand.
 export const PLOT_LABEL_LIMIT = 8;
 
+export function timeAxisTicks(viewport, count = 5) {
+  const start = Number(viewport?.start_min);
+  const end = Number(viewport?.end_min);
+  const total = Math.max(2, Math.min(9, Math.round(Number(count) || 5)));
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+  return Array.from({ length: total }, (_, index) => (
+    start + (index / (total - 1)) * (end - start)
+  ));
+}
+
 function finite(value, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -376,6 +386,10 @@ export function reviewHistoryBody(note = "") {
   return { note: reviewNote(note) };
 }
 
+export function bulkAcceptBody(note = "") {
+  return { confirmed: true, note: reviewNote(note) };
+}
+
 function statusValue(value) {
   const status = String(value || "").toLowerCase();
   return Object.hasOwn(STATUS_META, status) ? status : "unreviewed";
@@ -435,6 +449,8 @@ function normalizeProject(value) {
     displayName: safeText(project.display_name, "未命名项目", 160),
     analysisRange: { start_min: start, end_min: end },
     eventCount: boundedInteger(project.event_count),
+    primaryMarkerMz: finite(project.primary_marker_mz, 760.5851),
+    collisionGapSec: finite(project.collision_gap_sec, 0.60),
   };
 }
 
@@ -524,7 +540,7 @@ function normalizeEvidence(selection) {
     : null;
   return {
     core: {
-      pc34Intensity: nullableFinite(core.pc34_intensity),
+      primaryMarkerIntensity: nullableFinite(core.primary_marker_intensity),
       measuredMz: nullableFinite(core.measured_mz),
       massErrorPpm: nullableFinite(core.mass_error_ppm),
       quality: normalizeQuality(core.quality),
@@ -563,6 +579,9 @@ function normalizeWindow(value, project) {
   const labels = Array.isArray(windowValue.label_event_tokens)
     ? windowValue.label_event_tokens.map(opaqueToken).filter(Boolean)
     : [];
+  const bulkReview = windowValue.bulk_review && typeof windowValue.bulk_review === "object"
+    ? windowValue.bulk_review
+    : {};
   return {
     viewport: {
       start_min: start,
@@ -584,6 +603,10 @@ function normalizeWindow(value, project) {
       .sort((left, right) => left.apexTimeMin - right.apexTimeMin)
       .slice(0, 5_000),
     labelEventTokens: labels.slice(0, 200),
+    bulkReview: {
+      eligibleCount: boundedInteger(bulkReview.eligible_count),
+      collisionCount: boundedInteger(bulkReview.collision_count),
+    },
   };
 }
 
@@ -912,6 +935,7 @@ function rawFixtureWorkspace(id) {
   const visibleEvents = events.filter((event) => (
     event.apex_time_min >= start && event.apex_time_min <= end
   ));
+  const visibleUnreviewed = visibleEvents.filter((event) => event.status === "unreviewed");
   const reviewed = events.filter((event) => event.status !== "unreviewed").length;
   const counts = Object.fromEntries(
     ["unreviewed", "accepted", "rejected", "pending"].map((status) => [
@@ -957,7 +981,7 @@ function rawFixtureWorkspace(id) {
       ))?.event_token || null,
       core_evidence: selected
         ? {
-            pc34_intensity: selected.apex_intensity,
+            primary_marker_intensity: selected.apex_intensity,
             measured_mz: 760.5853,
             mass_error_ppm: 0.3,
             quality: visualId === "long-chinese-copy"
@@ -997,6 +1021,10 @@ function rawFixtureWorkspace(id) {
       trace: fixtureTrace(start, end, events),
       event_overlay: visibleEvents,
       label_event_tokens: visibleEvents.filter((_, index) => index % 3 === 0).map((event) => event.event_token),
+      bulk_review: {
+        eligible_count: Math.max(0, visibleUnreviewed.length - (visibleUnreviewed.length ? 1 : 0)),
+        collision_count: visibleUnreviewed.length ? 1 : 0,
+      },
     },
     history: visualId === "undo-empty"
       ? { can_undo: false, can_redo: false }

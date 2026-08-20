@@ -38,6 +38,8 @@
   --color-signal: #23a7a2;
   --color-signal-soft: #c8eeeb;
   --color-focus: #2e90fa;
+  --color-current-event: #6d28d9;
+  --color-current-event-soft: #f3efff;
   --color-selection: #dff4f2;
   --color-overlay: rgba(17, 24, 39, 0.46);
   --color-shadow: rgba(20, 26, 36, 0.08);

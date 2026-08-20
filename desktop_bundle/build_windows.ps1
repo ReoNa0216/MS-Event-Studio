@@ -11,7 +11,7 @@ $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
 
 if (!$Version) {
-    $Version = if ($env:MS_EVENT_STUDIO_VERSION) { $env:MS_EVENT_STUDIO_VERSION } else { "0.3.0-dev1" }
+    $Version = if ($env:MS_EVENT_STUDIO_VERSION) { $env:MS_EVENT_STUDIO_VERSION } else { "0.4.0" }
 }
 if ($Version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$') {
     throw "Version may contain only letters, digits, period, underscore, and hyphen (maximum 64 characters)."

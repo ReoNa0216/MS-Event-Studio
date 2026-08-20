@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from _fixtures import PC34_MZ, detector_scan, spectrum_lines, write_ms_file
+from _fixtures import PRIMARY_MARKER_MZ, detector_scan, spectrum_lines, write_ms_file
 from ms_event_studio.errors import (
     CancelledError,
     ExistingEventNavigation,
@@ -59,7 +59,7 @@ class StrictParserAdversarialTest(unittest.TestCase):
                         0,
                         1,
                         0,
-                        mz_values=[-1.0, PC34_MZ, 900.0],
+                        mz_values=[-1.0, PRIMARY_MARKER_MZ, 900.0],
                         intensities=[0.0, 10.0, 0.0],
                     )
                 ],

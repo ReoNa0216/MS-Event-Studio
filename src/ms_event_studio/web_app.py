@@ -22,6 +22,7 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -36,19 +37,10 @@ from .errors import (
     MSParseError,
     ProjectValidationError,
     ReviewConflict,
+    WorkspaceRequestError,
 )
-from .parser import ParseProgress
 from .paths import resolve_project_path
-from .project import (
-    CreateProjectRequest,
-    PreparedProjectSource,
-    Project,
-    create_project,
-    inspect_project_source,
-    open_project as open_scientific_project,
-)
-from .range_change import RangeChangePreview, apply_range_change, preview_range_change
-from .review import ReviewStore
+from .scientific_settings import ProjectScientificSettings
 from .timebase import minutes_to_ns
 from .web_models import (
     AnalysisRangeView,
@@ -65,7 +57,6 @@ from .web_models import (
     SelectionView,
     SourceInspectionView,
 )
-from .web_review_service import BrowserWorkspaceService, WorkspaceRequestError
 
 
 LOGGER = logging.getLogger(__name__)
@@ -74,6 +65,7 @@ WRITE_TOKEN_HEADER = "X-MS-Event-Token"
 MAX_JSON_BYTES = 64 * 1024
 _OPAQUE_ID = re.compile(r"^[A-Za-z0-9_-]{16,160}$")
 _RECENT_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+_UNSAFE_FILENAME = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 
 class WebBoundaryError(ValueError):
@@ -104,6 +96,7 @@ class _Inspection:
     token: str
     source_token: str
     prepared: PreparedProjectSource
+    primary_marker_mz: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +170,22 @@ def _clean_display_name(value: object) -> str:
             code="invalid_project_name",
         )
     return name
+
+
+def _audit_export_target(parent: Path, project_name: str) -> Path:
+    """Choose a new audit-package directory inside a user-selected parent."""
+
+    component = _UNSAFE_FILENAME.sub("_", project_name).strip(" ._")[:60]
+    if not component:
+        component = "MS_Event_Studio"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stem = f"{component}_完整审计数据包_{timestamp}"
+    candidate = parent / stem
+    index = 2
+    while candidate.exists():
+        candidate = parent / f"{stem}_{index}"
+        index += 1
+    return candidate
 
 
 def _exact_text(payload: Mapping[str, Any], name: str, *, maximum: int = 200) -> str:
@@ -270,21 +279,11 @@ class WebSession:
                 raise WebBoundaryError("审阅结果文件名必须以 .csv 结尾。", code="invalid_target")
             if not candidate.parent.exists() or not candidate.parent.is_dir():
                 raise WebBoundaryError("审阅结果的保存目录不存在。", code="invalid_target")
-        if role is PathRole.AUDIT_EXPORT_TARGET:
-            if candidate.exists() and (
-                not candidate.is_dir() or any(candidate.iterdir())
-            ):
-                raise WebBoundaryError(
-                    "完整审计数据包必须保存到不存在或空的文件夹。",
-                    code="target_not_empty",
-                )
-            if not candidate.exists() and (
-                not candidate.parent.exists() or not candidate.parent.is_dir()
-            ):
-                raise WebBoundaryError(
-                    "完整审计数据包的上级目录不存在。",
-                    code="invalid_target",
-                )
+        if role is PathRole.AUDIT_EXPORT_PARENT and not candidate.is_dir():
+            raise WebBoundaryError(
+                "请选择用于保存完整审计数据包的文件夹。",
+                code="invalid_target",
+            )
         return candidate
 
     def _register_selection(
@@ -353,7 +352,12 @@ class WebSession:
                 )
 
     def _project_summary(self, project: Project) -> ProjectSummaryView:
+        from .review import ReviewStore
+
         analysis = project.manifest["analysis_range"]
+        settings = ProjectScientificSettings.from_manifest(
+            project.manifest["scientific_settings"]
+        )
         review_path = resolve_project_path(project.project_dir, project.manifest["review"]["path"])
         with ReviewStore.open(review_path, project_id=project.manifest["project_id"]) as store:
             count = sum(
@@ -366,6 +370,8 @@ class WebSession:
                 int(analysis["end_ns"]),
             ),
             event_count=count,
+            primary_marker_mz=settings.primary_marker_mz,
+            collision_gap_sec=settings.collision_gap_sec,
         )
 
     def bootstrap(self) -> dict[str, Any]:
@@ -402,6 +408,9 @@ class WebSession:
         ).to_dict()
 
     def open_project(self, project_token: object) -> dict[str, Any]:
+        from .project import open_project as open_scientific_project
+        from .web_review_service import BrowserWorkspaceService
+
         self._require_project_stable()
         selection = self._selection(project_token, PathRole.PROJECT_OPEN)
         try:
@@ -537,7 +546,27 @@ class WebSession:
             record.total_bytes = total
             record.parsed_spectra = max(0, int(progress.parsed_spectra))
 
-    def start_source_inspection(self, source_token: object) -> dict[str, Any]:
+    def start_source_inspection(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        from .project import inspect_project_source
+
+        if not isinstance(payload, Mapping) or set(payload) != {
+            "source_token",
+            "primary_marker_mz",
+        }:
+            raise WebBoundaryError(
+                "源文件分析参数不完整或包含不支持的字段。",
+                code="invalid_request",
+            )
+        source_token = payload.get("source_token")
+        try:
+            marker = ProjectScientificSettings(
+                primary_marker_mz=payload.get("primary_marker_mz")
+            ).primary_marker_mz
+        except ValueError as exc:
+            raise WebBoundaryError(
+                "请输入有效的细胞事件 marker m/z。",
+                code="invalid_settings",
+            ) from exc
         selection = self._selection(source_token, PathRole.SOURCE_FILE)
 
         def run(record: _JobRecord) -> dict[str, Any]:
@@ -545,6 +574,7 @@ class WebSession:
                 selection.path,
                 cancel_check=record.cancel_event.is_set,
                 progress_callback=lambda progress: self._update_progress(record, progress),
+                primary_marker_mz=marker,
             )
             inspection_token = secrets.token_urlsafe(24)
             with self._lock:
@@ -552,6 +582,7 @@ class WebSession:
                     inspection_token,
                     selection.token,
                     prepared,
+                    marker,
                 )
             return SourceInspectionView(
                 inspection_token=inspection_token,
@@ -567,6 +598,9 @@ class WebSession:
         return self._new_job("source_inspection", run)
 
     def start_project_creation(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        from .project import CreateProjectRequest, create_project
+        from .web_review_service import BrowserWorkspaceService
+
         self._require_project_stable()
         if not isinstance(payload, Mapping):
             raise WebBoundaryError("请求内容必须是对象。", code="invalid_request")
@@ -577,6 +611,8 @@ class WebSession:
             "display_name",
             "analysis_start_min",
             "analysis_end_min",
+            "primary_marker_mz",
+            "collision_gap_sec",
         }
         if set(payload).difference(allowed):
             raise WebBoundaryError("请求包含不支持的字段。", code="invalid_request")
@@ -586,12 +622,27 @@ class WebSession:
         name = _clean_display_name(payload.get("display_name"))
         start_text = _exact_text(payload, "analysis_start_min", maximum=64)
         end_text = _exact_text(payload, "analysis_end_min", maximum=64)
+        try:
+            settings = ProjectScientificSettings(
+                primary_marker_mz=payload.get("primary_marker_mz"),
+                collision_gap_sec=payload.get("collision_gap_sec"),
+            )
+        except ValueError as exc:
+            raise WebBoundaryError(
+                "项目科学参数超出允许范围。",
+                code="invalid_settings",
+            ) from exc
         source = self._selection(source_token, PathRole.SOURCE_FILE)
         target = self._selection(target_token, PathRole.PROJECT_TARGET)
         with self._lock:
             inspection = self._inspections.get(inspection_token)
         if inspection is None or inspection.source_token != source.token:
             raise WebBoundaryError("源文件分析结果已失效，请重新分析。", code="stale_inspection")
+        if inspection.primary_marker_mz != settings.primary_marker_mz:
+            raise WebBoundaryError(
+                "marker 已改变，请重新分析源文件。",
+                code="stale_inspection",
+            )
         try:
             start_ns = minutes_to_ns(start_text)
             end_ns = minutes_to_ns(end_text)
@@ -610,6 +661,7 @@ class WebSession:
                 display_name=name,
                 analysis_start_min=start_text,
                 analysis_end_min=end_text,
+                scientific_settings=settings,
                 cancel_check=record.cancel_event.is_set,
                 progress_callback=lambda progress: self._update_progress(
                     record,
@@ -648,6 +700,8 @@ class WebSession:
         return text
 
     def start_range_preview(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        from .range_change import preview_range_change
+
         if not isinstance(payload, Mapping) or set(payload) != {"start_min", "end_min"}:
             raise WebBoundaryError(
                 "范围预览请求不完整或包含不支持的字段。",
@@ -723,6 +777,9 @@ class WebSession:
         return {"ok": True, "cancelled": True}
 
     def start_range_apply(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        from .range_change import apply_range_change
+        from .web_review_service import BrowserWorkspaceService
+
         if not isinstance(payload, Mapping) or set(payload).difference(
             {"preview_token", "confirmed", "note"}
         ):
@@ -850,14 +907,16 @@ class WebSession:
         self._require_project_stable()
         selection = self._consume_selection(
             payload.get("target_token"),
-            PathRole.AUDIT_EXPORT_TARGET,
+            PathRole.AUDIT_EXPORT_PARENT,
         )
         workspace = self._active_workspace()
+        project_name = _clean_display_name(workspace.project.manifest.get("display_name"))
 
         def run(_record: _JobRecord) -> dict[str, Any]:
+            target = _audit_export_target(selection.path, project_name)
             summary = workspace.export_audit_package(
-                selection.path,
-                display_name=selection.display_name,
+                target,
+                display_name=target.name,
                 note=note,
             )
             return {"export": summary}
@@ -915,6 +974,13 @@ class WebSession:
         self._require_project_stable()
         try:
             return self._active_workspace().review_decision(payload)
+        except (WorkspaceRequestError, ReviewConflict, ValueError) as exc:
+            raise self._workspace_failure(exc) from exc
+
+    def bulk_accept_visible(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        self._require_project_stable()
+        try:
+            return self._active_workspace().bulk_accept_visible(payload)
         except (WorkspaceRequestError, ReviewConflict, ValueError) as exc:
             raise self._workspace_failure(exc) from exc
 
@@ -1338,7 +1404,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             PathRole.PROJECT_OPEN: "打开 MS Event Studio 项目",
             PathRole.PROJECT_TARGET: "选择新项目的保存位置",
             PathRole.REVIEW_EXPORT_FILE: "导出审阅结果",
-            PathRole.AUDIT_EXPORT_TARGET: "导出完整审计数据包",
+            PathRole.AUDIT_EXPORT_PARENT: "选择审计数据包保存位置",
         }
         try:
             result = provider(role=role.value, title=titles[role])
@@ -1456,10 +1522,8 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                     self._send_json(self.server.session.open_project(payload.get("project_token")))
                     return
                 if parsed.path == "/api/source-inspections":
-                    if set(payload).difference({"source_token"}):
-                        raise WebBoundaryError("请求包含不支持的字段。", code="invalid_request")
                     self._send_json(
-                        self.server.session.start_source_inspection(payload.get("source_token")),
+                        self.server.session.start_source_inspection(payload),
                         HTTPStatus.ACCEPTED,
                     )
                     return
@@ -1501,6 +1565,9 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                     return
                 if parsed.path == "/api/review/decision":
                     self._send_json(self.server.session.review_decision(payload))
+                    return
+                if parsed.path == "/api/review/bulk-accept":
+                    self._send_json(self.server.session.bulk_accept_visible(payload))
                     return
                 if parsed.path == "/api/review/restore-automatic-apex":
                     self._send_json(self.server.session.restore_automatic_apex(payload))

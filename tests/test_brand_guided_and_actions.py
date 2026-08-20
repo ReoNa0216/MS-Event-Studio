@@ -59,7 +59,7 @@ class BrandGuidedAndActionsTest(unittest.TestCase):
             weak_index = next(iter(MANUAL_ONLY_PEAKS))
             self.assertNotIn(weak_index, apexes)
             self.assertEqual(
-                float(prepared.parsed.scans.iloc[weak_index]["pc34_760_max_intensity"]),
+                float(prepared.parsed.scans.iloc[weak_index]["primary_marker_max_intensity"]),
                 MANUAL_ONLY_PEAKS[weak_index],
             )
 
@@ -87,7 +87,9 @@ class BrandGuidedAndActionsTest(unittest.TestCase):
         ):
             self.assertIn(required, workflow)
         self.assertNotIn('${{ inputs.version }}"', workflow)
-        self.assertIn("default: 0.3.0-dev1", workflow)
+        self.assertIn("default: 0.4.0", workflow)
+        self.assertIn("$env:GITHUB_REF_NAME -replace '^v', ''", workflow)
+        self.assertIn('version="${GITHUB_REF_NAME#v}"', workflow)
 
     def test_native_scripts_validate_dist_before_writing_release_archives(self):
         windows = (REPOSITORY / "desktop_bundle/build_windows.ps1").read_text(
@@ -98,7 +100,7 @@ class BrandGuidedAndActionsTest(unittest.TestCase):
         )
         self.assertIn('"dist\\windows"', windows)
         self.assertIn('"build\\venv\\windows"', windows)
-        self.assertIn('else { "0.3.0-dev1" }', windows)
+        self.assertIn('else { "0.4.0" }', windows)
         self.assertIn('$ReleaseRoot = Join-Path $RepoRoot "release"', windows)
         self.assertIn('"MS-Event-Studio-$Version-windows-x64.zip"', windows)
         self.assertIn('"build\\release-staging\\windows-"', windows)
@@ -107,7 +109,7 @@ class BrandGuidedAndActionsTest(unittest.TestCase):
         self.assertNotIn('"release\\windows\\', windows)
         self.assertIn('dist_root="$repo_root/dist/macos"', macos)
         self.assertIn('venv_root="$repo_root/build/venv/macos"', macos)
-        self.assertIn('${MS_EVENT_STUDIO_VERSION:-0.3.0-dev1}', macos)
+        self.assertIn('${MS_EVENT_STUDIO_VERSION:-0.4.0}', macos)
         self.assertIn('release_root="$repo_root/release"', macos)
         self.assertIn('archive="$release_root/MS-Event-Studio-', macos)
         self.assertIn('build/release-staging/macos.', macos)

@@ -215,7 +215,25 @@ def _parse_with_cache(
 
 
 def _prepare_existing_scan(frame: pd.DataFrame) -> pd.DataFrame:
-    scan = frame.copy()
+    # Phase 1 reference projects predate the role-based v2 column names. This
+    # read-only regression adapter keeps those frozen artifacts comparable; it
+    # is not used by the product project opener or detector.
+    scan = frame.rename(
+        columns={
+            "pc34_760_n_mz": "primary_marker_n_mz",
+            "pc34_760_max_intensity": "primary_marker_max_intensity",
+            "pc34_760_sum_intensity": "primary_marker_sum_intensity",
+            "pc34_760_ppm_error_at_max_intensity": (
+                "primary_marker_ppm_error_at_max_intensity"
+            ),
+            "qc_782_n_mz": "qc_marker_n_mz",
+            "qc_782_max_intensity": "qc_marker_max_intensity",
+            "qc_782_sum_intensity": "qc_marker_sum_intensity",
+            "qc_782_ppm_error_at_max_intensity": (
+                "qc_marker_ppm_error_at_max_intensity"
+            ),
+        }
+    ).copy()
     if "scan_time_ns" not in scan:
         scan["scan_time_ns"] = np.rint(
             scan["scan_start_time_sec"].to_numpy(dtype=float) * 1_000_000_000
@@ -235,8 +253,8 @@ def _scan_projection_comparison(parsed: pd.DataFrame, existing: pd.DataFrame) ->
         for name in (
             "spectrum_index",
             "array_length",
-            "pc34_760_n_mz",
-            "qc_782_n_mz",
+            "primary_marker_n_mz",
+            "qc_marker_n_mz",
         )
         if name in existing_by_id and name in parsed_by_id
     ]
@@ -248,12 +266,12 @@ def _scan_projection_comparison(parsed: pd.DataFrame, existing: pd.DataFrame) ->
             "base_peak_mz",
             "base_peak_intensity",
             "tic",
-            "pc34_760_max_intensity",
-            "pc34_760_sum_intensity",
-            "pc34_760_ppm_error_at_max_intensity",
-            "qc_782_max_intensity",
-            "qc_782_sum_intensity",
-            "qc_782_ppm_error_at_max_intensity",
+            "primary_marker_max_intensity",
+            "primary_marker_sum_intensity",
+            "primary_marker_ppm_error_at_max_intensity",
+            "qc_marker_max_intensity",
+            "qc_marker_sum_intensity",
+            "qc_marker_ppm_error_at_max_intensity",
         )
         if name in existing_by_id and name in parsed_by_id
     ]
@@ -366,25 +384,33 @@ def _lma_reference_detection(workspace: Path, scan: pd.DataFrame) -> tuple[pd.Da
     if lma_root not in sys.path:
         sys.path.insert(0, lma_root)
     module = importlib.import_module("scripts.v3.run_v3_02_ms_event_calling")
-    time_sec = scan["scan_start_time_sec"].to_numpy(dtype=float)
+    # The frozen LMA v0.4.4 reference names its primary signal after PC34.
+    # Supply that one reference-only alias without reintroducing it into the
+    # MS Event Studio parser, project, or detector contracts.
+    reference_scan = scan.assign(
+        pc34_760_max_intensity=scan["primary_marker_max_intensity"]
+    )
+    time_sec = reference_scan["scan_start_time_sec"].to_numpy(dtype=float)
     dt_sec = float(np.median(np.diff(time_sec)))
-    bins, localmax = module.build_bin_summary(scan, "pc34_760_max_intensity", dt_sec)
+    bins, localmax = module.build_bin_summary(
+        reference_scan, "pc34_760_max_intensity", dt_sec
+    )
     parameters, _ = module.estimate_parameters(
-        scan,
+        reference_scan,
         "pc34_760_max_intensity",
         bins,
         localmax,
         dt_sec,
     )
     peaks = module.call_peak_indices(
-        scan,
+        reference_scan,
         "pc34_760_max_intensity",
         parameters["peak_height"],
         parameters["peak_prominence"],
         parameters["min_distance_sec"],
         dt_sec,
     )
-    rows = scan.iloc[np.asarray(peaks, dtype=int)][
+    rows = reference_scan.iloc[np.asarray(peaks, dtype=int)][
         ["scan_id", "scan_time_ns"]
     ].reset_index(drop=True)
     rows["scan_id"] = rows["scan_id"].astype(str)

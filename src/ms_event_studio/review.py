@@ -21,6 +21,8 @@ from .identity import new_event_id
 
 REVIEW_SCHEMA_VERSION = "review-schema-v1"
 VALID_STATUSES = frozenset({"unreviewed", "accepted", "pending", "rejected"})
+BULK_SET_STATUS_ACTION = "bulk_set_status"
+_BULK_COMMAND_EVENT_ID = "__bulk__"
 
 
 SCHEMA_SQL = """
@@ -424,6 +426,77 @@ class ReviewStore:
             mutate=lambda state: state.update(status=status),
         )
 
+    def set_status_bulk(
+        self,
+        updates: Iterable[tuple[str, int]],
+        status: str,
+        *,
+        actor: str,
+        session_id: str,
+        reason: str = "",
+    ) -> list[dict[str, Any]]:
+        """Apply one status to several events as one durable command.
+
+        Every expected revision is checked before the first row is written.
+        The command is therefore all-or-nothing and a single undo/redo step.
+        """
+
+        if status not in VALID_STATUSES:
+            raise ValueError(f"invalid review status: {status}")
+        requested = [(str(event_id), int(revision)) for event_id, revision in updates]
+        if len({event_id for event_id, _revision in requested}) != len(requested):
+            raise ValueError("bulk status update contains duplicate events")
+        if not requested:
+            return []
+
+        with self._transaction() as connection:
+            before_states: list[dict[str, Any]] = []
+            after_states: list[dict[str, Any]] = []
+            for event_id, expected_revision in requested:
+                before = self._state(connection, event_id)
+                if int(before["revision"]) != expected_revision:
+                    raise ReviewConflict(
+                        "event revision conflict in bulk update: "
+                        f"expected {expected_revision}, found {before['revision']}"
+                    )
+                after = dict(before)
+                after["status"] = status
+                after["revision"] = int(before["revision"]) + 1
+                before_states.append(before)
+                after_states.append(after)
+
+            connection.execute(
+                "UPDATE commands SET redoable = 0 WHERE applied = 0 AND redoable = 1"
+            )
+            for after in after_states:
+                self._store_state(connection, after)
+            timestamp = _now()
+            connection.execute(
+                """INSERT INTO commands(
+                       event_id, action, before_json, after_json, applied, redoable, created_at
+                   ) VALUES (?, ?, ?, ?, 1, 1, ?)""",
+                (
+                    _BULK_COMMAND_EVENT_ID,
+                    BULK_SET_STATUS_ACTION,
+                    canonical_json({"events": before_states}),
+                    canonical_json({"events": after_states}),
+                    timestamp,
+                ),
+            )
+            for before, after in zip(before_states, after_states):
+                self._append_audit(
+                    connection,
+                    event_id=str(before["event_id"]),
+                    action=BULK_SET_STATUS_ACTION,
+                    actor=actor,
+                    session_id=session_id,
+                    reason=reason,
+                    before=before,
+                    after=after,
+                    details={"event_count": len(after_states)},
+                )
+            return after_states
+
     def restore(
         self,
         event_id: str,
@@ -549,7 +622,7 @@ class ReviewStore:
             "spectrum_index",
             "scan_time_ns",
             "scan_start_time_sec",
-            "pc34_760_max_intensity",
+            "primary_marker_max_intensity",
         }
         missing = required.difference(scans.columns)
         if missing:
@@ -559,7 +632,7 @@ class ReviewStore:
         times = scans["scan_start_time_sec"].to_numpy(dtype=float)
         if len(times) < 3 or np.any(np.diff(times) <= 0):
             raise SnapError("scan times must contain at least three increasing samples")
-        signal = scans["pc34_760_max_intensity"].to_numpy(dtype=float)
+        signal = scans["primary_marker_max_intensity"].to_numpy(dtype=float)
         peaks, _ = find_peaks(signal, height=np.nextafter(0.0, 1.0))
         if not len(peaks):
             raise SnapError("no real positive local peak is available for snapping")
@@ -645,14 +718,14 @@ class ReviewStore:
             "created_spectrum_index": int(snapped["spectrum_index"]),
             "created_apex_time_ns": apex_ns,
             "created_apex_time_sec": float(snapped["scan_start_time_sec"]),
-            "created_apex_intensity": float(snapped["pc34_760_max_intensity"]),
+            "created_apex_intensity": float(snapped["primary_marker_max_intensity"]),
             "created_snap_offset_sec": offset,
             "current_scan_id": str(snapped["scan_id"]),
             "current_scan_row_index": int(snapped["scan_row_index"]),
             "current_spectrum_index": int(snapped["spectrum_index"]),
             "current_apex_time_ns": apex_ns,
             "current_apex_time_sec": float(snapped["scan_start_time_sec"]),
-            "current_apex_intensity": float(snapped["pc34_760_max_intensity"]),
+            "current_apex_intensity": float(snapped["primary_marker_max_intensity"]),
             "status": "accepted",
             "origin": "manual_added",
             "revision": 0,
@@ -756,7 +829,7 @@ class ReviewStore:
                 current_spectrum_index=int(snapped["spectrum_index"]),
                 current_apex_time_ns=snapped_ns,
                 current_apex_time_sec=float(snapped["scan_start_time_sec"]),
-                current_apex_intensity=float(snapped["pc34_760_max_intensity"]),
+                current_apex_intensity=float(snapped["primary_marker_max_intensity"]),
                 origin="manual_adjusted",
                 snap_offset_sec=offset,
             )
@@ -780,6 +853,40 @@ class ReviewStore:
             ).fetchone()
             if command is None:
                 raise ReviewConflict("there is no command to undo")
+            if command["action"] == BULK_SET_STATUS_ACTION:
+                payload = _json_load(command["before_json"]) or {}
+                targets = payload.get("events")
+                if not isinstance(targets, list) or not targets:
+                    raise ProjectValidationError("bulk undo command is missing event states")
+                restored: list[dict[str, Any]] = []
+                for stored in targets:
+                    if not isinstance(stored, dict):
+                        raise ProjectValidationError("bulk undo command contains an invalid state")
+                    current = self._state(connection, str(stored.get("event_id", "")))
+                    target = dict(stored)
+                    target["revision"] = int(current["revision"]) + 1
+                    self._store_state(connection, target)
+                    restored.append(target)
+                    self._append_audit(
+                        connection,
+                        event_id=str(target["event_id"]),
+                        action="undo",
+                        actor=actor,
+                        session_id=session_id,
+                        reason=reason,
+                        before=current,
+                        after=target,
+                        details={
+                            "command_id": command["command_id"],
+                            "original_action": command["action"],
+                            "event_count": len(targets),
+                        },
+                    )
+                connection.execute(
+                    "UPDATE commands SET applied = 0 WHERE command_id = ?",
+                    (command["command_id"],),
+                )
+                return restored[0]
             current = self._state(connection, command["event_id"])
             target = _json_load(command["before_json"])
             if target is None:
@@ -815,6 +922,40 @@ class ReviewStore:
             ).fetchone()
             if command is None:
                 raise ReviewConflict("there is no command to redo")
+            if command["action"] == BULK_SET_STATUS_ACTION:
+                payload = _json_load(command["after_json"]) or {}
+                targets = payload.get("events")
+                if not isinstance(targets, list) or not targets:
+                    raise ProjectValidationError("bulk redo command is missing event states")
+                restored: list[dict[str, Any]] = []
+                for stored in targets:
+                    if not isinstance(stored, dict):
+                        raise ProjectValidationError("bulk redo command contains an invalid state")
+                    current = self._state(connection, str(stored.get("event_id", "")))
+                    target = dict(stored)
+                    target["revision"] = int(current["revision"]) + 1
+                    self._store_state(connection, target)
+                    restored.append(target)
+                    self._append_audit(
+                        connection,
+                        event_id=str(target["event_id"]),
+                        action="redo",
+                        actor=actor,
+                        session_id=session_id,
+                        reason=reason,
+                        before=current,
+                        after=target,
+                        details={
+                            "command_id": command["command_id"],
+                            "original_action": command["action"],
+                            "event_count": len(targets),
+                        },
+                    )
+                connection.execute(
+                    "UPDATE commands SET applied = 1 WHERE command_id = ?",
+                    (command["command_id"],),
+                )
+                return restored[0]
             target = _json_load(command["after_json"])
             if target is None:
                 raise ProjectValidationError("redo command is missing its after state")

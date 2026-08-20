@@ -29,6 +29,7 @@ from .paths import resolve_project_path
 from .project import MANIFEST_NAME, Project, open_project
 from .reconcile import ReconciliationPlan, propose_reconciliation
 from .review import REVIEW_SCHEMA_VERSION, ReviewStore, _automatic_state
+from .scientific_settings import ProjectScientificSettings
 from .timebase import AnalysisRange
 
 
@@ -170,6 +171,9 @@ def preview_range_change(
     if requested.as_dict() == old_range:
         raise ValueError("requested analysis range is already active")
     scans = pd.read_parquet(_artifact_path(project, "scan_summary"))
+    settings = ProjectScientificSettings.from_manifest(
+        project.manifest["scientific_settings"]
+    )
     source_start = int(scans["scan_time_ns"].iloc[0])
     source_end = int(scans["scan_time_ns"].iloc[-1])
     if requested.start_ns < source_start or requested.end_ns > source_end:
@@ -181,6 +185,8 @@ def preview_range_change(
         scans,
         source_sha256=str(project.manifest["source"]["source_sha256"]),
         analysis_range=requested,
+        primary_marker_mz=settings.primary_marker_mz,
+        collision_gap_sec=settings.collision_gap_sec,
     )
     review_path = resolve_project_path(project.project_dir, project.manifest["review"]["path"])
     store = ReviewStore.open(review_path, project_id=project.manifest["project_id"])
@@ -534,6 +540,7 @@ def apply_range_change(
             "parameters": preview.detection.parameters,
             "event_columns": list(preview.detection.events.columns),
             "scientific_rule": "full trace detection followed by closed current-apex ownership",
+            "scientific_settings": project.manifest["scientific_settings"],
             "range_change_preview_id": preview.preview_id,
         }
         _write_json(protocol_path, protocol)

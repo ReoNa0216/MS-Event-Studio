@@ -4,6 +4,10 @@
 
 科学与打包代码基线：`a587b37`（`0.2.0.dev3`）
 
+> 本文是 Phase 2R 的冻结架构记录。当前 `0.4.0` 产品迭代、公开发布和验收要求以
+> [`phase3_product_iteration_plan.md`](phase3_product_iteration_plan.md) 与
+> [`guided_test_zh.md`](guided_test_zh.md) 为准；不要按本文的旧候选版本号重新发布。
+
 当前执行状态：**`0.3.0.dev1` 已完成 UX-R0–R8、完整自动门禁、Windows 四档原生 DPI
 和 Windows 用户人工验收。已验收源码已经推送，Windows x64 与重新构建的 macOS ARM64
 Cocoa 候选已在同一个公开预发布页提供下载。下一步是安排 Apple Silicon Retina 可见
@@ -420,9 +424,9 @@ Phase 2R exit。
 ## 12. 当前证据与文档角色
 
 - `phase2_desktop_and_uat.md`：dev3 科学/性能/打包历史证据，不是当前 UX 验收结论。
-- `guided_test_zh.md`：当前 `0.3.0.dev1` WebView 候选的最终用户 UAT 指南。
-- `github_actions_builds.md`：当前 native-runner 政策；WebView 迁移后需同步依赖和 smoke。
+- `guided_test_zh.md`：当前 `0.4.0` 的 Windows-first 用户验收操作卡。
+- `github_actions_builds.md`：当前单一公开仓库与双平台 native-runner 发布政策。
 - `dist/`、`release/`：忽略的本地产物，可用于回归，但不构成当前源代码的发布证明。
 
-`MS_EVENT_STUDIO_UI_REBUILD_NEXT_SESSION.md` 是启动本轮迁移时使用的历史指令，当前执行状态
-以本 handoff、README、截图矩阵和候选清单为准，不应再从 UX-R0 重新开始。
+启动 Phase 2R 时使用的会话提示已在公开前删除；当前执行状态只以本文顶部指向的
+Phase 3 计划和 Windows 验收操作卡为准。

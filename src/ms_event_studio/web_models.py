@@ -25,7 +25,7 @@ class PathRole(str, Enum):
     PROJECT_OPEN = "project_open"
     PROJECT_TARGET = "project_target"
     REVIEW_EXPORT_FILE = "review_export_file"
-    AUDIT_EXPORT_TARGET = "audit_export_target"
+    AUDIT_EXPORT_PARENT = "audit_export_parent"
 
     @classmethod
     def parse(cls, value: object) -> "PathRole":
@@ -101,16 +101,22 @@ class ProjectSummaryView:
     display_name: str
     analysis_range: AnalysisRangeView
     event_count: int
+    primary_marker_mz: float
+    collision_gap_sec: float
 
     def __post_init__(self) -> None:
         if isinstance(self.event_count, bool) or int(self.event_count) < 0:
             raise ValueError("event_count must be a non-negative integer")
+        _finite_number(self.primary_marker_mz, "primary_marker_mz", non_negative=True)
+        _finite_number(self.collision_gap_sec, "collision_gap_sec", non_negative=True)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "display_name": self.display_name,
             "analysis_range": self.analysis_range.to_dict(),
             "event_count": int(self.event_count),
+            "primary_marker_mz": float(self.primary_marker_mz),
+            "collision_gap_sec": float(self.collision_gap_sec),
         }
 
 
@@ -319,13 +325,17 @@ class QualityConclusionView:
 
 @dataclass(frozen=True, slots=True)
 class CoreEvidenceView:
-    pc34_intensity: float
+    primary_marker_intensity: float
     measured_mz: float | None
     mass_error_ppm: float | None
     quality: QualityConclusionView
 
     def __post_init__(self) -> None:
-        _finite_number(self.pc34_intensity, "pc34_intensity", non_negative=True)
+        _finite_number(
+            self.primary_marker_intensity,
+            "primary_marker_intensity",
+            non_negative=True,
+        )
         if self.measured_mz is not None:
             _finite_number(self.measured_mz, "measured_mz")
         if self.mass_error_ppm is not None:
@@ -333,7 +343,7 @@ class CoreEvidenceView:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "pc34_intensity": float(self.pc34_intensity),
+            "primary_marker_intensity": float(self.primary_marker_intensity),
             "measured_mz": None if self.measured_mz is None else float(self.measured_mz),
             "mass_error_ppm": (
                 None if self.mass_error_ppm is None else float(self.mass_error_ppm)
@@ -652,11 +662,30 @@ class ViewportView:
 
 
 @dataclass(frozen=True, slots=True)
+class BulkReviewSummaryView:
+    eligible_count: int
+    collision_count: int
+
+    def __post_init__(self) -> None:
+        for name in ("eligible_count", "collision_count"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or int(value) < 0:
+                raise ValueError(f"{name} must be a non-negative integer")
+
+    def to_dict(self) -> dict[str, int]:
+        return {
+            "eligible_count": int(self.eligible_count),
+            "collision_count": int(self.collision_count),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class WorkspaceWindowView:
     viewport: ViewportView
     trace: tuple[TracePointView, ...]
     event_overlay: tuple[WorkspaceEventView, ...]
     label_event_tokens: tuple[str, ...]
+    bulk_review: BulkReviewSummaryView
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -664,6 +693,7 @@ class WorkspaceWindowView:
             "trace": [point.to_dict() for point in self.trace],
             "event_overlay": [event.to_dict() for event in self.event_overlay],
             "label_event_tokens": list(self.label_event_tokens),
+            "bulk_review": self.bulk_review.to_dict(),
         }
 
 

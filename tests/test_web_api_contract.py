@@ -113,7 +113,12 @@ class WebSessionContractTest(unittest.TestCase):
                 assert_browser_safe(self, source_selection, str(source), str(root))
                 assert_browser_safe(self, target_selection, str(target), str(root))
 
-                started = session.start_source_inspection(source_selection["selection_token"])
+                started = session.start_source_inspection(
+                    {
+                        "source_token": source_selection["selection_token"],
+                        "primary_marker_mz": 760.5851,
+                    }
+                )
                 inspection_job = wait_for_job(session, started["job"]["job_id"])
                 self.assertEqual(inspection_job["state"], "succeeded")
                 inspection = inspection_job["result"]
@@ -129,6 +134,8 @@ class WebSessionContractTest(unittest.TestCase):
                         "display_name": "边界测试项目",
                         "analysis_start_min": "0",
                         "analysis_end_min": "2",
+                        "primary_marker_mz": 760.5851,
+                        "collision_gap_sec": 0.60,
                     }
                 )
                 creation_job = wait_for_job(session, created["job"]["job_id"])
@@ -162,7 +169,7 @@ class WebSessionContractTest(unittest.TestCase):
             source.write_text("placeholder", encoding="ascii")
             started = threading.Event()
 
-            def cancellable(_path, *, cancel_check, progress_callback):
+            def cancellable(_path, *, cancel_check, progress_callback, primary_marker_mz):
                 progress_callback(type("Progress", (), {"phase": "parsing", "bytes_read": 1, "total_bytes": 100, "parsed_spectra": 0})())
                 started.set()
                 while not cancel_check():
@@ -173,8 +180,10 @@ class WebSessionContractTest(unittest.TestCase):
             server = create_http_server(session=session)
             try:
                 token = session.register_path("source_file", source)["selection_token"]
-                with patch("ms_event_studio.web_app.inspect_project_source", side_effect=cancellable):
-                    job_id = session.start_source_inspection(token)["job"]["job_id"]
+                with patch("ms_event_studio.project.inspect_project_source", side_effect=cancellable):
+                    job_id = session.start_source_inspection(
+                        {"source_token": token, "primary_marker_mz": 760.5851}
+                    )["job"]["job_id"]
                     self.assertTrue(started.wait(timeout=2.0))
                     self.assertTrue(session.busy)
                     self.assertTrue(server.busy)
@@ -201,6 +210,18 @@ class WebSessionContractTest(unittest.TestCase):
                     session.open_project(token)
                 with self.assertRaises(WebBoundaryError):
                     session.start_project_creation({"raw_path": str(source)})
+                with self.assertRaises(WebBoundaryError):
+                    session.start_source_inspection(
+                        {"source_token": token, "primary_marker_mz": "nan"}
+                    )
+                with self.assertRaises(WebBoundaryError):
+                    session.start_source_inspection(
+                        {
+                            "source_token": token,
+                            "primary_marker_mz": 760.5851,
+                            "collision_gap_sec": 0.60,
+                        }
+                    )
             finally:
                 session.close()
 
@@ -212,7 +233,9 @@ class WebSessionContractTest(unittest.TestCase):
             session = WebSession(root / "recent.json")
             try:
                 token = session.register_path("source_file", source)["selection_token"]
-                job_id = session.start_source_inspection(token)["job"]["job_id"]
+                job_id = session.start_source_inspection(
+                    {"source_token": token, "primary_marker_mz": 760.5851}
+                )["job"]["job_id"]
                 failed = wait_for_job(session, job_id)
                 self.assertEqual(failed["state"], "failed")
                 self.assertEqual(failed["error"]["code"], "source_invalid")
@@ -297,7 +320,7 @@ class LoopbackHTTPContractTest(unittest.TestCase):
                     first,
                     "POST",
                     "/api/source-inspections",
-                    payload={"source_token": "not-a-token"},
+                    payload={"source_token": "not-a-token", "primary_marker_mz": 760.5851},
                 )
                 self.assertEqual(status, 403)
                 self.assertEqual(json.loads(body)["error"]["code"], "invalid_request_token")
@@ -385,7 +408,10 @@ class LoopbackHTTPContractTest(unittest.TestCase):
                     server,
                     "POST",
                     "/api/source-inspections",
-                    payload={"source_token": source_selection["selection_token"]},
+                    payload={
+                        "source_token": source_selection["selection_token"],
+                        "primary_marker_mz": 760.5851,
+                    },
                     token=request_token,
                 )
                 self.assertEqual(status, 202, raw)
@@ -418,6 +444,8 @@ class LoopbackHTTPContractTest(unittest.TestCase):
                         "display_name": "HTTP 回环项目",
                         "analysis_start_min": inspection["available_range"]["start_min"],
                         "analysis_end_min": inspection["available_range"]["end_min"],
+                        "primary_marker_mz": 760.5851,
+                        "collision_gap_sec": 0.60,
                     },
                     token=request_token,
                 )

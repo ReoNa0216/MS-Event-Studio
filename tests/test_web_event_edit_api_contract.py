@@ -186,7 +186,7 @@ class EventEditCapabilityContractTest(unittest.TestCase):
                 scans["scan_time_ns"] = np.rint(
                     regular_times * 1_000_000_000
                 ).astype("int64")
-                scans["pc34_760_max_intensity"] = signal
+                scans["primary_marker_max_intensity"] = signal
                 aim = session.begin_event_edit({"mode": "add"})
                 with self.assertRaises(WebBoundaryError) as ambiguous:
                     session.preview_event_edit(
@@ -205,7 +205,7 @@ class EventEditCapabilityContractTest(unittest.TestCase):
                 scans["scan_start_time_sec"] = times
                 scans["scan_start_time_min"] = times / 60.0
                 scans["scan_time_ns"] = np.rint(times * 1_000_000_000).astype("int64")
-                scans["pc34_760_max_intensity"] = signal
+                scans["primary_marker_max_intensity"] = signal
                 aim = session.begin_event_edit({"mode": "add"})
                 with self.assertRaises(WebBoundaryError) as gap:
                     session.preview_event_edit(
@@ -243,7 +243,7 @@ class EventEditCapabilityContractTest(unittest.TestCase):
                 ]
                 self.assertEqual(len(candidate), 1)
                 row_index = candidate.index[0]
-                service.scans.loc[row_index, "pc34_760_max_intensity"] = 81.0
+                service.scans.loc[row_index, "primary_marker_max_intensity"] = 81.0
                 with self.assertRaises(WebBoundaryError) as changed:
                     session.apply_event_edit(
                         {"preview_token": preview["preview_token"], "note": "不得套用旧预览"}
