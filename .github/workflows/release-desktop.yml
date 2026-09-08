@@ -31,6 +31,8 @@ permissions:
 
 jobs:
   build-windows:
+    env:
+      MS_EVENT_STUDIO_CONFIG_DIR: ${{ github.workspace }}/build/ci-runtime
     if: github.event_name == 'push' || inputs.platform == 'windows' || inputs.platform == 'all'
     runs-on: windows-2022
     steps:
@@ -65,6 +67,21 @@ jobs:
           $python = (Get-Command python).Source
           & "$PWD/desktop_bundle/build_windows.ps1" -PythonExe $python -Version "$env:VERSION"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Inspect runtime after a failed Windows build
+        if: failure()
+        shell: pwsh
+        run: |
+          Get-ChildItem -LiteralPath build/ci-runtime/logs -File -ErrorAction SilentlyContinue | ForEach-Object { Get-Content -LiteralPath $_.FullName -Tail 100 }
+          python -c "import subprocess,sys; subprocess.run([sys.executable,'-m','ms_event_studio.web_desktop','--check-runtime'],timeout=30,check=True)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ms-event-studio-windows-diagnostics
+          path: |
+            build/ci-runtime/logs/*.log
+            dist/windows/smoke_test.json
+            dist/windows/build_manifest.json
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: ms-event-studio-windows-x64
