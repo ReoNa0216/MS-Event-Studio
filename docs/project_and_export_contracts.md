@@ -1,5 +1,10 @@
 # Project and export contracts
 
+Task 1 candidate exports machine contract v2 with explicit scientific settings.
+The shared core validates and publishes it; LMA consumes the complete package
+without re-calling MS events. See [Task 1 integration](flame_task1.md) and the core
+`docs/event-package-v2.md`. Existing project and review DB schemas are unchanged.
+
 ## Project v2
 
 `ms_event_project.json` is the root manifest. All runtime paths are portable

@@ -1714,7 +1714,7 @@ function exportKindCopy(kind) {
     ? {
         title: "导出完整审计数据包",
         overview: "复核与归档数据",
-        help: "包含完整事件与操作记录，适合复核、归档或下游程序读取。",
+        help: "保留事件身份、峰顶和全部审阅状态。向 LMA Studio 正式传递事件时，请使用此数据包。",
         target: "选择保存位置…",
         targetHelp: "应用会在所选位置中创建一个新的数据包文件夹。页面不显示本机路径。",
         submit: "导出完整数据包",
@@ -1722,7 +1722,7 @@ function exportKindCopy(kind) {
     : {
         title: "导出审阅结果",
         overview: "审阅结果",
-        help: "适合继续分析或交付已确认的审阅结果。",
+        help: "适合查看已确认的审阅结果。向 LMA Studio 保真传递事件，请选择完整审计数据包。",
         target: "选择文件…",
         targetHelp: "选择 CSV 文件名；页面不显示本机路径。",
         submit: "导出审阅结果",

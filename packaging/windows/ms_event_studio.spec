@@ -59,6 +59,7 @@ binaries = [
 ]
 
 hiddenimports = []
+hiddenimports += collect_submodules("flame_ms_core")
 hiddenimports += collect_submodules("pyarrow", filter=production_submodule)
 hiddenimports += collect_submodules("scipy", filter=production_submodule)
 hiddenimports += [

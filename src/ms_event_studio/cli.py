@@ -151,13 +151,14 @@ def _command_export_machine(args: argparse.Namespace) -> dict:
             analysis_start_ns=start_ns,
             analysis_end_ns=end_ns,
             boundary_rule=project.manifest["analysis_range"]["boundary_rule"],
+            scientific_settings=project.manifest["scientific_settings"],
         )
         store.record_export(
             actor=args.actor,
             session_id=args.session or ("cli-" + uuid.uuid4().hex),
             reason=args.reason,
             details={
-                "contract": "ms-event-machine-contract-v1",
+                "contract": "ms-event-machine-contract-v2",
                 "directory_name": result.output_dir.name,
                 "event_table_sha256": result.event_table_sha256,
                 "manifest_sha256": result.manifest_sha256,

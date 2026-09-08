@@ -1395,13 +1395,14 @@ class BrowserWorkspaceService:
                 analysis_start_ns=self._window_service.analysis_start_ns,
                 analysis_end_ns=self._window_service.analysis_end_ns,
                 boundary_rule=self.project.manifest["analysis_range"]["boundary_rule"],
+                scientific_settings=self.project.manifest["scientific_settings"],
             )
             self._window_service.review_store.record_export(
                 actor=self._actor,
                 session_id=self._session_id,
                 reason=note,
                 details={
-                    "contract": "ms-event-machine-contract-v1",
+                    "contract": "ms-event-machine-contract-v2",
                     "directory_name": result.output_dir.name,
                     "event_table_sha256": result.event_table_sha256,
                     "manifest_sha256": result.manifest_sha256,

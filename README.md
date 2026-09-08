@@ -6,6 +6,10 @@ MS Event Studio 是一个独立的 MS-only 事件提取、审阅与导出工具�
 
 ## 当前公开测试状态
 
+FLAME 任务 1 开发候选为 `0.5.0rc1`：正式内核来自独立的
+`flame-ms-core==0.1.0`，完整数据包升级到 v2，可保真导入 LMA。
+见 [接入与构建说明](docs/flame_task1.md)。下述公开版本状态不代表本候选的 UAT 结果。
+
 当前公开预发布版本为 `0.4.1`。桌面界面使用单一的 pywebview + HTML/CSS/SVG 渲染器，
 包含从新建项目到审阅、事件编辑、范围调整和导出的完整用户流程。Windows x64 与
 macOS Apple Silicon 构建会发布在本仓库的

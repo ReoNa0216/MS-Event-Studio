@@ -1,5 +1,10 @@
 # Scientific contract v2
 
+Task 1: parser, caller, timebase, identity and scientific settings now live in
+`flame-ms-core==0.1.0`; the Studio modules retain thin re-exports. Extraction did
+not change scientific math or method versions. Formal v2 transfer preserves
+original and reviewed measurements separately; see [integration](flame_task1.md).
+
 - Input v1 is the existing ASCII mzML-like text export and is always read only.
 - Parsing is strict and streaming. The same pass computes complete SHA-256 and
   structured byte progress. Input mutation, cancellation, truncation, malformed

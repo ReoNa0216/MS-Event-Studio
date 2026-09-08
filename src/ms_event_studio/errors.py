@@ -3,20 +3,9 @@
 from __future__ import annotations
 
 
-class MSEventStudioError(Exception):
-    """Base class for expected, user-actionable failures."""
-
-
-class MSParseError(MSEventStudioError):
-    """The source cannot be parsed without guessing or discarding evidence."""
-
-
-class InputChangedError(MSEventStudioError):
-    """The source changed while it was being read."""
-
-
-class CancelledError(MSEventStudioError):
-    """A long-running operation was explicitly cancelled."""
+from flame_ms_core.errors import (
+    MSCoreError as MSEventStudioError, MSParseError, InputChangedError, CancelledError,
+)
 
 
 class PathSecurityError(MSEventStudioError):

@@ -15,7 +15,7 @@ on:
       version:
         description: Artifact version for a manual candidate build
         required: true
-        default: 0.4.1
+        default: 0.5.0rc1
         type: string
       publish_prerelease:
         description: Publish successful manual-build artifacts as a candidate prerelease
@@ -54,6 +54,10 @@ jobs:
             $version = $env:INPUT_VERSION
           }
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Fetch pinned shared MS core
+        env:
+          GH_TOKEN: ${{ secrets.FLAME_MS_CORE_READ_TOKEN || github.token }}
+        run: python scripts/resolve_flame_core.py --download
       - name: Test, build, and archive Windows x64
         shell: pwsh
         run: |
@@ -92,6 +96,10 @@ jobs:
             version="$INPUT_VERSION"
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Fetch pinned shared MS core
+        env:
+          GH_TOKEN: ${{ secrets.FLAME_MS_CORE_READ_TOKEN || github.token }}
+        run: python scripts/resolve_flame_core.py --download
       - name: Test, build, and archive macOS ARM64
         shell: bash
         run: MS_EVENT_STUDIO_VERSION="$VERSION" bash desktop_bundle/build_macos.sh

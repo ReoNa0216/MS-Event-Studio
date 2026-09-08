@@ -24,6 +24,9 @@ def packaged_scientific_smoke() -> dict[str, Any]:
     from .export import export_human_csv, export_machine_contract
     from .review import ReviewStore
     from .timebase import AnalysisRange
+    from flame_ms_core import __version__ as core_version
+    from flame_ms_core.exchange import read_event_package
+    from flame_ms_core.scientific_settings import ProjectScientificSettings
 
     count = 1201
     time_sec = np.arange(count, dtype=float) * 0.1
@@ -99,11 +102,16 @@ def packaged_scientific_smoke() -> dict[str, Any]:
                 generation_id=detected.generation_id,
                 analysis_start_ns=analysis.start_ns,
                 analysis_end_ns=analysis.end_ns,
+                scientific_settings=ProjectScientificSettings().as_dict(),
             )
+            package = read_event_package(root / "machine")
         finally:
             store.close()
 
     return {
+        "flame_ms_core_version": core_version,
+        "caller_module": detect_events.__module__,
+        "machine_contract": package.manifest["schema"],
         "scan_rows": len(round_trip),
         "event_rows": len(detected.events),
         "display_points": len(window.trace),
