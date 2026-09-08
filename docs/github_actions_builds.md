@@ -9,7 +9,7 @@ Windows x64 与 macOS Apple Silicon 下载都在同一仓库；不再维护单�
 在 GitHub 打开 **Actions → Build and release desktop packages → Run workflow**：
 
 1. `platform` 选 `all`，确保 Windows 与 macOS 来自同一个提交；
-2. `version` 填应用版本，例如 `0.5.0rc2`，不要加 `.dev1`；
+2. `version` 填应用版本，例如 `0.5.0`，不要加 `.dev1`；
 3. 首次审计保持 `publish_prerelease` 关闭，只下载 Actions artifacts 检查；
 4. 两个平台构建和隐藏启动均通过后，再以相同提交运行并打开
    `publish_prerelease`，供真实用户下载测试。
@@ -33,7 +33,7 @@ ZIP，因此文件名不会出现多余的 `v`。
   科学冒烟，ad-hoc 签名后再次验证并刷新最终清单。
 - 两边都先运行完整 Python 测试与截图矩阵结构检查，再生成 ZIP 和 SHA-256 sidecar。
 - Actions 的 macOS 隐藏启动不能替代 Apple Silicon 真机上的 Retina 可见界面和鼠标体验；
-  因此首次跨平台发布应标为 prerelease，收到真机反馈后再转为正式版。
+  v0.5.0 已由用户明确授权直接发布正式版；人工可见验收仍单独记录，由课题组完成。
 
 ## 本地成品目录
 

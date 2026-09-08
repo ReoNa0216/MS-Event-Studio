@@ -8,29 +8,15 @@ MS Event Studio 是一个独立的 MS-only 事件提取、审阅与导出工具�
 不会导入 LIF、UMAP 坐标、细胞标签、预期事件数量或 LMA Studio 项目状态；原始 MS
 文件在桌面流程中始终只读。
 
-## 当前公开测试状态
+## 当前正式版本
 
-FLAME 任务 1 开发候选为 `0.5.0rc2`：正式内核来自独立的
-`flame-ms-core==0.1.0`，完整数据包升级到 v2，可保真导入 LMA。
-见 [接入与构建说明](docs/flame_task1.md)。下述公开版本状态不代表本候选的 UAT 结果。
+当前正式版本为 [v0.5.0](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.5.0)，提供 Windows x64 与 macOS Apple Silicon 包及 SHA-256 校验文件。
 
-当前公开预发布版本为 `0.4.1`。桌面界面使用单一的 pywebview + HTML/CSS/SVG 渲染器，
-包含从新建项目到审阅、事件编辑、范围调整和导出的完整用户流程。Windows x64 与
-macOS Apple Silicon 构建会发布在本仓库的
-[Releases](https://github.com/ReoNa0216/MS-Event-Studio/releases) 页面。
+解析与 calling 使用独立的 `flame-ms-core==0.1.0`；“LMA 事件包”采用 v2 格式，可保真导入 LMA Studio v0.6.0。新增“打包分享项目”，用于将完整项目交给同事继续审阅。见 [接入与构建说明](docs/flame_task1.md)和[版本说明](README_RELEASE.md)。
 
-已经完成的 pre-UAT 证据包括：
+本版本发布前已有完整自动测试、108 张标准浏览器截图矩阵、三个独立工程/UI/QA 审查，以及真实项目 ZIP 解压重开和逐表/逐文件核对。两个平台均由同一标签构建，并在发布前执行各自的测试与打包隐藏启动/科学冒烟。
 
-- 完整 Python 与前端单元测试、浏览器交互门禁和打包隐藏冒烟；
-- 960×640、1366×768、1920×1080 的 36 个确定性场景截图；
-- Windows 原生 100%、125%、150% 与 200% 缩放下的任务、DPI、焦点和视觉检查；
-- 科学/API 边界、交互与可访问性、LMA v0.4.4 视觉一致性的独立审查；
-- 大型只读 MS 源的创建、审阅、重开和两类导出整链验证。
-
-Windows 主流程已经过用户人工验收。`0.4.1` 在此基础上补齐原始/实时两类近邻风险的独立显示和批量逻辑或门禁；`0.4.0` 已新增跨平台导出修复、当前窗口批量
-事件批量保留、当前事件独立高亮、时间刻度、项目级 marker/相邻阈值设置和启动优化。
-macOS ARM64 包由 GitHub Actions 原生构建并通过 Cocoa 隐藏启动与科学冒烟；Retina 可见界面
-和真实鼠标体验仍需要 Apple Silicon 用户反馈。
+v0.4.1 的 Windows 人工验收是历史证据；v0.5.0 的实际标注验收由课题组成员继续完成。macOS 隐藏启动不代表 Retina 可见界面和真实鼠标体验已经人工验收。
 
 `0.4.0` 使用新的 `ms-event-project-v2` 项目格式。旧公开测试项目请从原始 MS 文件重新创建，
 不会进行可能误解 marker 身份的静默迁移。
@@ -48,8 +34,7 @@ macOS ARM64 包由 GitHub Actions 原生构建并通过 Cocoa 隐藏启动与科
 - 先预览影响，再安全应用分析范围变化；
 - 一次保留当前窗口内未发现与相邻事件距离过近的未审阅事件；分别按自动识别时的位置和
   当前峰顶判断，任一位置距离过近就留给人工逐个处理，整批可作为一个操作撤销或重做；
-- 导出默认仅含已保留事件的审阅结果，可选择包含待定事件；审计数据包只需选择保存位置，
-  应用会创建最终文件夹。
+- 三种导出：审阅结果 CSV、供 LMA 导入的“LMA 事件包”、供同事继续工作的“打包分享项目”ZIP。均可选择保存位置；事件包与项目 ZIP 只需已有父目录，无需预建空文件夹。CSV 默认仅含已保留事件，可选择包含待定事件。
 
 界面沿用冻结的 LMA Studio v0.4.4 视觉语言，但不修改、不导入也不运行时依赖 LMA
 Studio。LMA v0.4.5 以后用于“外部事件坐标名单”的辅助通道不属于本产品当前输入合同；
@@ -65,7 +50,7 @@ python -m pip install -e ".[packaging]"
 ms-event-studio-gui
 ```
 
-Windows 候选采用 `onedir` 形式。解压后必须保留整个 `MS-Event-Studio` 文件夹，
+Windows 包采用 `onedir` 形式。解压后必须保留整个 `MS-Event-Studio` 文件夹，
 从文件夹内运行 `MS-Event-Studio.exe`；单独复制 EXE 无法运行。正式验收只使用交付记录
 中版本和 SHA-256 完全匹配的候选包，不要把 `dist/` 中的中间构建当作交付包。
 
@@ -81,7 +66,7 @@ ms-event-studio export-machine --project "D:\projects\run" --output-dir audit-pa
 
 ## 用户验收
 
-Windows 人工验收已经通过；[Windows 快速复测操作卡](docs/guided_test_zh.md) 保留作后续
+v0.4.1 的 Windows 人工验收已通过；本版交由课题组成员实际标注验收。[Windows 快速复测操作卡](docs/guided_test_zh.md) 保留作后续
 回归使用。它只包含普通 Windows 用户需要点击和观察的科研任务，不要求重复自动化或
 工程级边界测试。
 
