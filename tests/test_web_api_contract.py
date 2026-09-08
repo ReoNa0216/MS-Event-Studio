@@ -486,3 +486,57 @@ class LoopbackHTTPContractTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RejectedRequestTransportTest(unittest.TestCase):
+    def test_missing_token_returns_json_for_small_post_bodies(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            server = create_http_server(recent_path=Path(temporary) / "recent.json")
+            server.start()
+            try:
+                parsed = urlparse(server.base_url)
+                for _ in range(20):
+                    connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=3)
+                    try:
+                        connection.request("POST", "/api/exports/project-share", body=b'{"target_token":"not-authorized"}', headers={"Content-Type": "application/json"})
+                        response = connection.getresponse()
+                        self.assertEqual(response.status, 403)
+                        self.assertEqual(json.loads(response.read())["error"]["code"], "invalid_request_token")
+                    finally:
+                        connection.close()
+                self.assertFalse(server.session.busy)
+            finally:
+                server.stop()
+
+
+    def test_missing_token_slow_body_has_one_deadline(self):
+        import socket
+        with tempfile.TemporaryDirectory() as temporary:
+            server = create_http_server(recent_path=Path(temporary) / "recent.json")
+            server.start()
+            parsed = urlparse(server.base_url)
+            sock = socket.create_connection((parsed.hostname, parsed.port), timeout=2)
+            stopped = threading.Event()
+            def drip():
+                while not stopped.wait(0.08):
+                    try:
+                        sock.sendall(b"x")
+                    except OSError:
+                        return
+            worker = threading.Thread(target=drip)
+            try:
+                headers = f"POST /api/exports/project-share HTTP/1.0\r\nHost: {parsed.netloc}\r\nContent-Type: application/json\r\nContent-Length: 1024\r\n\r\n"
+                sock.sendall(headers.encode("ascii"))
+                worker.start()
+                deadline = time.monotonic() + 1
+                while not server.active_paths and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertTrue(server.active_paths)
+                time.sleep(0.75)
+                self.assertFalse(server.active_paths, "slow unauthorized body must not hold the write activity open")
+                self.assertFalse(server.session.busy)
+            finally:
+                stopped.set()
+                sock.close()
+                if worker.ident: worker.join(timeout=2)
+                server.stop()

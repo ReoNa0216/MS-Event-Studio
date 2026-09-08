@@ -19,6 +19,7 @@ import re
 import secrets
 import sys
 import threading
+import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -179,7 +180,7 @@ def _audit_export_target(parent: Path, project_name: str) -> Path:
     if not component:
         component = "MS_Event_Studio"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    stem = f"{component}_完整审计数据包_{timestamp}"
+    stem = f"{component}_LMA 事件包_{timestamp}"
     candidate = parent / stem
     index = 2
     while candidate.exists():
@@ -279,9 +280,9 @@ class WebSession:
                 raise WebBoundaryError("审阅结果文件名必须以 .csv 结尾。", code="invalid_target")
             if not candidate.parent.exists() or not candidate.parent.is_dir():
                 raise WebBoundaryError("审阅结果的保存目录不存在。", code="invalid_target")
-        if role is PathRole.AUDIT_EXPORT_PARENT and not candidate.is_dir():
+        if role in {PathRole.AUDIT_EXPORT_PARENT, PathRole.PROJECT_SHARE_PARENT} and not candidate.is_dir():
             raise WebBoundaryError(
-                "请选择用于保存完整审计数据包的文件夹。",
+                "请选择用于保存导出内容的文件夹。",
                 code="invalid_target",
             )
         return candidate
@@ -485,6 +486,7 @@ class WebSession:
                 "range_apply": "applying",
                 "review_export": "exporting",
                 "audit_export": "exporting",
+                "project_share": "exporting",
             }.get(record.kind, "working")
         try:
             result = runner(record)
@@ -796,7 +798,7 @@ class WebSession:
         with self._lock:
             self._require_open()
             export_running = any(
-                record.kind in {"review_export", "audit_export"}
+                record.kind in {"review_export", "audit_export", "project_share"}
                 and record.state in {JobState.QUEUED, JobState.RUNNING, JobState.CANCELLING}
                 for record in self._jobs.values()
             )
@@ -898,11 +900,24 @@ class WebSession:
 
         return self._new_job("review_export", run, cancel_allowed=False)
 
+    def start_project_share(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        if not isinstance(payload, Mapping) or set(payload).difference({"target_token"}):
+            raise WebBoundaryError("项目打包请求包含不支持的字段。")
+        with self._lock:
+            self._require_project_stable()
+            selection = self._consume_selection(payload.get("target_token"), PathRole.PROJECT_SHARE_PARENT)
+            workspace = self._active_workspace()
+
+            def run(_record: _JobRecord) -> dict[str, Any]:
+                return {"export": workspace.share_project(selection.path)}
+
+            return self._new_job("project_share", run, cancel_allowed=False)
+
     def start_audit_export(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(payload, Mapping) or set(payload).difference({"target_token", "note"}):
-            raise WebBoundaryError("完整审计数据包导出请求包含不支持的字段。")
+            raise WebBoundaryError("LMA 事件包导出请求包含不支持的字段。")
         if "target_token" not in payload:
-            raise WebBoundaryError("请选择完整审计数据包的保存位置。", code="stale_selection")
+            raise WebBoundaryError("请选择LMA 事件包的保存位置。", code="stale_selection")
         note = _optional_note(payload.get("note"))
         self._require_project_stable()
         selection = self._consume_selection(
@@ -1337,6 +1352,31 @@ class WebRequestHandler(BaseHTTPRequestHandler):
     def _require_write_token(self) -> None:
         supplied = self.headers.get(WRITE_TOKEN_HEADER, "")
         if not supplied or not hmac.compare_digest(supplied, self.server.session.request_token):
+            # Closing a Windows socket with unread request bytes can reset the
+            # connection before the client receives our 403. Discard only a
+            # bounded, ordinary body; never parse or execute an unauthorized one.
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if 0 < length <= MAX_JSON_BYTES and not self.headers.get("Transfer-Encoding"):
+                previous_timeout = self.connection.gettimeout()
+                try:
+                    deadline = time.monotonic() + 0.5
+                    remaining = length
+                    while remaining:
+                        seconds = deadline - time.monotonic()
+                        if seconds <= 0:
+                            break
+                        self.connection.settimeout(seconds)
+                        chunk = self.rfile.read1(min(remaining, 8192))
+                        if not chunk:
+                            break
+                        remaining -= len(chunk)
+                except OSError:
+                    pass
+                finally:
+                    self.connection.settimeout(previous_timeout)
             raise WebBoundaryError(
                 "操作授权已失效，请刷新页面后重试。",
                 code="invalid_request_token",
@@ -1404,7 +1444,8 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             PathRole.PROJECT_OPEN: "打开 MS Event Studio 项目",
             PathRole.PROJECT_TARGET: "选择新项目的保存位置",
             PathRole.REVIEW_EXPORT_FILE: "导出审阅结果",
-            PathRole.AUDIT_EXPORT_PARENT: "选择审计数据包保存位置",
+            PathRole.PROJECT_SHARE_PARENT: "选择项目 ZIP 保存位置",
+            PathRole.AUDIT_EXPORT_PARENT: "选择LMA 事件包保存位置",
         }
         try:
             result = provider(role=role.value, title=titles[role])
@@ -1553,6 +1594,9 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                         self.server.session.start_review_export(payload),
                         HTTPStatus.ACCEPTED,
                     )
+                    return
+                if parsed.path == "/api/exports/project-share":
+                    self._send_json(self.server.session.start_project_share(payload), HTTPStatus.ACCEPTED)
                     return
                 if parsed.path == "/api/exports/audit-package":
                     self._send_json(

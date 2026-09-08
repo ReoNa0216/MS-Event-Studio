@@ -1710,19 +1710,25 @@ function renderRangeFlow() {
 }
 
 function exportKindCopy(kind) {
+  if (kind === "project_share") return {
+    title: "打包分享项目", overview: "完整项目 ZIP",
+    help: "保留项目内的数据、审阅与历史，自动排除 macOS 系统元数据。解压后用 MS Event Studio 继续审阅。外部引用的原始数据需另行分享。",
+    target: "选择保存位置…", targetHelp: "请选择项目外的文件夹，应用将创建一个新的 ZIP。",
+    submit: "生成项目 ZIP",
+  };
   return kind === "audit_package"
     ? {
-        title: "导出完整审计数据包",
-        overview: "复核与归档数据",
+        title: "导出 LMA 事件包",
+        overview: "传给 LMA Studio 的事件",
         help: "保留事件身份、峰顶和全部审阅状态。向 LMA Studio 正式传递事件时，请使用此数据包。",
         target: "选择保存位置…",
         targetHelp: "应用会在所选位置中创建一个新的数据包文件夹。页面不显示本机路径。",
-        submit: "导出完整数据包",
+        submit: "导出 LMA 事件包",
       }
     : {
         title: "导出审阅结果",
         overview: "审阅结果",
-        help: "适合查看已确认的审阅结果。向 LMA Studio 保真传递事件，请选择完整审计数据包。",
+        help: "适合查看已确认的审阅结果。向 LMA Studio 保真传递事件，请选择 LMA 事件包。",
         target: "选择文件…",
         targetHelp: "选择 CSV 文件名；页面不显示本机路径。",
         submit: "导出审阅结果",
@@ -1736,26 +1742,30 @@ function renderExportFlow() {
   const success = flow.state === "success" && Boolean(flow.result);
   const errorVisible = flow.state === "error" && Boolean(flow.error);
   const audit = flow.kind === "audit_package";
+  const sharing = flow.kind === "project_share";
   const copy = exportKindCopy(flow.kind);
   element("exportDialog").setAttribute("aria-busy", String(exporting));
   setText("exportTitle", copy.title);
   setText("exportOverviewTitle", copy.overview);
   setText("exportKindHelp", copy.help);
-  element("reviewExportKind").setAttribute("aria-checked", String(!audit));
+  element("reviewExportKind").setAttribute("aria-checked", String(!audit && !sharing));
   element("auditExportKind").setAttribute("aria-checked", String(audit));
   element("reviewExportKind").disabled = exporting;
   element("auditExportKind").disabled = exporting;
-  element("includePendingField").hidden = audit;
+  element("projectShareKind").setAttribute("aria-checked", String(sharing));
+  element("projectShareKind").disabled = exporting;
+  element("exportNote").closest('label').hidden = sharing;
+  element("includePendingField").hidden = audit || sharing;
   element("includePending").checked = !audit && flow.includePending;
   element("includePending").disabled = exporting;
   setText("exportCurrentRange", formatRange(state.workspace.project.analysisRange));
-  setText("exportStatusFilter", audit
-    ? "全部事件与审阅记录"
+  setText("exportStatusFilter", sharing ? "全部保存内容（含历史）" : audit
+    ? "当前事件的全部审阅状态"
     : flow.includePending ? "已保留和待定" : "仅已保留");
   const rows = audit
     ? state.workspace.review.total
     : estimatedReviewRows(state.workspace.review, flow.includePending);
-  setText("exportEstimatedRows", audit ? `${formatCount(rows)} 个事件` : `预计 ${formatCount(rows)} 行`);
+  setText("exportEstimatedRows", sharing ? "完整项目" : audit ? `${formatCount(rows)} 个事件` : `预计 ${formatCount(rows)} 行`);
   setText("exportTargetName", flow.target?.displayName || "尚未选择");
   setText("exportTargetHelp", copy.targetHelp);
   element("chooseExportTarget").textContent = copy.target;
@@ -1768,7 +1778,7 @@ function renderExportFlow() {
   element("exportResultPanel").hidden = !success;
   if (flow.result) {
     setText("exportResultTitle", `${flow.result.displayName} 已导出`);
-    setText("exportResultMessage", `${flow.result.message} 共 ${formatCount(flow.result.rowCount)} 行。`);
+    setText("exportResultMessage", flow.result.message);
   }
   setText("exportError", errorVisible ? flow.error : "");
   element("exportError").hidden = !errorVisible;
@@ -1801,7 +1811,7 @@ function openRangeFlow() {
 
 function setExportKind(kind) {
   if (state.exportFlow.state === "exporting") return;
-  const normalized = kind === "audit_package" ? "audit_package" : "review_results";
+  const normalized = ["audit_package", "project_share"].includes(kind) ? kind : "review_results";
   if (state.exportFlow.kind !== normalized) {
     state.exportFlow.target = null;
     state.exportFlow.error = "";
@@ -2096,7 +2106,7 @@ async function performRangeCancellation({ pending = false } = {}) {
 
 async function chooseExportTarget() {
   if (state.fixture || !["input", "error"].includes(state.exportFlow.state)) return;
-  const role = state.exportFlow.kind === "audit_package"
+  const role = state.exportFlow.kind === "project_share" ? PATH_ROLES.projectShare : state.exportFlow.kind === "audit_package"
     ? PATH_ROLES.auditExport
     : PATH_ROLES.reviewExport;
   element("chooseExportTarget").disabled = true;
@@ -2126,8 +2136,8 @@ async function submitExport() {
   try {
     const audit = flow.kind === "audit_package";
     const response = await post(
-      audit ? API_ENDPOINTS.exportAuditPackage : API_ENDPOINTS.exportReviewResults,
-      audit
+      flow.kind === "project_share" ? API_ENDPOINTS.exportProjectShare : audit ? API_ENDPOINTS.exportAuditPackage : API_ENDPOINTS.exportReviewResults,
+      flow.kind === "project_share" ? { target_token: flow.target.selectionToken } : audit
         ? auditExportBody(flow.target.selectionToken, element("exportNote").value)
         : reviewExportBody(
             flow.target.selectionToken,
@@ -2648,6 +2658,7 @@ function installEvents() {
   element("cancelRange").addEventListener("click", cancelRangeFlow);
   element("closeRange").addEventListener("click", cancelRangeFlow);
   element("reviewExportKind").addEventListener("click", () => setExportKind("review_results"));
+  element("projectShareKind").addEventListener("click", () => setExportKind("project_share"));
   element("auditExportKind").addEventListener("click", () => setExportKind("audit_package"));
   element("includePending").addEventListener("change", () => {
     state.exportFlow.includePending = element("includePending").checked;

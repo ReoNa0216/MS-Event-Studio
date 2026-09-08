@@ -32,7 +32,8 @@ original and reviewed measurements separately; see [integration](flame_task1.md)
 - Project EventID is a persistent UUID identity; auto_event_id is an immutable
   generation-specific content identity. Neither is derived from display order.
 - Human review is an overlay. Rejection never deletes evidence. All writes,
-  including undo/redo and export, append audit rows.
+  including undo/redo and event-result export, append audit rows.
+  Read-only project ZIP sharing does not append a row.
 - Human CSV defaults to accepted only. Pending requires an explicit switch;
   unreviewed and rejected never enter the main CSV.
 - A current-window bulk accept is one atomic review command. It may update only

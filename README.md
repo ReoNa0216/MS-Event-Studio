@@ -1,12 +1,16 @@
 # MS Event Studio
 
+项目内新增“打包分享项目”，自动排除 macOS 系统元数据；MS→LMA 正式交换入口统一为“LMA 事件包”。操作与保存边界见[项目分享](docs/project_sharing.md)。
+CI 的锁定内核可由 `FLAME_MS_CORE_WHEEL_BASE64` secret 提供，仍强制校验 SHA256。
+
+
 MS Event Studio 是一个独立的 MS-only 事件提取、审阅与导出工具。它只处理质谱信号，
 不会导入 LIF、UMAP 坐标、细胞标签、预期事件数量或 LMA Studio 项目状态；原始 MS
 文件在桌面流程中始终只读。
 
 ## 当前公开测试状态
 
-FLAME 任务 1 开发候选为 `0.5.0rc1`：正式内核来自独立的
+FLAME 任务 1 开发候选为 `0.5.0rc2`：正式内核来自独立的
 `flame-ms-core==0.1.0`，完整数据包升级到 v2，可保真导入 LMA。
 见 [接入与构建说明](docs/flame_task1.md)。下述公开版本状态不代表本候选的 UAT 结果。
 

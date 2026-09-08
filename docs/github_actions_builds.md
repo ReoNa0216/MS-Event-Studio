@@ -9,7 +9,7 @@ Windows x64 与 macOS Apple Silicon 下载都在同一仓库；不再维护单�
 在 GitHub 打开 **Actions → Build and release desktop packages → Run workflow**：
 
 1. `platform` 选 `all`，确保 Windows 与 macOS 来自同一个提交；
-2. `version` 填应用版本，例如 `0.4.1`，不要加 `.dev1`；
+2. `version` 填应用版本，例如 `0.5.0rc2`，不要加 `.dev1`；
 3. 首次审计保持 `publish_prerelease` 关闭，只下载 Actions artifacts 检查；
 4. 两个平台构建和隐藏启动均通过后，再以相同提交运行并打开
    `publish_prerelease`，供真实用户下载测试。
@@ -17,6 +17,13 @@ Windows x64 与 macOS Apple Silicon 下载都在同一仓库；不再维护单�
 手动候选的 GitHub 标签为 `candidate-<version>`，但软件内部版本和 ZIP 文件名仍是干净的
 `<version>`。正式稳定版使用 `v<version>` Git 标签；工作流会移除标签前缀 `v` 后再生成
 ZIP，因此文件名不会出现多余的 `v`。
+
+## 固定内核安装包
+
+任务 1 构建需要 `packaging/flame-ms-core.json` 锁定的 wheel。Actions 优先读取
+`FLAME_MS_CORE_WHEEL_BASE64` secret 中的小型安装产物，解码后验证 SHA256；无需把维护者登录凭据提供给公开仓库的 CI。
+也可配置对私有内核仓库具有 contents:read 的 `FLAME_MS_CORE_READ_TOKEN`，从固定 release 下载。
+完整来源和本地命令见 [Task 1 接入](flame_task1.md)。
 
 ## 每个平台实际证明什么
 

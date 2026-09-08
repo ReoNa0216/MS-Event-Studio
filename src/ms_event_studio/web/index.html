@@ -575,7 +575,8 @@
       <div class="modal__body operation-modal__body">
         <div class="export-kind-switch" role="radiogroup" aria-label="导出类型">
           <button id="reviewExportKind" type="button" role="radio" aria-checked="true">审阅结果</button>
-          <button id="auditExportKind" type="button" role="radio" aria-checked="false" data-qa="export-audit-package">完整审计数据包</button>
+          <button id="auditExportKind" type="button" role="radio" aria-checked="false" data-qa="export-audit-package">LMA 事件包</button>
+          <button id="projectShareKind" type="button" role="radio" aria-checked="false">打包分享项目</button>
         </div>
         <section class="export-overview" aria-labelledby="exportOverviewTitle">
           <div class="operation-heading"><div><p class="section-kicker">即将导出</p><h3 id="exportOverviewTitle">审阅结果</h3></div><strong id="exportEstimatedRows">0 行</strong></div>
@@ -584,7 +585,7 @@
             <div><dt>事件状态</dt><dd id="exportStatusFilter">仅已保留</dd></div>
           </dl>
           <label id="includePendingField" class="check-field" for="includePending"><input id="includePending" type="checkbox" data-qa="export-include-pending"><span>同时包含待定事件</span></label>
-          <p id="exportKindHelp">适合查看已确认的审阅结果。向 LMA Studio 保真传递事件，请选择完整审计数据包。</p>
+          <p id="exportKindHelp">适合查看已确认的审阅结果。向 LMA Studio 保真传递事件，请选择LMA 事件包。</p>
         </section>
         <section class="export-target" aria-labelledby="exportTargetTitle">
           <div class="operation-heading"><div><h3 id="exportTargetTitle">保存目标</h3><p id="exportTargetHelp">页面只显示名称，不显示本机路径。</p></div><button id="chooseExportTarget" class="button button--secondary" type="button" data-qa="export-choose-target">选择文件…</button></div>

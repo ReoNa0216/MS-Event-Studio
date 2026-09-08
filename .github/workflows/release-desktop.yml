@@ -15,7 +15,7 @@ on:
       version:
         description: Artifact version for a manual candidate build
         required: true
-        default: 0.5.0rc1
+        default: 0.5.0rc2
         type: string
       publish_prerelease:
         description: Publish successful manual-build artifacts as a candidate prerelease
@@ -57,6 +57,7 @@ jobs:
       - name: Fetch pinned shared MS core
         env:
           GH_TOKEN: ${{ secrets.FLAME_MS_CORE_READ_TOKEN || github.token }}
+          FLAME_MS_CORE_WHEEL_BASE64: ${{ secrets.FLAME_MS_CORE_WHEEL_BASE64 }}
         run: python scripts/resolve_flame_core.py --download
       - name: Test, build, and archive Windows x64
         shell: pwsh
@@ -99,6 +100,7 @@ jobs:
       - name: Fetch pinned shared MS core
         env:
           GH_TOKEN: ${{ secrets.FLAME_MS_CORE_READ_TOKEN || github.token }}
+          FLAME_MS_CORE_WHEEL_BASE64: ${{ secrets.FLAME_MS_CORE_WHEEL_BASE64 }}
         run: python scripts/resolve_flame_core.py --download
       - name: Test, build, and archive macOS ARM64
         shell: bash

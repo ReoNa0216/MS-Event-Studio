@@ -26,6 +26,7 @@ class PathRole(str, Enum):
     PROJECT_TARGET = "project_target"
     REVIEW_EXPORT_FILE = "review_export_file"
     AUDIT_EXPORT_PARENT = "audit_export_parent"
+    PROJECT_SHARE_PARENT = "project_share_parent"
 
     @classmethod
     def parse(cls, value: object) -> "PathRole":
@@ -639,7 +640,7 @@ class ExportSummaryView:
     message: str
 
     def __post_init__(self) -> None:
-        if self.kind not in {"review_results", "audit_package"}:
+        if self.kind not in {"review_results", "audit_package", "project_share"}:
             raise ValueError("unsupported export kind")
         if not self.display_name or not self.message:
             raise ValueError("export display fields must not be empty")

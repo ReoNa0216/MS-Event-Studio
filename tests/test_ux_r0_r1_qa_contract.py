@@ -170,10 +170,10 @@ class UxR0R1QaContractTest(unittest.TestCase):
             row["scale_percent"]: row for row in matrix["native_samples"]["windows"]
         }
         captured_evidence = {
-            100: "build/qa/user-feedback-final-native-agent-4331a5b-foreground-run2/report.json",
-            125: "build/qa/user-feedback-final-native-4331a5b-125pct/report.json",
-            150: "build/qa/user-feedback-final-native-4331a5b-restored-150pct/report.json",
-            200: "build/qa/user-feedback-final-native-4331a5b-200pct/report.json",
+            100: "build/qa/task1-final/native-100-r2/report.json",
+            125: "build/qa/task1-final/native-125/report.json",
+            150: "build/qa/task1-final/native-150-r2/report.json",
+            200: "build/qa/task1-final/native-200/report.json",
         }
         for scale, evidence in captured_evidence.items():
             with self.subTest(native_windows_scale=scale):

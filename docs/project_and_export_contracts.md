@@ -76,7 +76,7 @@ Time is decimal minutes derived from integer nanoseconds. Default status is
 `accepted`; `pending` requires an explicit switch. Range ownership is closed and
 uses the current apex. Rejected and unreviewed rows never enter this CSV.
 
-## Machine contract v1
+## Machine contract v2 (LMA 事件包)
 
 An atomic machine-export directory contains:
 
@@ -94,3 +94,7 @@ the application publishes a new, uniquely named child directory atomically;
 the user never has to prepare an empty target. Consumers must filter review
 status explicitly. This contract is not permission to overwrite an LMA Studio
 `ms_events.parquet`.
+
+## Project sharing ZIP
+
+See [project sharing](project_sharing.md). This copies a complete project for reopening in the same Studio; it is separate from the event exchange package. Sharing is read-only and does not append an export audit row.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ms-event-studio"
-version = "0.5.0rc1"
+version = "0.5.0rc2"
 description = "MS-only event extraction, review, and versioned export"
 readme = "README.md"
 requires-python = ">=3.11"

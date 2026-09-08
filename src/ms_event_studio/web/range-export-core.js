@@ -10,7 +10,7 @@ export const RANGE_EXPORT_FIXTURE_IDS = Object.freeze([
   "export-error",
 ]);
 
-const EXPORT_KINDS = new Set(["review_results", "audit_package"]);
+const EXPORT_KINDS = new Set(["review_results", "audit_package", "project_share"]);
 
 function safeText(value, fallback = "", maximum = 240) {
   const text = String(value ?? "")
@@ -146,7 +146,7 @@ export function reviewExportBody(targetToken, includePending = false, note = "")
 
 export function auditExportBody(targetToken, note = "") {
   const token = opaqueToken(targetToken);
-  if (!token) throw new TypeError("请选择完整审计数据包的保存位置。");
+  if (!token) throw new TypeError("请选择LMA 事件包的保存位置。");
   return { target_token: token, note: noteText(note) };
 }
 
@@ -231,7 +231,7 @@ export function fixtureRangeExport(id) {
     if (["exporting", "export-error"].includes(id)) {
       exportFlow.target = {
         selectionToken: "fixture-export-target",
-        displayName: exportFlow.kind === "audit_package" ? "Lin− MPP 审计数据包" : "Lin− MPP 审阅结果.csv",
+        displayName: exportFlow.kind === "audit_package" ? "Lin− MPP LMA 事件包" : "Lin− MPP 审阅结果.csv",
       };
     }
     if (id === "exporting") {

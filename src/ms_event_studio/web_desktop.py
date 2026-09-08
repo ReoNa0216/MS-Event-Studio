@@ -402,6 +402,7 @@ class WebViewPathDialog:
             "project_target",
             "review_export_file",
             "audit_export_parent",
+            "project_share_parent",
         }:
             raise ValueError("不支持的路径选择用途")
         initial = Path(initial_dir).expanduser() if str(initial_dir).strip() else Path.home()

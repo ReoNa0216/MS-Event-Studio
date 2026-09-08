@@ -15,6 +15,7 @@ export const API_ENDPOINTS = Object.freeze({
   rangeApply: "/api/range-changes/apply",
   rangeCancel: "/api/range-changes/cancel",
   exportReviewResults: "/api/exports/review-results",
+  exportProjectShare: "/api/exports/project-share",
   exportAuditPackage: "/api/exports/audit-package",
   selectPath: "/api/select-path",
   sourceInspections: "/api/source-inspections",
@@ -36,6 +37,7 @@ export const PATH_ROLES = Object.freeze({
   target: "project_target",
   reviewExport: "review_export_file",
   auditExport: "audit_export_parent",
+  projectShare: "project_share_parent",
 });
 
 export const FIXTURE_IDS = Object.freeze([

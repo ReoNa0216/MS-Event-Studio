@@ -1369,6 +1369,18 @@ class BrowserWorkspaceService:
                 message=f"审阅结果已导出，共 {result.row_count:,} 行。",
             ).to_dict()
 
+    def share_project(self, parent: Path) -> dict[str, Any]:
+        from .project_archive import share_project
+        with self._lock:
+            self._require_open()
+            result = share_project(self.project.project_dir, parent,
+                                   database=self._window_service.review_store.path)
+            return ExportSummaryView(
+                kind="project_share", display_name=result["filename"],
+                row_count=0,
+                message=f"项目 ZIP 已保存，包含 {result['file_count']} 个文件。解压后用 MS Event Studio 打开；外部原始数据需另行分享。",
+            ).to_dict()
+
     def export_audit_package(
         self,
         target: Path,
@@ -1413,7 +1425,7 @@ class BrowserWorkspaceService:
                 kind="audit_package",
                 display_name=display_name,
                 row_count=result.row_count,
-                message=f"完整审计数据包已导出，共 {result.row_count:,} 行。",
+                message=f"LMA 事件包已导出，共 {result.row_count:,} 行。",
             ).to_dict()
 
     def review_decision(self, payload: Mapping[str, Any]) -> dict[str, Any]:
