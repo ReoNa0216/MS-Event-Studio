@@ -9,7 +9,7 @@ Windows x64 与 macOS Apple Silicon 下载都在同一仓库；不再维护单�
 在 GitHub 打开 **Actions → Build and release desktop packages → Run workflow**：
 
 1. `platform` 选 `all`，确保 Windows 与 macOS 来自同一个提交；
-2. `version` 填应用版本，例如 `0.5.0`，不要加 `.dev1`；
+2. `version` 填应用版本，开发构建例如 `0.6.0.dev1`，正式发布使用已确认的稳定版本；
 3. 首次审计保持 `publish_prerelease` 关闭，只下载 Actions artifacts 检查；
 4. 两个平台构建和隐藏启动均通过后，再以相同提交运行并打开
    `publish_prerelease`，供真实用户下载测试。
@@ -18,12 +18,11 @@ Windows x64 与 macOS Apple Silicon 下载都在同一仓库；不再维护单�
 `<version>`。正式稳定版使用 `v<version>` Git 标签；工作流会移除标签前缀 `v` 后再生成
 ZIP，因此文件名不会出现多余的 `v`。
 
-## 固定内核安装包
+## 固定计算源码
 
-任务 1 构建需要 `packaging/flame-ms-core.json` 锁定的 wheel。Actions 优先读取
-`FLAME_MS_CORE_WHEEL_BASE64` secret 中的小型安装产物，解码后验证 SHA256；无需把维护者登录凭据提供给公开仓库的 CI。
-也可配置对私有内核仓库具有 contents:read 的 `FLAME_MS_CORE_READ_TOKEN`，从固定 release 下载。
-完整来源和本地命令见 [Task 1 接入](flame_task1.md)。
+Python 3.11 构建使用 `packaging/computation.json` 固定 `flame-ms-core` 与 `flame-feature-core` 的 commit 和包版本。`scripts/resolve_computation.py` 从干净 Git archive 安装；原 HRGC 源码不复制进产品仓库。Numba 源文件、LLVM、HDF5 和依赖版本元数据进入冻结包，隐藏科学冒烟实际启动子进程提取并重开 H5AD。
+
+Actions 需要 `FLAME_COMPUTATION_READ_TOKEN`，对两个私有计算仓库均有 contents:read。既有 `FLAME_MS_CORE_READ_TOKEN` 若具备相同权限亦可；默认 github.token 通常不能跨私有仓库。源码锁不含凭据。旧 `FLAME_MS_CORE_WHEEL_BASE64` 不再使用。构建脚本失败时不要跳过依赖校验。
 
 ## 每个平台实际证明什么
 

@@ -67,6 +67,8 @@ import {
   validateRangeInput,
 } from "./range-export-core.js";
 
+import { installFeatures } from "./features.js";
+
 const POLL_INTERVAL_MS = 350;
 const DEFAULT_ERROR_MESSAGE = "操作未完成。请检查当前选择后重试。";
 
@@ -898,6 +900,7 @@ function renderWorkspaceControls() {
   element("headerNew").disabled = busy;
   element("changeRange").disabled = busy;
   element("openExport").disabled = busy;
+  element("openFeatures").disabled = busy;
   const editMode = state.eventEdit.mode;
   element("addEvent").disabled = busy;
   element("addEvent").setAttribute("aria-pressed", String(editMode === "add"));
@@ -1467,6 +1470,7 @@ function editableShortcutTarget(target) {
 function handleReviewShortcut(event) {
   if (
     event.defaultPrevented
+    || state.modal
     || event.repeat
     || event.ctrlKey
     || event.metaKey
@@ -2645,6 +2649,8 @@ function installEvents() {
   element("welcomeBrowse").addEventListener("click", openOpen);
   element("headerNew").addEventListener("click", openOpen);
   element("changeRange").addEventListener("click", openRangeFlow);
+  installFeatures({ get: apiRequest, post, selectPath, openDialog, closeDialog,
+    canOpen: () => Boolean(state.workspace) && !state.fixture && !workbenchBusy() });
   element("openExport").addEventListener("click", () => openExportFlow("review_results"));
   element("openNewProject").addEventListener("click", () => openCreate());
   element("selectSource").addEventListener("click", chooseSource);

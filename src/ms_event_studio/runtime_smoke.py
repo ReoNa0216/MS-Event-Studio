@@ -109,6 +109,7 @@ def packaged_scientific_smoke() -> dict[str, Any]:
             store.close()
 
     return {
+        "feature": packaged_feature_smoke(),
         "flame_ms_core_version": core_version,
         "caller_module": detect_events.__module__,
         "machine_contract": package.manifest["schema"],
@@ -119,6 +120,52 @@ def packaged_scientific_smoke() -> dict[str, Any]:
         "human_rows": human.row_count,
         "machine_rows": machine.row_count,
     }
+
+
+def packaged_feature_smoke() -> dict[str, Any]:
+    """Exercise the frozen spawn/JIT/HDF5 path using a disposable synthetic run."""
+    from .project import CreateProjectRequest, create_project
+    from .window_service import ProjectWindowService
+    from .features import run_extraction, snapshot, read_result
+
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        root = Path(tmp)
+        source = root / 'synthetic.txt'
+        peaks = list(range(100, 900, 40))
+        with source.open('w', encoding='ascii') as stream:
+            stream.write('spectrumList (1001 spectra)\n')
+            for n in range(1001):
+                intensity = 2000 if n in peaks else 400 if n-1 in peaks or n+1 in peaks else 10
+                stream.write(f'''spectrum:
+  index: {n}
+  id: scanId={100+n}
+  defaultArrayLength: 4
+  cvParam: base peak m/z, 760.5851
+  cvParam: base peak intensity, {max(intensity,1000)}
+  cvParam: total ion current, 2000000, number of detector counts
+  cvParam: scan start time, {n/600:.12f}, minute
+  cvParam: m/z array, m/z
+  binary: [4] 500.123456789123 760.5851 782.5616 900
+  cvParam: intensity array, number of detector counts
+  binary: [4] 555.123456789123 {intensity} 900 1000
+''')
+        project = create_project(CreateProjectRequest(source, root/'project', 'Synthetic smoke', '0', '1.6'))
+        with ProjectWindowService.open(project.project_dir) as service:
+            if not service.all_events():
+                for n in peaks:
+                    service.review_store.add_event(click_time_sec=n/10, scans=service.scans,
+                        analysis_start_ns=service.analysis_start_ns, analysis_end_ns=service.analysis_end_ns,
+                        actor='smoke', session_id='smoke', reason='synthetic fixture')
+            for row in service.all_events():
+                service.review_store.set_status(row['event_id'], 'accepted', expected_revision=row['revision'],
+                    actor='smoke', session_id='smoke', reason='synthetic fixture')
+        saved = snapshot(project)
+        result = run_extraction(project, source, saved, [], lambda: False, lambda *_: None)
+        _, record = read_result(project, result['result_id'], verify=True)
+        if result['events'] != 20 or result['features'] < 1 or snapshot(project)['binding'] != saved['binding']:
+            raise RuntimeError('Packaged feature extraction failed the identity/shape check')
+        return {'events': result['events'], 'features': result['features'],
+                'package_version': record['package_version'], 'float64': True, 'spawned': True}
 
 
 # Transitional name retained for callers of the scientific regression probe.

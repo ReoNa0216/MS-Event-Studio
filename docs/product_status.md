@@ -1,5 +1,8 @@
 # MS Event Studio 当前产品状态
 
+开发分支 `0.6.0.dev1`：单 MS 项目的 HRGC feature 提取、取消、保存、重开和独立 ZIP 导出已实现。只纳入 accepted，按当前峰顶排除显式 QC，保留 Unknown、float64 原始强度和 NaN；既有审阅不修改。LMA 接入与原生 UMAP 延后。Windows 开发检查及尚未完成的 UAT 门禁见共享 `handoff/WINDOWS_STATUS.md`，不能沿用下面正式版的历史验收结论。
+
+
 更新日期：2026-09-09（Asia/Shanghai）
 
 当前正式版本：[`v0.5.0`](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.5.0)

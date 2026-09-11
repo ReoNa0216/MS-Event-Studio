@@ -11,7 +11,7 @@ $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
 
 if (!$Version) {
-    $Version = if ($env:MS_EVENT_STUDIO_VERSION) { $env:MS_EVENT_STUDIO_VERSION } else { "0.5.0" }
+    $Version = if ($env:MS_EVENT_STUDIO_VERSION) { $env:MS_EVENT_STUDIO_VERSION } else { "0.6.0.dev1" }
 }
 if ($Version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$') {
     throw "Version may contain only letters, digits, period, underscore, and hyphen (maximum 64 characters)."
@@ -32,18 +32,9 @@ if ($UsingIsolatedBuildEnvironment) {
 $Python = (Resolve-Path -LiteralPath $PythonExe).Path
 Write-Host "Using Python: $Python"
 
-# Install a regular, pinned shared-core wheel before resolving product dependencies.
-$CoreWheel = Join-Path $RepoRoot "..\flame-ms-core\dist\flame_ms_core-0.1.0-py3-none-any.whl"
-if ($env:FLAME_MS_CORE_WHEEL) { $CoreWheel = $env:FLAME_MS_CORE_WHEEL }
-$CoreWheel = (Resolve-Path -LiteralPath $CoreWheel -ErrorAction Stop).Path
-$CoreLock = Get-Content -LiteralPath (Join-Path $RepoRoot "packaging/flame-ms-core.json") -Raw | ConvertFrom-Json
-if ((Get-FileHash -LiteralPath $CoreWheel -Algorithm SHA256).Hash.ToLowerInvariant() -ne $CoreLock.sha256) {
-    throw "Shared core wheel differs from the pinned release. Download the locked artifact before building."
-}
-& $Python -m pip install --no-deps --force-reinstall $CoreWheel
-if ($LASTEXITCODE -ne 0) { throw "Failed to install the pinned shared MS core wheel." }
-$CoreHash = (Get-FileHash -LiteralPath $CoreWheel -Algorithm SHA256).Hash.ToLowerInvariant()
-Write-Host "FLAME MS core wheel: $CoreWheel SHA256=$CoreHash"
+# Resolve both scientific packages from clean, exact Git commits.
+& $Python scripts/resolve_computation.py
+if ($LASTEXITCODE -ne 0) { throw "Failed to install the pinned computation packages." }
 
 & $Python -m pip install --upgrade pip wheel setuptools
 if ($LASTEXITCODE -ne 0) { throw "Failed to update the Windows build toolchain." }

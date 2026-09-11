@@ -142,6 +142,9 @@ def default_recent_path() -> Path:
 def _public_error(error: BaseException) -> JobErrorView:
     """Map internal failures without serializing paths or storage terminology."""
 
+    from .features import FeatureError
+    if isinstance(error, FeatureError):
+        return JobErrorView("feature_failed", str(error))
     if isinstance(error, WebBoundaryError):
         return JobErrorView(error.code, str(error))
     if isinstance(error, CancelledError):
@@ -248,6 +251,7 @@ class WebSession:
         self._active_project: Project | None = None
         self._workspace: BrowserWorkspaceService | None = None
         self._project_mutation_pending = False
+        self._feature_busy = False
 
     def _require_open(self) -> None:
         if self._closed:
@@ -280,7 +284,7 @@ class WebSession:
                 raise WebBoundaryError("审阅结果文件名必须以 .csv 结尾。", code="invalid_target")
             if not candidate.parent.exists() or not candidate.parent.is_dir():
                 raise WebBoundaryError("审阅结果的保存目录不存在。", code="invalid_target")
-        if role in {PathRole.AUDIT_EXPORT_PARENT, PathRole.PROJECT_SHARE_PARENT} and not candidate.is_dir():
+        if role in {PathRole.AUDIT_EXPORT_PARENT, PathRole.PROJECT_SHARE_PARENT, PathRole.FEATURE_EXPORT_PARENT} and not candidate.is_dir():
             raise WebBoundaryError(
                 "请选择用于保存导出内容的文件夹。",
                 code="invalid_target",
@@ -345,6 +349,8 @@ class WebSession:
 
     def _require_project_stable(self) -> None:
         with self._lock:
+            if self._feature_busy:
+                raise WebBoundaryError("Feature 正在提取，请等待完成或取消后再编辑项目。", code="project_busy", status=HTTPStatus.CONFLICT)
             if self._project_mutation_pending:
                 raise WebBoundaryError(
                     "分析范围正在更新，请等待完成后再操作。",
@@ -475,6 +481,8 @@ class WebSession:
     ) -> None:
         with self._lock:
             if record.cancel_event.is_set():
+                if record.kind == "feature_extraction":
+                    self._feature_busy = False
                 record.state = JobState.CANCELLED
                 record.phase = "cancelled"
                 return
@@ -802,7 +810,7 @@ class WebSession:
                 and record.state in {JobState.QUEUED, JobState.RUNNING, JobState.CANCELLING}
                 for record in self._jobs.values()
             )
-            if self._project_mutation_pending or export_running:
+            if self._project_mutation_pending or self._feature_busy or export_running:
                 raise WebBoundaryError(
                     "项目正在完成另一项保存操作，请等待后重试。",
                     code="project_busy",
@@ -912,6 +920,55 @@ class WebSession:
                 return {"export": workspace.share_project(selection.path)}
 
             return self._new_job("project_share", run, cancel_allowed=False)
+
+    def feature_overview(self) -> dict[str, Any]:
+        from .features import overview
+        with self._lock:
+            self._require_project_stable()
+            return overview(self._active_workspace().project)
+
+    def start_feature_extraction(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        from .features import snapshot, qc_intervals, run_extraction
+        if not isinstance(payload, Mapping) or set(payload) != {"source_token", "binding", "qc_intervals"}:
+            raise WebBoundaryError("Feature 提取请求不完整。")
+        with self._lock:
+            self._require_project_stable()
+            if self.busy:
+                raise WebBoundaryError("请等待当前任务完成后再提取。", code="project_busy")
+            project = self._active_workspace().project
+            saved = snapshot(project)
+            if payload['binding'] != saved['binding']:
+                raise WebBoundaryError("事件已变化，请重新打开提取窗口。", code="stale_feature_input")
+            intervals = qc_intervals(payload['qc_intervals'])
+            selection = self._selection(payload['source_token'], PathRole.SOURCE_FILE)
+            self._feature_busy = True
+            def run(record):
+                try:
+                    def progress(phase, fraction):
+                        with self._lock:
+                            record.phase = phase
+                            record.fraction = .7 * fraction if phase == 'reading' else .75 if phase == 'extracting' else .95
+                    return {"feature": run_extraction(project, selection.path, saved, intervals,
+                                                      record.cancel_event.is_set, progress)}
+                finally:
+                    with self._lock:
+                        self._feature_busy = False
+            try:
+                return self._new_job('feature_extraction', run)
+            except BaseException:
+                self._feature_busy = False
+                raise
+
+    def start_feature_export(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        from .features import export_result
+        if not isinstance(payload, Mapping) or set(payload) != {"result_id", "target_token"}:
+            raise WebBoundaryError("Feature 导出请求不完整。")
+        with self._lock:
+            self._require_project_stable()
+            project = self._active_workspace().project
+            target = self._consume_selection(payload['target_token'], PathRole.FEATURE_EXPORT_PARENT)
+            return self._new_job('feature_export', lambda record: {
+                'export': export_result(project, payload['result_id'], target.path)}, cancel_allowed=False)
 
     def start_audit_export(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(payload, Mapping) or set(payload).difference({"target_token", "note"}):
@@ -1088,6 +1145,8 @@ class WebSession:
                 if record.future is not None and record.future.cancel():
                     record.state = JobState.CANCELLED
                     record.phase = "cancelled"
+                    if record.kind == "feature_extraction":
+                        self._feature_busy = False
                 else:
                     record.state = JobState.CANCELLING
                     record.phase = "cancelling"
@@ -1446,6 +1505,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
             PathRole.REVIEW_EXPORT_FILE: "导出审阅结果",
             PathRole.PROJECT_SHARE_PARENT: "选择项目 ZIP 保存位置",
             PathRole.AUDIT_EXPORT_PARENT: "选择LMA 事件包保存位置",
+            PathRole.FEATURE_EXPORT_PARENT: "选择 Feature 结果保存位置",
         }
         try:
             result = provider(role=role.value, title=titles[role])
@@ -1502,6 +1562,9 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                             status=HTTPStatus.NOT_FOUND,
                         )
                     self._send_json(self.server.session.job(identity))
+                    return
+                if parsed.path == "/api/features":
+                    self._send_json(self.server.session.feature_overview())
                     return
                 if parsed.path == "/favicon.ico":
                     self.send_response(HTTPStatus.NO_CONTENT)
@@ -1594,6 +1657,12 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                         self.server.session.start_review_export(payload),
                         HTTPStatus.ACCEPTED,
                     )
+                    return
+                if parsed.path == "/api/features/extract":
+                    self._send_json(self.server.session.start_feature_extraction(payload), HTTPStatus.ACCEPTED)
+                    return
+                if parsed.path == "/api/features/export":
+                    self._send_json(self.server.session.start_feature_export(payload), HTTPStatus.ACCEPTED)
                     return
                 if parsed.path == "/api/exports/project-share":
                     self._send_json(self.server.session.start_project_share(payload), HTTPStatus.ACCEPTED)

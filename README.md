@@ -1,7 +1,9 @@
 # MS Event Studio
 
 项目内新增“打包分享项目”，自动排除 macOS 系统元数据；MS→LMA 正式交换入口统一为“LMA 事件包”。操作与保存边界见[项目分享](docs/project_sharing.md)。
-CI 的锁定内核可由 `FLAME_MS_CORE_WHEEL_BASE64` secret 提供，仍强制校验 SHA256。
+开发分支 `0.6.0.dev1` 已接入 HRGC：打开项目 → **Feature 提取** → 选择原始 MS 文件 → 填写需排除的 QC 时间段 → 开始提取。结果自动保存，可重开查看和导出矩阵及溯源；正式 Release 仍为下述 v0.5.0。
+
+构建使用 `packaging/computation.json` 固定两个计算包的源码 commit；运行 `python scripts/resolve_computation.py` 后安装本产品。CI 的 `FLAME_COMPUTATION_READ_TOKEN` 需能读取两个私有计算仓库，详见[构建说明](docs/github_actions_builds.md)。
 
 
 MS Event Studio 是一个独立的 MS-only 事件提取、审阅与导出工具。它只处理质谱信号，

@@ -98,3 +98,16 @@ status explicitly. This contract is not permission to overwrite an LMA Studio
 ## Project sharing ZIP
 
 See [project sharing](project_sharing.md). This copies a complete project for reopening in the same Studio; it is separate from the event exchange package. Sharing is read-only and does not append an export audit row.
+
+
+## HRGC feature 结果（开发分支）
+
+一个项目对应一个原始 MS run。Feature 提取重读外部原文件，验证全量 SHA256、文件大小、物理扫描行、scan ID、spectrum index 和时间；以当前审阅峰顶及前后各一扫描调用独立 `flame-feature-core 0.1.0`。强度阈值 200、支持比例 0.2、10 ppm、m/z 100–1050 固定。只纳入 accepted，显式 QC 时间段按闭区间峰顶时间排除；细胞标签及 MS barcode 不参与提取。
+
+每次成功结果保存为 `features/<opaque result id>/`。保留包原生 `native_matrix.h5ad`（float64、NaN）、feature 轴、事件行、质量信息与代表点；另附原始 v2 `source_events/` 和含所有事件排除原因的 `event_inclusion.parquet`。`execution_record.json` 记录原始来源、逐事件版本、依赖、固定参数、QC 段、适配器哈希与所有产物哈希。项目 manifest 和 SQLite 审阅不改动，不把预测写成 accepted。
+
+计算在可终止子进程中进行，临时输出位于项目外；保存前复核审阅绑定，经同卷原子发布进入项目。失败/取消无部分结果，旧结果保留。事件改变后旧结果显示过期；损坏历史结果单独报不可用，不阻断新提取。导出严格复核哈希并拒绝覆盖目标，项目 ZIP 自动包含完整 feature 结果。
+
+浏览器沿用原生文件/目录 capability：`GET /api/features` 返回计数、结果与绑定；`POST /api/features/extract` 接收 source_token、binding、qc_intervals（字符串分钟对）；`POST /api/features/export` 接收 result_id、target_token。两种 POST 返回既有 job，提取可取消；同会话提取与审阅/范围修改互斥。接口不暴露本机绝对路径。
+
+本轮不合并多个项目的特征轴。单 run 验证通过不等于五套研究矩阵复现；多 run 必须一次组轴，不能直接按列拼接各项目矩阵。LMA 后续以同一事件 ID 与版本接入矩阵，再保存预处理/UMAP 参数和坐标；UMAP 不属于 HRGC 原始矩阵。

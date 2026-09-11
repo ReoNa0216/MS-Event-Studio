@@ -10,6 +10,7 @@ from PyInstaller.utils.hooks import (
     collect_data_files,
     collect_dynamic_libs,
     collect_submodules,
+    copy_metadata,
 )
 
 
@@ -36,6 +37,8 @@ datas = [
 ]
 datas += collect_data_files("webview", subdir="lib")
 datas += collect_data_files("webview", subdir="js")
+for package in ("flame-ms-core", "flame-feature-core", "numpy", "pandas", "numba", "anndata", "h5py", "pyarrow"):
+    datas += copy_metadata(package)
 # Cocoa/WebKit is supplied by macOS.  Keep pywebview's shared JS bridge, but
 # do not put Android or Windows runtime payloads inside the ARM64 app bundle.
 datas = [
@@ -49,9 +52,12 @@ datas = [
 binaries = []
 binaries += collect_dynamic_libs("pyarrow")
 binaries += collect_dynamic_libs("scipy")
+binaries += collect_dynamic_libs("llvmlite")
+binaries += collect_dynamic_libs("h5py")
 
 hiddenimports = []
 hiddenimports += collect_submodules("flame_ms_core")
+hiddenimports += collect_submodules("flame_feature_core")
 hiddenimports += collect_submodules("pyarrow", filter=production_submodule)
 hiddenimports += collect_submodules("scipy", filter=production_submodule)
 hiddenimports += [
@@ -72,14 +78,13 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
-    hookspath=[],
+    hookspath=[str(repo_root / "packaging/hooks")],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
         "IPython",
         "matplotlib",
         "notebook",
-        "numba",
         "torch",
         "_tkinter",
         "idlelib",

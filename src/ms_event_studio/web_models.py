@@ -27,6 +27,7 @@ class PathRole(str, Enum):
     REVIEW_EXPORT_FILE = "review_export_file"
     AUDIT_EXPORT_PARENT = "audit_export_parent"
     PROJECT_SHARE_PARENT = "project_share_parent"
+    FEATURE_EXPORT_PARENT = "feature_export_parent"
 
     @classmethod
     def parse(cls, value: object) -> "PathRole":

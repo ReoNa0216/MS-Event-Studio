@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
 import sys
 import traceback
 from pathlib import Path
@@ -13,6 +14,8 @@ def _smoke_report_path() -> Path | None:
     except (ValueError, IndexError):
         return None
 
+
+multiprocessing.freeze_support()
 
 try:
     # Phase 2R has one production renderer and no legacy GUI fallback.

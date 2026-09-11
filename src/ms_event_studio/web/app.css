@@ -2284,7 +2284,9 @@ progress::-moz-progress-bar {
   font-weight: var(--font-weight-bold);
 }
 
-.field input {
+.field input,
+#featureDialog .field select,
+#featureDialog .field textarea {
   width: 100%;
   min-width: 0;
   height: var(--control-height);
@@ -2293,6 +2295,12 @@ progress::-moz-progress-bar {
   border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+#featureDialog .field textarea {
+  height: auto;
+  padding-block: var(--space-2);
+  resize: vertical;
 }
 
 .field input:disabled {
@@ -2584,7 +2592,7 @@ body[data-fixture] *::after {
     display: none;
   }
 
-  .app-header__actions .button--header:not(:first-child),
+  .app-header__actions .button--header:not(:first-child):not(#openFeatures),
   .app-header__actions .button--header-primary {
     display: none;
   }

@@ -1,18 +1,12 @@
 # FLAME 任务 1 接入说明
 
-本轮候选使用独立包 `flame-ms-core==0.1.0`，两 Studio 不互相导入产品代码。共用解析、自动 calling、采集时间、身份和交换校验；UI、SQLite、项目保存仍属各 Studio。
+任务 1 正式版使用 `flame-ms-core==0.1.0`。当前 feature 开发分支改用 `0.1.1`，只扩展 PyArrow 24 依赖兼容范围，解析、calling 和 v2 事件合同不变。两 Studio 不互相导入产品代码。
 
 ## 安装与构建
 
-固定来源为 `ReoNa0216/flame-ms-core` 的 `v0.1.0` 私有 release，代码 commit `90f31db270f2aa004220e3e84a6207393c15966e`。wheel SHA256、文件名和来源见 `packaging/flame-ms-core.json`。Windows/Mac 脚本在安装前校验哈希，冻结包收集正式安装的内核。
+当前固定源码见 `packaging/computation.json`：MS core `0899d60`（0.1.1）、feature core `7eb67c0`（0.1.0）。Python 3.11 环境运行 `python scripts/resolve_computation.py`，再安装 `pip install -e .`。解析脚本从相邻 Git 仓库的精确 commit 导出干净源码；没有本地仓库时通过已认证的 GitHub CLI clone。不会安装相邻仓库的未提交改动，也不会创建发布。
 
-本地可用相邻仓库的 `dist/flame_ms_core-0.1.0-py3-none-any.whl`，或设置 `FLAME_MS_CORE_WHEEL` 指向已下载文件。已登录并有读取权限的 GitHub CLI 可执行：
-
-```text
-python scripts/resolve_flame_core.py --download
-```
-
-CI 首选 `FLAME_MS_CORE_WHEEL_BASE64` secret 中的锁定 wheel（仅约 25 KB 的安装产物，不是登录凭据），解码后必须与 checkout 的 SHA256 相同。未配置时仍可用 `FLAME_MS_CORE_READ_TOKEN` 读取私有 release；权限不足明确失败。secret 不会公开安装包源码或写入 Git。最终托管构建与 Mac 真机验收状态以共享交接为准。
+Windows/Mac 构建脚本使用同一来源锁。CI 需要可读取两个私有仓库的 `FLAME_COMPUTATION_READ_TOKEN`（也接受具备相同权限的既有 `FLAME_MS_CORE_READ_TOKEN`）；旧 base64 wheel 流程已删除。平台验收状态见共享交接。
 
 ## 事件传递
 
@@ -32,7 +26,7 @@ v0.4.0+ 项目加载沿用已保存事件、配对、标签、模型、名单顺
 
 新建独立分析使用共用 caller，得到稳定自动来源身份。旧 LMA 用扫描间隔近似计算峰宽，新核用实际采集时间；新分析不能覆盖历史投稿结果。±15 ppm 人工名单支持通道保留，自动 primary 使用 ±12 ppm，二者不合并。
 
-任务 2 等待专门数据，仅未来验收 label-correct；人工标签不是独立真值。标签与 feature 按事件 ID 并行产出。LIF→MS 采集时间对齐 QC 与跨批参照细胞不同，FLAME 没有色谱保留时间。HSC 特定参数不作为通用默认。测量、背景/质量证据、置信度、算法表示、化学注释和 metabolic state 分别表达。任务 3 可由 Linux 继续；任务 4 只保留接口，未实现自动标签或批次校正模型。
+任务 2 等待专门数据，仅未来验收 label-correct；人工标签不是独立真值。标签与 feature 按事件 ID 并行产出。LIF→MS 采集时间对齐 QC 与跨批参照细胞不同，FLAME 没有色谱保留时间。HSC 特定参数不作为通用默认。测量、背景/质量证据、置信度、算法表示、化学注释和 metabolic state 分别表达。任务 3 由 Windows 先接入 MS，LMA 矩阵及原生 UMAP 延后；任务 4 只保留接口，未实现自动标签或批次校正模型。
 
 ## 验收证据
 

@@ -148,7 +148,7 @@ class PackagingContractTest(unittest.TestCase):
     def test_pywebview_is_pinned_for_both_native_builds_and_web_assets_are_package_data(self):
         repository = Path(__file__).resolve().parents[1]
         project = tomllib.loads((repository / "pyproject.toml").read_text(encoding="utf-8"))
-        self.assertEqual(project["project"]["version"], "0.5.0")
+        self.assertEqual(project["project"]["version"], "0.6.0.dev1")
         self.assertEqual(__version__, project["project"]["version"])
         self.assertEqual(project_application_version(repository), __version__)
         self.assertIn("pywebview==6.2.1", project["project"]["optional-dependencies"]["packaging"])

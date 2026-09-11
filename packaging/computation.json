@@ -1,0 +1,12 @@
+{
+  "flame-ms-core": {
+    "repository": "ReoNa0216/flame-ms-core",
+    "commit": "0899d608996049bc110d5270eb43fb77d4cf82de",
+    "version": "0.1.1"
+  },
+  "flame-feature-core": {
+    "repository": "ReoNa0216/flame-feature-core",
+    "commit": "7eb67c0c94b9757f7dd261c0e256d4218bd59bfd",
+    "version": "0.1.0"
+  }
+}
