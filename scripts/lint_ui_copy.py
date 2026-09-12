@@ -10,6 +10,7 @@ from typing import Iterable
 
 
 FORBIDDEN_UI_TERMS = (
+    "·",
     "人用",
     "machine contract",
     "SQLite",

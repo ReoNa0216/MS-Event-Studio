@@ -24,7 +24,7 @@ import uuid
 
 from . import __version__
 from .runtime_smoke import packaged_scientific_smoke
-from .web_app import create_http_server
+from .web_app import create_http_server, default_recent_path
 
 
 APP_DISPLAY_NAME = "MS Event Studio"
@@ -215,20 +215,11 @@ def schedule_per_monitor_minimum_sync(window: Any) -> None:
 
 
 def user_state_dir() -> Path:
-    override = os.environ.get("MS_EVENT_STUDIO_CONFIG_DIR")
-    if override:
-        return Path(override).expanduser().resolve()
-    if sys.platform == "win32":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local"))
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library/Application Support"
-    else:
-        base = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
-    return base / APP_DISPLAY_NAME
+    return default_recent_path().parent
 
 
 def recent_projects_path() -> Path:
-    return user_state_dir() / "recent_projects.json"
+    return default_recent_path()
 
 
 def configure_logging() -> Path:
@@ -487,7 +478,7 @@ def check_webview_runtime(*, webview_module: Any | None = None) -> dict[str, Any
         webview_module.settings["ALLOW_DOWNLOADS"] = False
         webview_module.settings["SHOW_DEFAULT_MENUS"] = False
         window = webview_module.create_window(
-            f"{APP_DISPLAY_NAME} · Smoke",
+            f"{APP_DISPLAY_NAME} Smoke",
             server.capability_url,
             width=960,
             height=640,

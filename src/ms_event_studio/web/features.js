@@ -5,17 +5,19 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
   const error = (text = '') => { el('featureError').textContent = text; el('featureError').hidden = !text; };
   function controls() {
     const hasResult = Boolean(overview?.results.some((r) => r.result_id === el('featureResults').value));
+    const hasCurrent = Boolean(overview?.results.some((r) => r.current));
     el('featureSource').disabled = busy;
     el('featureQc').disabled = busy;
-    el('featureStart').disabled = busy || !source || !overview?.accepted;
+    el('featureStart').disabled = busy || !overview?.accepted;
     el('featureResults').disabled = busy;
-    el('featureStart').textContent = hasResult ? '重新提取' : '开始提取';
+    el('featureStart').textContent = overview?.accepted && !source ? '定位原文件并提取…' : hasResult ? '重新提取' : '开始提取';
     el('featureCancel').hidden = !busy;
     el('featureCancel').disabled = !cancelAllowed;
     el('featureClose').disabled = busy;
     el('featureProgressRegion').hidden = !busy;
     el('featureFooterHint').textContent = busy ? (cancelAllowed ? '正在提取，可取消。' : '正在处理，请稍候。')
-      : hasResult ? '当前有效矩阵可在「导出分析结果」中勾选导出。' : '提取完成后自动保存在项目中。';
+      : !source && overview?.accepted ? (hasCurrent ? '重新计算需要原始文件；当前有效矩阵仍可导出。' : '选择原始文件后开始提取，完成后自动保存。')
+        : hasCurrent ? '当前有效矩阵可在「导出分析结果」中勾选导出。' : '提取完成后自动保存在项目中。';
   }
   function summary() {
     const row = overview?.results.find((r) => r.result_id === el('featureResults').value);
@@ -41,7 +43,7 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
     if (!source) {
       const located = overview.source?.selection;
       source = located ? { selectionToken: located.selection_token, displayName: located.display_name } : null;
-      el('featureSourceName').textContent = source?.displayName || overview.source?.name || '尚未定位';
+      el('featureSourceName').textContent = source?.displayName || (overview.source?.name ? `待定位：${overview.source.name}` : '尚未定位原文件');
       const help = { located: '已定位原始文件；提取时会核验文件内容。', unlocated: '本机尚未记录文件位置，请定位一次。',
         missing: '原始文件已移动或不可读取，请重新定位。', changed: '此位置的文件与项目记录不符，请重新定位原始文件。' };
       el('featureSourceHelp').textContent = help[overview.source?.status] || help.unlocated;
@@ -54,7 +56,7 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
     for (const [i, row] of overview.results.entries()) {
       const option = document.createElement('option');
       option.value = row.result_id;
-      option.textContent = `${i === 0 ? '最近结果' : '此前结果 ' + i} · ${row.events} × ${row.features}${row.current ? '' : ' · 事件已变化'}`;
+      option.textContent = `${i === 0 ? '最近结果' : '此前结果 ' + i}：${row.events} × ${row.features}${row.current ? '' : '（事件已变化）'}`;
       select.append(option);
     }
     if (overview.results.some((r) => r.result_id === previous)) select.value = previous;
@@ -126,16 +128,22 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
     poll();
   }
   el('openFeatures').addEventListener('click', () => open());
+  async function locateSource() {
+    el('featureProgressText').textContent = '请选择原始 MS 文件…';
+    el('featureProgress').removeAttribute('value');
+    const selected = await selectPath('source_file');
+    if (!selected) return false;
+    source = selected; el('featureSourceName').textContent = selected.displayName;
+    el('featureSourceHelp').textContent = '提取时会核验文件内容；成功后记住本机位置。';
+    el('featureSource').textContent = '重新定位…'; error(); summary();
+    return true;
+  }
   el('featureSource').addEventListener('click', async () => {
+    busy = true; controls();
     try {
-      const selected = await selectPath('source_file');
-      if (selected) {
-        source = selected; el('featureSourceName').textContent = selected.displayName;
-        el('featureSourceHelp').textContent = '提取时会核验文件内容；成功后记住本机位置。';
-        el('featureSource').textContent = '重新定位…'; error(); summary();
-      }
+      await locateSource();
     } catch (e) { error(e.message); }
-    controls();
+    finally { busy = false; controls(); el('featureSource').focus(); }
   });
   el('featureStart').addEventListener('click', async () => {
     error();
@@ -147,8 +155,11 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
       intervals.push([match[1], match[2]]);
     }
     busy = true; controls(); el('featureMessage').textContent = '';
-    try { begin(await post('/api/features/extract', { source_token: source.selectionToken, binding: overview.binding, qc_intervals: intervals })); }
-    catch (e) { busy = false; error(e.message); controls(); }
+    try {
+      if (!source && !await locateSource()) { busy = false; controls(); el('featureStart').focus(); return; }
+      begin(await post('/api/features/extract', { source_token: source.selectionToken, binding: overview.binding, qc_intervals: intervals }));
+    }
+    catch (e) { busy = false; error(e.message); controls(); el('featureStart').focus(); }
   });
   el('featureResults').addEventListener('change', () => { summary(); controls(); });
   el('featureCancel').addEventListener('click', async () => {

@@ -148,21 +148,21 @@ def evidence_lines(
     except (TypeError, ValueError):
         apex_min = None
     lines = [
-        f"状态：{STATUS_LABELS.get(status, status)}  ·  来源：{ORIGIN_LABELS.get(origin, origin)}",
+        f"状态：{STATUS_LABELS.get(status, status)}；来源：{ORIGIN_LABELS.get(origin, origin)}",
         f"扫描编号：{event.get('current_scan_id', '—')}",
         f"峰顶时间：{_fmt(apex_min)} min  ({_fmt(apex_sec)} s)",
         (
-            f"主 marker：强度 {_fmt(event.get('current_apex_intensity'))}  ·  "
-            f"m/z {_fmt(scan.get('primary_marker_mz_at_max_intensity'), 9)}  ·  "
+            f"主 marker：强度 {_fmt(event.get('current_apex_intensity'))}；"
+            f"m/z {_fmt(scan.get('primary_marker_mz_at_max_intensity'), 9)}；"
             f"误差 {_fmt(scan.get('primary_marker_ppm_error_at_max_intensity'))} ppm"
         ),
-        f"质量对照 marker：{_fmt(scan.get('qc_marker_max_intensity'))}  ·  TIC：{_fmt(scan.get('tic'))}",
+        f"质量对照 marker：{_fmt(scan.get('qc_marker_max_intensity'))}；TIC：{_fmt(scan.get('tic'))}",
     ]
     if automatic:
         lines.extend(
             (
                 (
-                    f"峰形：显著度 {_fmt(automatic.get('peak_prominence'))}  ·  "
+                    f"峰形：显著度 {_fmt(automatic.get('peak_prominence'))}；"
                     f"宽度 {_fmt(automatic.get('peak_width_sec'))} s"
                 ),
                 (

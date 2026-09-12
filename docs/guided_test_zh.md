@@ -3,7 +3,7 @@
 使用本机 `dist` 测试版，先用 `studio-validation/MPP/` 中的完整项目副本，约 5–10 分钟。不要在原始研究项目上试写操作；Release 待人工确认后发布。
 
 1. 启动 MS 的 `dist/windows/MS-Event-Studio/MS-Event-Studio.exe`，打开父工作区 `studio-validation/MPP/MS`。
-2. 打开“Feature 提取”，确认有 1,023 个已保留事件及可用原始文件。若本机尚未记住旧项目文件位置，只需定位一次 `HSC1_data/Lin-_MPP.txt`。保持默认设置，点击“开始提取 / 重新提取”；预计得到 1,023 × 3,549 的矩阵。
+2. 打开“Feature 提取”，确认有 1,023 个已保留事件及可用原始文件。保持默认设置，点击“重新提取”；预计得到 1,023 × 3,549 的矩阵。如果显示“定位原文件并提取…”，直接点击并选择 `HSC1_data/Lin-_MPP.txt` 即可继续；取消选择不会启动提取。
 3. 进入“导出结果 → 导出分析结果”，勾选包含矩阵，保存 ZIP。此次无需纯事件包入口，也无需另导坐标 CSV。
 4. 启动 LMA 的 `dist/LMAStudio/LMAStudio.exe`，打开 `studio-validation/MPP/LMA`。在“配置 → 矩阵与原生 UMAP”导入刚才的 ZIP，确认事件和 feature 数相同。
 5. 点击“计算 / 重新计算 UMAP”。完成后关闭配置、点顶部“UMAP”；切换“采集时间 / 人工标注”着色。应有 1,023 个点，人工标注均为未标注。

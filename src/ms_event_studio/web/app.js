@@ -414,7 +414,7 @@ function renderWorkspaceHeader() {
   setText("headerProjectRange", formatRange(project.analysisRange));
   setText(
     "projectMarkerSummary",
-    `主 marker ${project.primaryMarkerMz.toFixed(4)} m/z · 相邻提示 < ${project.collisionGapSec.toFixed(2)} s`,
+    `主 marker ${project.primaryMarkerMz.toFixed(4)} m/z；相邻提示 < ${project.collisionGapSec.toFixed(2)} s`,
   );
 }
 
@@ -494,7 +494,7 @@ function renderWorkspaceSelection() {
   setText("selectedApexTime", event.apexTimeMin.toFixed(3));
   setText("selectedStatusBadge", event.statusLabel);
   element("selectedStatusBadge").dataset.eventStatus = event.status;
-  setText("selectedOrigin", `${event.originLabel}${event.apexModified ? " · 峰顶已调整" : ""}`);
+  setText("selectedOrigin", `${event.originLabel}${event.apexModified ? "（峰顶已调整）" : ""}`);
   renderReviewDecision(event);
   renderCoreEvidence();
   element("restoreAutomaticSection").hidden = !event.canRestoreAutomaticApex;
@@ -515,7 +515,7 @@ function renderFilterOptions() {
       return;
     }
     option.hidden = false;
-    option.textContent = `${filter.label} · ${filter.count}`;
+    option.textContent = `${filter.label}（${filter.count}）`;
   });
   select.value = state.workspaceFilter;
 }
@@ -540,7 +540,7 @@ function createEventListButton(event) {
   const time = document.createElement("strong");
   time.textContent = `${event.apexTimeMin.toFixed(3)} min`;
   const status = document.createElement("small");
-  status.textContent = `${event.statusLabel} · ${event.originLabel}`;
+  status.textContent = `${event.statusLabel}（${event.originLabel}）`;
   copy.append(time, status);
   button.append(marker, copy);
   button.addEventListener("click", () => selectWorkspaceEvent(event.eventToken));
@@ -744,12 +744,12 @@ function renderSignalPlot() {
   renderPlotLegend();
   element("plotEmpty").hidden = state.workspace.window.eventOverlay.length > 0;
   const viewport = state.workspace.window.viewport;
-  setText("plotWindowSummary", `${viewport.start_min.toFixed(3)}–${viewport.end_min.toFixed(3)} min · ${state.workspaceScale === "log" ? "对数" : "线性"}`);
+  setText("plotWindowSummary", `${viewport.start_min.toFixed(3)}–${viewport.end_min.toFixed(3)} min，${state.workspaceScale === "log" ? "对数" : "线性"}`);
 }
 
 function formatEditPoint(point) {
   if (!point) return "—";
-  return `${point.timeMin.toFixed(3)} min · ${workspaceNumber(point.intensity)}`;
+  return `${point.timeMin.toFixed(3)} min，强度 ${workspaceNumber(point.intensity)}`;
 }
 
 function renderEventEditOverlay(geometry) {
@@ -861,7 +861,7 @@ function renderEventEdit() {
   element("editCandidateFact").hidden = !hasCandidate;
   element("editChangeFact").hidden = !hasCandidate;
   setText("editCandidate", hasCandidate
-    ? `${formatEditPoint(edit.candidate)} · 偏移 ${edit.candidate.offsetSec >= 0 ? "+" : ""}${edit.candidate.offsetSec.toFixed(3)} s`
+    ? `${formatEditPoint(edit.candidate)}, 偏移 ${edit.candidate.offsetSec >= 0 ? "+" : ""}${edit.candidate.offsetSec.toFixed(3)} s`
     : "");
   if (hasCandidate) {
     const before = edit.change?.before;
@@ -1772,7 +1772,7 @@ function renderExportFlow() {
     for (const [i, row] of (flow.featureOverview?.results.filter(row => row.current) || []).entries()) {
       const option = document.createElement("option");
       option.value = row.result_id;
-      option.textContent = `${i === 0 ? '最近结果' : '此前结果 ' + i} · ${row.events} × ${row.features}${row.current ? '' : ' · 事件已变化'}`;
+      option.textContent = `${i === 0 ? '最近结果' : '此前结果 ' + i}：${row.events} × ${row.features}${row.current ? '' : '（事件已变化）'}`;
       select.append(option);
     }
     select.value = flow.featureResultId || '';

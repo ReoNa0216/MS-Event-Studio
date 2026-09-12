@@ -129,13 +129,13 @@ def default_recent_path() -> Path:
 
     override = os.environ.get("MS_EVENT_STUDIO_CONFIG_DIR")
     if override:
-        root = Path(override)
+        root = Path(override).expanduser().resolve()
     elif sys.platform == "win32":
-        root = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming")) / APP_NAME
+        root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData/Local")) / APP_NAME
     elif sys.platform == "darwin":
         root = Path.home() / "Library/Application Support" / APP_NAME
     else:
-        root = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "ms-event-studio"
+        root = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / APP_NAME
     return root / "recent_projects.json"
 
 

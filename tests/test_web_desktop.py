@@ -102,6 +102,28 @@ class _Server:
 
 
 class WebViewPathDialogTest(unittest.TestCase):
+    def test_native_and_default_sessions_share_local_source_locations(self):
+        from ms_event_studio.web_app import WebSession, default_recent_path
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            source = root / 'raw.txt'
+            source.write_text('verified-source-fixture')
+            with mock.patch.dict(desktop.os.environ, {
+                'LOCALAPPDATA': str(root / 'local'), 'APPDATA': str(root / 'roaming'),
+                'USERPROFILE': str(root),
+            }, clear=True), mock.patch.object(desktop.sys, 'platform', 'win32'):
+                self.assertEqual(default_recent_path(), root / 'local' / 'MS Event Studio' / 'recent_projects.json')
+                self.assertEqual(desktop.recent_projects_path(), default_recent_path())
+                self.assertEqual(desktop.user_state_dir(), default_recent_path().parent)
+                browser_session = WebSession()
+                browser_session._sources.remember('verified-fingerprint', source)
+                browser_session.close()
+                native_session = WebSession(recent_path=desktop.recent_projects_path())
+                try:
+                    self.assertEqual(native_session._sources.get('verified-fingerprint'), source.resolve())
+                finally:
+                    native_session.close()
+
     def test_dialog_supports_narrow_native_path_roles(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             selected = str(Path(tmp) / "source.txt")
