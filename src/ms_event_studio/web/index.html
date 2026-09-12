@@ -611,18 +611,39 @@
   </dialog>
 
   <dialog id="featureDialog" class="modal" aria-modal="true" aria-labelledby="featureTitle" aria-describedby="featureDescription">
-    <div class="modal__surface modal__surface--operation" tabindex="-1">
-      <header class="modal__header"><div><p class="modal__eyebrow">细胞代谢矩阵</p><h2 id="featureTitle">Feature 提取</h2><p id="featureDescription">用改进版 HRGC 提取当前项目，保留原始强度与缺失值。</p></div></header>
-      <div class="modal__body operation-modal__body">
-        <section class="operation-summary"><strong id="featureAccepted">正在读取项目…</strong><p>只使用已保留事件及审阅后的峰顶。参数固定：强度阈值 200、支持比例 0.2、10 ppm、峰顶前后各一扫描、m/z 100–1050。</p></section>
-        <section class="export-target"><div class="operation-heading"><h3>原始 MS 文件</h3><button id="featureSource" class="button button--secondary" type="button">选择文件…</button></div><div class="selection-readout"><span class="selection-readout__icon selection-readout__icon--file" aria-hidden="true"></span><div><strong id="featureSourceName">尚未选择</strong></div></div></section>
-        <label class="field" for="featureQc"><span>排除 QC 时间段（min，可选）</span><textarea id="featureQc" rows="2" placeholder="每行一段，例如 0–2；无 QC 留空" aria-describedby="featureQcHelp"></textarea></label>
-        <p id="featureQcHelp">按峰顶时间排除。请填入实际 QC 段，其他未确定类别的细胞事件仍保留。</p>
+    <div class="modal__surface modal__surface--feature" tabindex="-1">
+      <header class="modal__header"><div><h2 id="featureTitle">Feature 提取</h2><p id="featureDescription">从已保留的 MS 事件生成「事件 × feature」强度矩阵。</p></div></header>
+      <div class="modal__body feature-body">
+        <div class="feature-columns">
+          <section class="feature-input" aria-labelledby="featureInputTitle">
+            <div><h3 id="featureInputTitle">提取设置</h3><p id="featureAccepted" class="feature-help">正在读取项目…</p></div>
+            <div>
+              <div class="operation-heading"><span>原始 MS 文件</span><button id="featureSource" class="button button--secondary" type="button" aria-describedby="featureSourceHelp">选择文件…</button></div>
+              <div class="selection-readout"><span class="selection-readout__icon selection-readout__icon--file" aria-hidden="true"></span><div><strong id="featureSourceName">尚未选择</strong></div></div>
+              <p id="featureSourceHelp" class="feature-help">选择创建本项目时使用的原始文件。</p>
+            </div>
+            <div>
+              <label class="field" for="featureQc"><span>排除 QC 时间段（可选，min）</span><textarea id="featureQc" rows="2" placeholder="例如 0–2；多段分行填写" aria-describedby="featureQcHelp"></textarea></label>
+              <p id="featureQcHelp" class="feature-help">排除峰顶落在这些时间段内的事件；无 QC 留空。</p>
+            </div>
+            <details class="feature-method"><summary>方法与固定参数 · HRGC</summary><p>使用审阅后的峰顶及前后各一扫描。强度阈值 200，支持比例 0.2，10 ppm，m/z 100–1050。</p><p>保留原始强度；缺失值为 NaN，不填 0。</p></details>
+          </section>
+          <section class="feature-result" aria-labelledby="featureResultTitle">
+            <h3 id="featureResultTitle">提取结果</h3>
+            <label id="featureResultPicker" class="field" for="featureResults"><span>已保存结果</span><select id="featureResults"></select></label>
+            <p id="featureEmpty" class="feature-help">尚未提取。选择原始文件后点击「开始提取」。</p>
+            <div id="featureResultDetails" hidden>
+              <dl class="feature-metrics"><div><dt>事件数</dt><dd id="featureEventCount">—</dd></div><div><dt>Feature 数</dt><dd id="featureFeatureCount">—</dd></div><div><dt>缺失比例</dt><dd id="featureMissing">—</dd></div></dl>
+              <p id="featureSummary" class="feature-result-status"></p>
+              <p id="featureSavedQc" class="feature-help"></p>
+            </div>
+            <div class="feature-export-help"><strong>需要单独使用结果？</strong><p>点击底部「导出 ZIP…」，选择保存文件夹。</p><p>ZIP 包含矩阵（H5AD）、feature 信息和对应事件记录。</p></div>
+          </section>
+        </div>
         <section id="featureProgressRegion" tabindex="-1" class="operation-progress" role="status" aria-live="polite" hidden><span id="featureProgressText">正在准备…</span><progress id="featureProgress" max="1" aria-label="Feature 处理进度"></progress></section>
-        <section><h3>已保存的结果</h3><label class="field" for="featureResults"><span>选择结果</span><select id="featureResults"></select></label><p id="featureSummary">暂无提取结果。</p><button id="featureExport" class="button button--secondary" type="button" disabled>导出矩阵及溯源…</button></section>
-        <p id="featureMessage" role="status" aria-live="polite"></p><p id="featureError" class="operation-error" role="alert" hidden></p>
+        <p id="featureMessage" class="feature-message" role="status" aria-live="polite"></p><p id="featureError" class="operation-error" role="alert" hidden></p>
       </div>
-      <footer class="modal__footer"><p>完成后自动保存在项目中。</p><div class="modal__actions"><button id="featureClose" class="button button--secondary" type="button">关闭</button><button id="featureCancel" class="button button--secondary" type="button" hidden>取消任务</button><button id="featureStart" class="button button--primary" type="button" disabled>开始提取</button></div></footer>
+      <footer class="modal__footer feature-footer"><p id="featureFooterHint">结果随项目自动保存，重开后可继续导出。</p><div class="modal__actions"><button id="featureClose" class="button button--secondary" type="button">关闭</button><button id="featureCancel" class="button button--secondary" type="button" hidden>取消提取</button><button id="featureStart" class="button button--primary" type="button" disabled>开始提取</button><button id="featureExport" class="button button--secondary" type="button" disabled>导出 ZIP…</button></div></footer>
     </div>
   </dialog>
 

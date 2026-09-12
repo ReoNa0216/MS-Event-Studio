@@ -376,5 +376,8 @@ def export_result(project, identity, parent):
                 archive.write(resolve_project_path(folder, item), item)
         read_result(project, identity, verify=True)
         # hard-link publication is atomic and refuses any existing target.
-        os.link(temp, destination)
+        try:
+            os.link(temp, destination)
+        except FileExistsError as exc:
+            raise FeatureError('该文件夹中已有同名 ZIP，请选择其他保存文件夹。') from exc
     return dict(display_name=name, message='Feature 矩阵及事件溯源已导出。')

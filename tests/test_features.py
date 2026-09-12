@@ -120,7 +120,7 @@ class FeatureTests(unittest.TestCase):
                                           anndata.read_h5ad(direct/'native_matrix.h5ad').X)
             exported = export_result(project, result['result_id'], root)
             self.assertTrue((root/exported['display_name']).is_file())
-            with self.assertRaises(FileExistsError): export_result(project,result['result_id'],root)
+            with self.assertRaisesRegex(FeatureError, '同名 ZIP'): export_result(project,result['result_id'],root)
             with ProjectWindowService.open(project.project_dir) as service:
                 row = service.all_events()[0]
                 service.review_store.set_status(row['event_id'],'pending',expected_revision=row['revision'],actor='test',session_id='test',reason='changed')
