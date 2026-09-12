@@ -96,7 +96,7 @@
         <div class="section-heading">
           <div>
             <h2 id="recentProjectsTitle">最近项目</h2>
-            <p>继续上次的审阅，不显示原始文件位置。</p>
+            <p>按项目名称和路径继续审阅。</p>
           </div>
           <button id="welcomeBrowse" class="button button--text" type="button">浏览其他项目</button>
         </div>
@@ -502,7 +502,7 @@
         </div>
       </div>
       <footer class="modal__footer modal__footer--compact">
-        <p id="openStatus" role="status" aria-live="polite">项目原始路径不会显示在页面中。</p>
+        <p id="openStatus" role="status" aria-live="polite">按项目名称和路径选择项目。</p>
         <div class="modal__actions">
           <button id="openNewProject" class="button button--text" type="button">新建项目</button>
           <button id="shareCurrentProject" class="button button--secondary" type="button" hidden>分享当前项目…</button>
@@ -590,7 +590,7 @@
             <label id="exportFeaturePicker" class="field" for="exportFeatureResults"><span>矩阵结果</span><select id="exportFeatureResults"></select></label>
             <p id="exportFeatureSummary" class="feature-help" role="status"></p>
           </div>
-          <label id="includePendingField" class="check-field" for="includePending"><input id="includePending" type="checkbox" data-qa="export-include-pending"><span>同时包含待定事件</span></label>
+          <label id="includePendingField" class="check-field" for="includePending"><input id="includePending" type="checkbox" data-qa="export-include-pending"><span>事件表（CSV）同时包含待定事件</span></label>
           <p id="exportKindHelp">适合查看已确认的审阅结果。向 LMA Studio 保真传递事件，请选择LMA 事件包。</p>
         </section>
         <section class="export-target" aria-labelledby="exportTargetTitle">
@@ -624,7 +624,7 @@
             <div><h3 id="featureInputTitle">提取设置</h3><p id="featureAccepted" class="feature-help">正在读取项目…</p></div>
             <div>
               <div class="operation-heading"><span>原始 MS 文件</span><button id="featureSource" class="button button--secondary" type="button" aria-describedby="featureSourceHelp">定位文件…</button></div>
-              <div class="selection-readout"><span class="selection-readout__icon selection-readout__icon--file" aria-hidden="true"></span><div><strong id="featureSourceName">尚未选择</strong></div></div>
+              <div class="selection-readout"><span class="selection-readout__icon selection-readout__icon--file" aria-hidden="true"></span><div><strong id="featureSourceName">尚未选择</strong><span id="featureSourcePath" class="project-path"></span></div></div>
               <p id="featureSourceHelp" class="feature-help">正在定位原始文件…</p>
             </div>
             <div>
@@ -635,7 +635,7 @@
           </section>
           <section class="feature-result" aria-labelledby="featureResultTitle">
             <h3 id="featureResultTitle">提取结果</h3>
-            <label id="featureResultPicker" class="field" for="featureResults"><span>已保存结果</span><select id="featureResults"></select></label>
+            <p class="feature-help">显示最近一次完成的提取结果。</p>
             <p id="featureEmpty" class="feature-help">尚未提取。提取完成后可导出矩阵。</p>
             <div id="featureResultDetails" hidden>
               <dl class="feature-metrics"><div><dt>事件数</dt><dd id="featureEventCount">—</dd></div><div><dt>Feature 数</dt><dd id="featureFeatureCount">—</dd></div><div><dt>缺失比例</dt><dd id="featureMissing">—</dd></div></dl>
@@ -644,7 +644,7 @@
             </div>
           </section>
         </div>
-        <section id="featureProgressRegion" tabindex="-1" class="operation-progress" role="status" aria-live="polite" hidden><span id="featureProgressText">正在准备…</span><progress id="featureProgress" max="1" aria-label="Feature 处理进度"></progress></section>
+        <section id="featureProgressRegion" tabindex="-1" class="operation-progress" role="status" aria-live="polite" hidden><span id="featureProgressText">正在准备…</span><span id="featureElapsed" class="feature-help" aria-live="off"></span></section>
         <p id="featureMessage" class="feature-message" role="status" aria-live="polite"></p><p id="featureError" class="operation-error" role="alert" hidden></p>
       </div>
       <footer class="modal__footer feature-footer"><p id="featureFooterHint">提取完成后自动保存在项目中。</p><div class="modal__actions"><button id="featureClose" class="button button--secondary" type="button">关闭</button><button id="featureCancel" class="button button--secondary" type="button" hidden>取消提取</button><button id="featureStart" class="button button--primary" type="button" disabled>开始提取</button></div></footer>

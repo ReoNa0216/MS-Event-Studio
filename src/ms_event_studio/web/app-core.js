@@ -18,6 +18,7 @@ export const API_ENDPOINTS = Object.freeze({
   exportProjectShare: "/api/exports/project-share",
   features: "/api/features",
   exportAnalysis: "/api/exports/analysis",
+  exportLma: "/api/exports/lma",
   exportAuditPackage: "/api/exports/audit-package",
   selectPath: "/api/select-path",
   sourceInspections: "/api/source-inspections",
@@ -250,6 +251,7 @@ export function normalizeBootstrap(value) {
       .map((row) => ({
         projectToken: row.project_token,
         displayName: safeDisplayName(row.display_name, "未命名项目"),
+        displayPath: typeof row.display_path === "string" ? row.display_path : "",
         lastOpened: typeof row.last_opened === "string" ? row.last_opened : "",
       })),
     activeProject: payload.active_project ? normalizeProject(payload.active_project) : null,
@@ -284,8 +286,8 @@ export function emptyCreateState() {
 }
 
 const fixtureRecentProjects = Object.freeze([
-  { project_token: "fixture-recent-a", display_name: "Lin− 重复 01", last_opened: "2026-08-12T09:30:00Z" },
-  { project_token: "fixture-recent-b", display_name: "LSK 批次 07", last_opened: "2026-08-10T14:15:00Z" },
+  { project_token: "fixture-recent-a", display_name: "Lin− 重复 01", display_path: "E:/研究数据/采集与审阅/跨年度项目/完整路径检查/同名项目/工程验收副本/Lin-MPP", last_opened: "2026-08-12T09:30:00Z" },
+  { project_token: "fixture-recent-b", display_name: "LSK 批次 07", display_path: "E:/研究数据/LSK-MS", last_opened: "2026-08-10T14:15:00Z" },
 ]);
 
 function fixtureBootstrap() {

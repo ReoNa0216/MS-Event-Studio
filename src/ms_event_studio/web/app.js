@@ -51,7 +51,6 @@ import {
 } from "./workspace-core.js";
 import {
   RANGE_EXPORT_FIXTURE_IDS,
-  auditExportBody,
   emptyExportFlow,
   emptyRangeFlow,
   estimatedReviewRows,
@@ -63,7 +62,6 @@ import {
   rangeCancelAction,
   rangeCancelBody,
   rangePreviewBody,
-  reviewExportBody,
   validateRangeInput,
 } from "./range-export-core.js";
 
@@ -1511,6 +1509,10 @@ function renderRecentProjects() {
     const welcomeName = document.createElement("span");
     welcomeName.textContent = row.displayName;
     welcomeButton.append(welcomeName);
+    const welcomePath = document.createElement("small");
+    welcomePath.className = "project-path";
+    welcomePath.textContent = row.displayPath;
+    welcomeButton.append(welcomePath);
     welcomeContainer.append(welcomeButton);
 
     const openButton = createRecentButton(row, openProject, "open-project-item");
@@ -1522,7 +1524,8 @@ function renderRecentProjects() {
     const name = document.createElement("strong");
     name.textContent = row.displayName;
     const detail = document.createElement("span");
-    detail.textContent = "最近打开";
+    detail.className = "project-path";
+    detail.textContent = row.displayPath;
     copy.append(name, detail);
     const action = document.createElement("span");
     action.className = "open-project-item__action";
@@ -1644,7 +1647,7 @@ function openCreate({ reset = true } = {}) {
 function openOpen() {
   element("shareCurrentProject").hidden = !state.workspace || Boolean(state.fixture);
   element("shareCurrentProject").disabled = workbenchBusy();
-  setText("openStatus", "项目原始路径不会显示在页面中。");
+  setText("openStatus", "按项目名称和路径选择项目。");
   renderRecentProjects();
   openDialog("open");
 }
@@ -1726,15 +1729,15 @@ function exportKindCopy(kind) {
     ? {
         title: "导出 LMA 事件包",
         overview: "传给 LMA Studio 的事件",
-        help: "保留事件身份、峰顶和全部审阅状态。向 LMA Studio 正式传递事件时，请使用此数据包。",
+        help: "用于 LMA Studio 新建项目。ZIP 保留事件身份、峰顶和全部审阅状态，可同时附带矩阵。",
         target: "选择保存位置…",
-        targetHelp: "应用会在所选位置中创建一个新的数据包文件夹。页面不显示本机路径。",
+        targetHelp: "应用将在所选文件夹中创建 LMA 事件包 ZIP。",
         submit: "导出 LMA 事件包",
       }
     : {
         title: "导出分析结果",
         overview: "本次导出内容",
-        help: "一个 ZIP 包含事件表（CSV）和选定的已提取矩阵（H5AD）。",
+        help: "用于下游分析，包含事件表（CSV）和可选矩阵（H5AD）。传给 LMA 请使用另一导出用途。",
         target: "选择保存位置…",
         targetHelp: "请选择项目外的文件夹，应用将创建一个 ZIP。",
         submit: "导出分析结果",
@@ -1749,7 +1752,7 @@ function renderExportFlow() {
   const errorVisible = flow.state === "error" && Boolean(flow.error);
   const audit = flow.kind === "audit_package";
   const sharing = flow.kind === "project_share";
-  const features = !audit && !sharing;
+  const features = !sharing;
   const analysisReady = Boolean(state.fixture) || Boolean(flow.featureOverview) && !flow.featureLoading;
   const featureRow = flow.featureOverview?.results.find(row => row.result_id === flow.featureResultId);
   const copy = exportKindCopy(flow.kind);
@@ -1757,7 +1760,7 @@ function renderExportFlow() {
   setText("exportTitle", copy.title);
   setText("exportOverviewTitle", copy.overview);
   setText("exportKindHelp", copy.help);
-  element("reviewExportKind").setAttribute("aria-checked", String(features));
+  element("reviewExportKind").setAttribute("aria-checked", String(!audit && !sharing));
   element("auditExportKind").setAttribute("aria-checked", String(audit));
   element("reviewExportKind").disabled = exporting;
   element("auditExportKind").disabled = exporting;
@@ -1769,7 +1772,7 @@ function renderExportFlow() {
   if (features) {
     const select = element("exportFeatureResults");
     select.replaceChildren();
-    for (const [i, row] of (flow.featureOverview?.results.filter(row => row.current) || []).entries()) {
+    for (const [i, row] of (flow.featureOverview?.results.slice(0, 1).filter(row => row.current) || []).entries()) {
       const option = document.createElement("option");
       option.value = row.result_id;
       option.textContent = `${i === 0 ? '最近结果' : '此前结果 ' + i}：${row.events} × ${row.features}${row.current ? '' : '（事件已变化）'}`;
@@ -1778,12 +1781,12 @@ function renderExportFlow() {
     select.value = flow.featureResultId || '';
     const available = flow.featureOverview?.results.filter(row => row.current) || [];
     select.disabled = exporting || success || !flow.includeFeature || !featureRow;
-    element("exportFeaturePicker").hidden = available.length < 2 || !flow.includeFeature;
+    element("exportFeaturePicker").hidden = true;
     element("includeFeatureMatrix").checked = Boolean(flow.includeFeature && featureRow);
     element("includeFeatureMatrix").disabled = exporting || success || !featureRow;
     setText("exportFeatureSummary", flow.featureLoading ? "正在读取已保存矩阵…" : featureRow
-      ? (flow.includeFeature ? `${featureRow.events.toLocaleString()} 个事件 × ${featureRow.features.toLocaleString()} 个 feature。矩阵不包含排除的 QC 和待定事件。` : '本次仅导出事件表。')
-      : flow.featureOverview ? (flow.featureOverview.results.length ? '事件已更新，旧矩阵不随本次导出；如需矩阵，请先重新提取。' : '尚未提取矩阵，本次仅导出事件表。') : "读取失败，请重新选择「导出分析结果」重试。");
+      ? (flow.includeFeature ? `${featureRow.events.toLocaleString()} 个事件 × ${featureRow.features.toLocaleString()} 个 feature。矩阵仅含已保留事件，且排除 QC；待定事件不会加入矩阵。` : '本次仅导出事件表。')
+      : flow.featureOverview ? (flow.featureOverview.results.length ? '事件已更新，旧矩阵不随本次导出；如需矩阵，请先重新提取。' : '尚未提取矩阵，本次仅导出事件表。') : `读取失败，请重新选择「${audit ? "传给 LMA Studio" : "导出分析结果"}」重试。`);
   }
   element("includePending").checked = !audit && flow.includePending;
   element("includePending").disabled = exporting;
@@ -1853,7 +1856,7 @@ async function setExportKind(kind) {
   state.exportFlow.state = "input";
   const flow = state.exportFlow;
   const request = flow.featureRequest = (flow.featureRequest || 0) + 1;
-  if (normalized === "review_results" && !state.fixture) {
+  if (normalized !== "project_share" && !state.fixture) {
     flow.featureLoading = true;
     flow.featureOverview = null;
     flow.featureResultId = '';
@@ -1862,12 +1865,12 @@ async function setExportKind(kind) {
     flow.result = null;
   }
   renderExportFlow();
-  if (normalized !== "review_results" || state.fixture) return;
+  if (normalized === "project_share" || state.fixture) return;
   try {
     const overview = await apiRequest(API_ENDPOINTS.features);
     if (state.exportFlow !== flow || request !== flow.featureRequest) return;
     flow.featureOverview = overview;
-    flow.featureResultId = overview.results.find(row => row.current)?.result_id || '';
+    flow.featureResultId = overview.results.slice(0, 1).find(row => row.current)?.result_id || '';
     flow.includeFeature = Boolean(flow.featureResultId);
     if (overview.unavailable) {
       flow.error = `${overview.unavailable} 个历史结果无法读取；其余结果仍可导出。`;
@@ -1890,7 +1893,7 @@ function openExportFlow(kind = "review_results") {
   renderExportFlow();
   renderWorkspace();
   openDialog("export");
-  if (kind === "review_results") setExportKind(kind);
+  if (kind !== "project_share") setExportKind(kind);
 }
 
 function scheduleOperationPoll(kind) {
@@ -2170,10 +2173,8 @@ async function performRangeCancellation({ pending = false } = {}) {
 async function chooseExportTarget() {
   if (state.fixture || !["input", "error"].includes(state.exportFlow.state)) return;
   const flow = state.exportFlow, kind = flow.kind;
-  if (kind === "review_results" && (!flow.featureOverview || flow.featureLoading)) return;
-  const role = kind === "review_results" ? PATH_ROLES.featureExport : kind === "project_share" ? PATH_ROLES.projectShare : kind === "audit_package"
-    ? PATH_ROLES.auditExport
-    : PATH_ROLES.reviewExport;
+  if (kind !== "project_share" && (!flow.featureOverview || flow.featureLoading)) return;
+  const role = kind === "project_share" ? PATH_ROLES.projectShare : PATH_ROLES.featureExport;
   element("chooseExportTarget").disabled = true;
   try {
     const selection = await selectPath(role);
@@ -2194,7 +2195,7 @@ async function chooseExportTarget() {
 async function submitExport() {
   const flow = state.exportFlow;
   if (state.fixture || !["input", "error"].includes(flow.state) || !flow.target) return;
-  if (flow.kind === "review_results" && (!flow.featureOverview || flow.featureLoading)) return;
+  if (flow.kind !== "project_share" && (!flow.featureOverview || flow.featureLoading)) return;
   clearOperationPoll();
   flow.state = "exporting";
   flow.error = "";
@@ -2204,14 +2205,10 @@ async function submitExport() {
   try {
     const audit = flow.kind === "audit_package";
     const response = await post(
-      flow.kind === "review_results" ? API_ENDPOINTS.exportAnalysis : flow.kind === "project_share" ? API_ENDPOINTS.exportProjectShare : audit ? API_ENDPOINTS.exportAuditPackage : API_ENDPOINTS.exportReviewResults,
-      flow.kind === "review_results" ? { target_token: flow.target.selectionToken, result_id: flow.includeFeature ? flow.featureResultId : null, binding: flow.featureOverview.binding, include_pending: flow.includePending, note: element("exportNote").value } : flow.kind === "project_share" ? { target_token: flow.target.selectionToken } : audit
-        ? auditExportBody(flow.target.selectionToken, element("exportNote").value)
-        : reviewExportBody(
-            flow.target.selectionToken,
-            flow.includePending,
-            element("exportNote").value,
-          ),
+      flow.kind === "review_results" ? API_ENDPOINTS.exportAnalysis : flow.kind === "project_share" ? API_ENDPOINTS.exportProjectShare : audit ? API_ENDPOINTS.exportLma : API_ENDPOINTS.exportReviewResults,
+      flow.kind === "project_share" ? { target_token: flow.target.selectionToken }
+        : { target_token: flow.target.selectionToken, result_id: flow.includeFeature ? flow.featureResultId : null,
+            binding: flow.featureOverview.binding, include_pending: flow.includePending, note: element("exportNote").value },
     );
     applyExportOperationJob(response);
   } catch (error) {
@@ -2406,6 +2403,7 @@ async function selectPath(role) {
   return {
     selectionToken: result.selection_token,
     displayName: safeDisplayName(result.display_name, role === PATH_ROLES.source ? "MS 原始文件" : "项目文件夹"),
+    displayPath: typeof result.display_path === "string" ? result.display_path : "",
   };
 }
 

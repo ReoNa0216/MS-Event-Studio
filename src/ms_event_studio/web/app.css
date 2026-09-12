@@ -2778,3 +2778,12 @@ body[data-fixture] *::after {
     stroke: Highlight;
   }
 }
+
+.project-path { display: block; min-width: 0; max-width: 100%; overflow-wrap: anywhere; white-space: normal; font-size: 12px; line-height: 1.5; color: var(--text-muted, #64748b); }
+.recent-project-button { flex-wrap: wrap; }
+.recent-project-button .project-path { flex-basis: 100%; text-align: left; }
+
+.open-project-item__copy .project-path { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+
+#featureProgressRegion { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+#featureProgressRegion[hidden] { display: none; }

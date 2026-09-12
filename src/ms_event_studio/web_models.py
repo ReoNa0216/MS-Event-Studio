@@ -74,6 +74,7 @@ class SelectionView:
     selection_token: str
     role: PathRole
     display_name: str
+    display_path: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -81,6 +82,7 @@ class SelectionView:
             "selection_token": self.selection_token,
             "role": self.role.value,
             "display_name": self.display_name,
+            "display_path": self.display_path,
         }
 
 
@@ -89,12 +91,14 @@ class RecentProjectView:
     project_token: str
     display_name: str
     last_opened: str
+    display_path: str = ""
 
     def to_dict(self) -> dict[str, str]:
         return {
             "project_token": self.project_token,
             "display_name": self.display_name,
             "last_opened": self.last_opened,
+            "display_path": self.display_path,
         }
 
 

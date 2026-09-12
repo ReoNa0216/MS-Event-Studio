@@ -1,15 +1,14 @@
 // Feature extraction shares the existing native path and background-job boundary.
 export function installFeatures({ get, post, selectPath, openDialog, closeDialog, canOpen }) {
   const el = (id) => document.getElementById(id);
-  let overview = null, source = null, job = null, busy = false, cancelAllowed = false, opening = 0;
+  let overview = null, source = null, job = null, busy = false, cancelAllowed = false, opening = 0, started = 0;
   const error = (text = '') => { el('featureError').textContent = text; el('featureError').hidden = !text; };
   function controls() {
-    const hasResult = Boolean(overview?.results.some((r) => r.result_id === el('featureResults').value));
-    const hasCurrent = Boolean(overview?.results.some((r) => r.current));
+    const hasResult = Boolean(overview?.results.length);
+    const hasCurrent = Boolean(overview?.results[0]?.current);
     el('featureSource').disabled = busy;
     el('featureQc').disabled = busy;
     el('featureStart').disabled = busy || !overview?.accepted;
-    el('featureResults').disabled = busy;
     el('featureStart').textContent = overview?.accepted && !source ? '定位原文件并提取…' : hasResult ? '重新提取' : '开始提取';
     el('featureCancel').hidden = !busy;
     el('featureCancel').disabled = !cancelAllowed;
@@ -20,13 +19,12 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
         : hasCurrent ? '当前有效矩阵可在「导出分析结果」中勾选导出。' : '提取完成后自动保存在项目中。';
   }
   function summary() {
-    const row = overview?.results.find((r) => r.result_id === el('featureResults').value);
+    const row = overview?.results[0];
     el('featureEmpty').hidden = Boolean(row);
     el('featureEmpty').textContent = !overview ? '正在读取项目结果…' : !overview.accepted
       ? '尚无可提取事件，请先返回工作区保留事件。' : source
         ? '尚未提取。点击「开始提取」，完成后可导出矩阵。' : '尚未提取。先定位原始文件，再开始提取。';
     el('featureResultDetails').hidden = !row;
-    el('featureResultPicker').hidden = !overview?.results.length;
     if (!row) return;
     const qc = row.qc_intervals.length ? row.qc_intervals.map(([a, b]) => `${a / 6e10}–${b / 6e10}`).join('、') + ' min' : '无';
     el('featureEventCount').textContent = row.events.toLocaleString();
@@ -42,24 +40,15 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
     overview = response;
     if (!source) {
       const located = overview.source?.selection;
-      source = located ? { selectionToken: located.selection_token, displayName: located.display_name } : null;
+      source = located ? { selectionToken: located.selection_token, displayName: located.display_name, displayPath: located.display_path } : null;
       el('featureSourceName').textContent = source?.displayName || (overview.source?.name ? `待定位：${overview.source.name}` : '尚未定位原文件');
+      el('featureSourcePath').textContent = source?.displayPath || overview.source?.display_path || '尚未记录本机路径';
       const help = { located: '已定位原始文件；提取时会核验文件内容。', unlocated: '本机尚未记录文件位置，请定位一次。',
         missing: '原始文件已移动或不可读取，请重新定位。', changed: '此位置的文件与项目记录不符，请重新定位原始文件。' };
       el('featureSourceHelp').textContent = help[overview.source?.status] || help.unlocated;
       el('featureSource').textContent = source ? '重新定位…' : '定位文件…';
     }
     el('featureAccepted').textContent = overview.accepted ? `${overview.accepted.toLocaleString()} 个已保留事件可用于提取。` : '请先在工作区保留需要提取的事件。';
-    const select = el('featureResults');
-    const previous = selectedId || select.value;
-    select.replaceChildren();
-    for (const [i, row] of overview.results.entries()) {
-      const option = document.createElement('option');
-      option.value = row.result_id;
-      option.textContent = `${i === 0 ? '最近结果' : '此前结果 ' + i}：${row.events} × ${row.features}${row.current ? '' : '（事件已变化）'}`;
-      select.append(option);
-    }
-    if (overview.results.some((r) => r.result_id === previous)) select.value = previous;
     summary(); controls();
     if (overview.unavailable) error(`${overview.unavailable} 个历史结果无法读取；其余结果及新提取仍可使用。`);
     return true;
@@ -68,9 +57,9 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
     if (!canOpen()) return;
     const generation = ++opening;
     overview = null; source = null; error();
-    el('featureResults').replaceChildren();
     summary();
     el('featureSourceName').textContent = '正在定位…';
+    el('featureSourcePath').textContent = '';
     el('featureSourceHelp').textContent = '正在定位原始文件…';
     el('featureQc').value = '';
     el('featureMessage').textContent = '';
@@ -93,8 +82,7 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
         const phases = { reading: '正在读取原始 MS 数据…', extracting: '正在提取 feature，首次运行可能稍久…', validating: '正在保存并检查矩阵…' };
         const message = state.state === 'cancelling' ? '正在取消…' : phases[state.phase] || '正在准备提取…';
         if (el('featureProgressText').textContent !== message) el('featureProgressText').textContent = message;
-        if (state.phase === 'reading') el('featureProgress').value = state.progress.fraction;
-        else el('featureProgress').removeAttribute('value');
+        el('featureElapsed').textContent = `已用 ${Math.floor((Date.now() - started) / 1000)} 秒`;
         controls(); window.setTimeout(poll, 800); return;
       }
       busy = false; job = null; cancelAllowed = false;
@@ -104,7 +92,7 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
           if (!await refresh(state.result?.feature?.result_id, generation)) return;
         } catch (e) {
           if (generation !== opening || !el('featureDialog').open) return;
-          overview = null; el('featureResults').replaceChildren(); summary();
+          overview = null; summary();
           el('featureEmpty').textContent = '结果列表读取失败，请关闭后重新打开。';
           error(`操作已完成，但结果列表刷新失败。请关闭后重新打开：${e.message}`);
         }
@@ -122,6 +110,7 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
     }
   }
   function begin(response) {
+    started = Date.now();
     job = response.job.job_id; cancelAllowed = response.job.cancellable;
     controls();
     (cancelAllowed ? el('featureCancel') : el('featureProgressRegion')).focus();
@@ -130,10 +119,11 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
   el('openFeatures').addEventListener('click', () => open());
   async function locateSource() {
     el('featureProgressText').textContent = '请选择原始 MS 文件…';
-    el('featureProgress').removeAttribute('value');
+    el('featureElapsed').textContent = '';
     const selected = await selectPath('source_file');
     if (!selected) return false;
     source = selected; el('featureSourceName').textContent = selected.displayName;
+    el('featureSourcePath').textContent = selected.displayPath || '';
     el('featureSourceHelp').textContent = '提取时会核验文件内容；成功后记住本机位置。';
     el('featureSource').textContent = '重新定位…'; error(); summary();
     return true;
@@ -154,6 +144,8 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
       if (!match || Number(match[2]) < Number(match[1])) { error('QC 每行填写一段起止分钟数，例如 0–2；无 QC 可留空。'); return; }
       intervals.push([match[1], match[2]]);
     }
+    el('featureProgressText').textContent = '正在准备提取…';
+    el('featureElapsed').textContent = '已用 0 秒';
     busy = true; controls(); el('featureMessage').textContent = '';
     try {
       if (!source && !await locateSource()) { busy = false; controls(); el('featureStart').focus(); return; }
@@ -161,7 +153,6 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
     }
     catch (e) { busy = false; error(e.message); controls(); el('featureStart').focus(); }
   });
-  el('featureResults').addEventListener('change', () => { summary(); controls(); });
   el('featureCancel').addEventListener('click', async () => {
     if (!job || !cancelAllowed) return;
     try { await post(`/api/jobs/${encodeURIComponent(job)}/cancel`, {}); cancelAllowed = false; controls(); }

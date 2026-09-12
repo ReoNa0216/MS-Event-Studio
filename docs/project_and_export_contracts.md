@@ -110,14 +110,14 @@ See [project sharing](project_sharing.md). This copies a complete project for re
 
 计算在可终止子进程中进行，临时输出位于项目外；保存前复核审阅绑定，经同卷原子发布进入项目。失败/取消无部分结果，旧结果保留。事件改变后旧结果显示过期；损坏历史结果单独报不可用，不阻断新提取。导出严格复核哈希并拒绝覆盖目标，项目 ZIP 自动包含完整 feature 结果。
 
-浏览器沿用原生文件/目录 capability：`GET /api/features` 返回计数、结果与绑定；`POST /api/features/extract` 接收 source_token、binding、qc_intervals（字符串分钟对）；`POST /api/features/export` 接收 result_id、target_token。两种 POST 返回既有 job，提取可取消；同会话提取与审阅/范围修改互斥。接口不暴露本机绝对路径。
+浏览器沿用原生文件/目录 capability：`GET /api/features` 返回计数、结果与绑定；`POST /api/features/extract` 接收 source_token、binding、qc_intervals（字符串分钟对）；`POST /api/features/export` 接收 result_id、target_token。两种 POST 返回既有 job，提取可取消；同会话提取与审阅/范围修改互斥。用户要求的最近项目与原始 MS 文件以 display_path 展示本机完整路径；提交仍只接受原生选择器登记的 token，不接受浏览器提交路径。
 
-创建项目或成功提取后，在本机 recent-project 配置旁的 `.sources.json` 文件记录完整 raw SHA256 → 位置。它只用于定位，不进入项目/分享包；写入失败不改变计算结果。打开 Feature 时仅检查存在性与大小，返回文件名和 opaque token，不把 located 当作内容已经校验。实际提取仍完整核验 SHA256 与物理扫描。旧项目没有位置记录时首次定位一次；错误/取消提取不写入新提示。缺失 raw 不影响已有矩阵导出。
+创建项目或成功提取后，在本机 recent-project 配置旁的 `.sources.json` 文件记录完整 raw SHA256 → 位置。它只用于定位，不进入项目/分享包；写入失败不改变计算结果。打开 Feature 时仅检查存在性与大小，返回文件名、本机展示路径和 opaque token，不把 located 当作内容已经校验。实际提取仍完整核验 SHA256 与物理扫描。旧项目没有位置记录时首次定位一次；错误/取消提取不写入新提示。缺失 raw 不影响已有矩阵导出。
 
-矩阵唯一入口为「导出结果 → 导出分析结果」中的可选复选框。一个 `analysis-*.zip` 包含 `events.csv`、`analysis_record.json`，以及选定当前结果的完整 `features/`（含 v2 `source_events/`）。`POST /api/exports/analysis` 使用 binding、可选 result_id、target_token、include_pending 与 note；任务与范围修改互斥，导出前后核验版本，成功仅记一条审计。原始文件缺失不阻止导出，过期矩阵不能与新事件 CSV 混合。Feature 提取窗口只负责计算及结果概览。导出页第二个用途保留 v2「传给 LMA Studio」事件包；完整项目分享入口位于「新建 / 打开 → 分享当前项目…」。
+「导出结果」按用途提供分析结果和 LMA 交接，两者都可附带最近一次且仍有效的矩阵。一个 `analysis-*.zip` 包含 `events.csv`、`analysis_record.json`，以及选定当前结果的完整 `features/`（含 v2 `source_events/`）。`POST /api/exports/analysis` 使用 binding、可选 result_id、target_token、include_pending 与 note；任务与范围修改互斥，导出前后核验版本，成功仅记一条审计。原始文件缺失不阻止导出，过期矩阵不能与新事件 CSV 混合。Feature 提取窗口只负责计算及结果概览。导出页「传给 LMA Studio」通过 `POST /api/exports/lma` 生成 `lma-events-*.zip`：`events/` 保留正式 v2 三文件，`handoff_record.json` 绑定事件 manifest 哈希和可选矩阵记录哈希，`features/` 仅在选择矩阵时加入。LMA 校验交接用途、事件与矩阵一致性；分析 ZIP 不作为 LMA 导入入口。原 v2 文件夹导入仍可用于已发布格式；完整项目分享入口位于「新建 / 打开 → 分享当前项目…」。
 
 本轮不合并多个项目的特征轴。单 run 验证通过不等于五套研究矩阵复现；多 run 必须一次组轴，不能直接按列拼接各项目矩阵。LMA 联合验收候选已按同一事件 ID 与版本接入矩阵，并独立保存预处理/UMAP 参数和坐标；UMAP 不属于 HRGC 原始矩阵。
 
 ## LMA 原生 UMAP
 
-Windows 联合候选可直接接收上述分析 ZIP 的事件与矩阵；用户参考代码、实现差异、旧项目兼容边界及验证记录统一维护在相邻 LMA 仓库的 [接入说明](../../lma-studio/docs/flame_task1.md)。MS 不增加 Scanpy 依赖。共享交接按用户要求待 Windows UAT、双平台 Release 后再同步。
+Windows 联合候选在新建项目中接收 LMA 事件包 ZIP，含矩阵时一并导入，无矩阵也能建项对齐；已有项目的配置入口仅补充或更新同事件、同版本的矩阵。旧保存项目不迁移；用户参考代码、实现差异、旧项目兼容边界及验证记录统一维护在相邻 LMA 仓库的 [接入说明](../../lma-studio/docs/flame_task1.md)。MS 不增加 Scanpy 依赖。共享交接按用户要求待 Windows UAT、双平台 Release 后再同步。

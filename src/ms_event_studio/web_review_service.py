@@ -1370,15 +1370,15 @@ class BrowserWorkspaceService:
             ).to_dict()
 
     def export_analysis_results(self, parent: Path, *, binding: str, result_id: str | None,
-                                include_pending: bool, note: str) -> dict[str, Any]:
+                                include_pending: bool, note: str, handoff: bool = False) -> dict[str, Any]:
         from .analysis_export import export_analysis
         with self._lock:
             self._require_open()
             result = export_analysis(self.project, parent, binding=binding, result_id=result_id,
-                                     include_pending=include_pending)
+                                     include_pending=include_pending, handoff=handoff)
             self._window_service.review_store.record_export(
                 actor=self._actor, session_id=self._session_id, reason=note,
-                details=dict(contract='ms-analysis-export-v1', file_name=result['display_name'],
+                details=dict(contract='ms-lma-handoff-v1' if handoff else 'ms-analysis-export-v1', file_name=result['display_name'],
                              sha256=result['sha256'], row_count=result['row_count'],
                              feature_result_id=result_id, include_pending=include_pending))
             return {key: value for key, value in result.items() if key != 'sha256'}

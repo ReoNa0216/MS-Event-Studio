@@ -83,7 +83,7 @@ def main():
     assert sha256(target / project.manifest['review']['path']) == review_before
     started = time.monotonic()
     exported = export_analysis(project, root, binding=saved['binding'],
-                               result_id=result['result_id'], include_pending=False)
+                               result_id=result['result_id'], include_pending=False, handoff=True)
     export_seconds = time.monotonic() - started
     assert sha256(target / project.manifest['review']['path']) == review_before
     assert snapshot(open_project(target))['binding'] == saved['binding']

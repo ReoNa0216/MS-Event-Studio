@@ -222,6 +222,16 @@ class FeatureTests(unittest.TestCase):
                     self.assertIn('features/native_matrix.h5ad', archive.namelist())
                     self.assertIn('features/source_events/manifest.json', archive.namelist())
                     self.assertEqual(json.loads(archive.read('analysis_record.json'))['event_binding'], before)
+                handoff = wait_job(session, session.start_analysis_export({
+                    'result_id': identity, 'binding': overview['binding'], 'include_pending': False, 'note': '',
+                    'target_token': session.register_path('feature_export_parent', root)['selection_token']}, handoff=True))
+                self.assertEqual(handoff['state'], 'succeeded', handoff)
+                with zipfile.ZipFile(root/handoff['result']['export']['display_name']) as archive:
+                    self.assertNotIn('events.csv', archive.namelist())
+                    metadata = json.loads(archive.read('handoff_record.json'))
+                    self.assertEqual(metadata['schema'], 'ms-lma-handoff-v1')
+                    self.assertEqual(archive.read('events/manifest.json'), archive.read('features/source_events/manifest.json'))
+                    self.assertEqual(metadata['feature_record_sha256'], sha256(project.project_dir/'features'/identity/'execution_record.json'))
                 # A same-size substitution must still fail full-content validation.
                 contents = relocated.read_bytes()
                 changed = contents.replace(b'555.123456789123', b'556.123456789123')
@@ -280,6 +290,12 @@ class FeatureTests(unittest.TestCase):
                 export_analysis(project, root, binding='stale', result_id=None, include_pending=False)
             self.assertEqual(list(root.glob('analysis-*.zip')), [])
             exported = export_analysis(project, root, binding=binding, result_id=None, include_pending=False)
+            handoff = export_analysis(project, root, binding=binding, result_id=None, include_pending=False, handoff=True)
+            with zipfile.ZipFile(root/handoff['display_name']) as archive:
+                self.assertIn('events/events.parquet', archive.namelist())
+                self.assertNotIn('features/native_matrix.h5ad', archive.namelist())
+                self.assertIsNone(json.loads(archive.read('handoff_record.json'))['feature_result_id'])
+
             with zipfile.ZipFile(root/exported['display_name']) as archive:
                 self.assertEqual(set(archive.namelist()), {'events.csv', 'analysis_record.json'})
                 self.assertEqual(json.loads(archive.read('analysis_record.json'))['csv_rows'], 20)

@@ -313,7 +313,8 @@ class WebSession:
             )
             selection = _Selection(token, role, path, label[:120])
             self._selections[token] = selection
-        return SelectionView(token, role, selection.display_name)
+        return SelectionView(token, role, selection.display_name,
+                             str(path) if role in {PathRole.SOURCE_FILE, PathRole.PROJECT_OPEN} else "")
 
     def register_path(self, role: str | PathRole, path: str | Path) -> dict[str, Any]:
         """Register one native-dialog result and return no filesystem path."""
@@ -405,6 +406,7 @@ class WebSession:
                     project_token=selection.selection_token,
                     display_name=display_name,
                     last_opened=row.opened_at,
+                    display_path=str(row.path),
                 )
             )
         summary = None if active is None else self._project_summary(active)
@@ -882,7 +884,7 @@ class WebSession:
                 self._project_mutation_pending = False
             raise
 
-    def start_analysis_export(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+    def start_analysis_export(self, payload: Mapping[str, Any], *, handoff: bool = False) -> dict[str, Any]:
         if not isinstance(payload, Mapping) or set(payload) != {'binding', 'result_id', 'target_token', 'include_pending', 'note'}:
             raise WebBoundaryError('分析结果导出请求不完整。')
         binding = _exact_text(payload, 'binding')
@@ -898,7 +900,7 @@ class WebSession:
             target = self._consume_selection(payload['target_token'], PathRole.FEATURE_EXPORT_PARENT)
             return self._new_job('analysis_export', lambda record: {'export': workspace.export_analysis_results(
                 target.path, binding=binding, result_id=identity,
-                include_pending=payload['include_pending'], note=note)}, cancel_allowed=False)
+                include_pending=payload['include_pending'], note=note, handoff=handoff)}, cancel_allowed=False)
 
     def start_review_export(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(payload, Mapping) or set(payload).difference(
@@ -968,7 +970,8 @@ class WebSession:
                     status = 'located'
             except (OSError, ValueError, WebBoundaryError):
                 status = 'missing'
-        return dict(status=status, name=manifest['source_file_name'], selection=selection)
+        return dict(status=status, name=manifest['source_file_name'], selection=selection,
+                    display_path=str(source) if source is not None else '')
 
     def feature_overview(self) -> dict[str, Any]:
         from .features import overview
@@ -1708,6 +1711,8 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                     return
                 if parsed.path == "/api/exports/analysis":
                     return self._send_json(self.server.session.start_analysis_export(payload), HTTPStatus.ACCEPTED)
+                if parsed.path == "/api/exports/lma":
+                    return self._send_json(self.server.session.start_analysis_export(payload, handoff=True), HTTPStatus.ACCEPTED)
                 if parsed.path == "/api/exports/review-results":
                     self._send_json(
                         self.server.session.start_review_export(payload),
