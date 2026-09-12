@@ -2,11 +2,21 @@
   "flame-ms-core": {
     "repository": "ReoNa0216/flame-ms-core",
     "commit": "0899d608996049bc110d5270eb43fb77d4cf82de",
-    "version": "0.1.1"
+    "version": "0.1.1",
+    "wheel": {
+      "filename": "flame_ms_core-0.1.1-py3-none-any.whl",
+      "sha256": "919cab8a9a7b2fd4ed5c4f6ceffdcaf4cfdc97b1863365c3ce29152e59979c78",
+      "secret": "FLAME_MS_CORE_011_WHEEL_BASE64"
+    }
   },
   "flame-feature-core": {
     "repository": "ReoNa0216/flame-feature-core",
     "commit": "7eb67c0c94b9757f7dd261c0e256d4218bd59bfd",
-    "version": "0.1.0"
+    "version": "0.1.0",
+    "wheel": {
+      "filename": "flame_feature_core-0.1.0-py3-none-any.whl",
+      "sha256": "3977fba91b4d30a301ac1458c19c0404f80e667f13c7dc6e4f0de9829174dd17",
+      "secret": "FLAME_FEATURE_CORE_WHEEL_BASE64"
+    }
   }
 }

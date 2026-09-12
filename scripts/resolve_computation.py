@@ -5,8 +5,11 @@ working trees). Hosted builds need authenticated gh access to both repositories.
 No release is created and no credential is serialized.
 """
 from pathlib import Path
+import base64
+import hashlib
 import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -16,12 +19,30 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def pinned_wheel(lock, work):
+    wheel = lock.get('wheel', {})
+    encoded = os.environ.get(wheel.get('secret', ''), '')
+    if not encoded:
+        return None
+    payload = base64.b64decode(encoded, validate=True)
+    if hashlib.sha256(payload).hexdigest() != wheel['sha256']:
+        raise RuntimeError('Calculation wheel differs from pinned SHA256')
+    target = work / wheel['filename']
+    target.write_bytes(payload)
+    return target
+
+
 def main():
     locks = json.loads((ROOT/'packaging/computation.json').read_text('utf-8'))
     with tempfile.TemporaryDirectory(prefix='flame-build-') as work:
         work = Path(work)
         sources = []
         for package, lock in locks.items():
+            wheel = pinned_wheel(lock, work)
+            if wheel is not None:
+                print(f'{package} {lock["version"]} commit={lock["commit"]} verified wheel', flush=True)
+                sources.append(str(wheel))
+                continue
             checkout = ROOT.parent/package
             if not (checkout/'.git').exists():
                 checkout = work/(package+'-git')

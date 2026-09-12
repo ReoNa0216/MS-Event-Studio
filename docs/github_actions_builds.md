@@ -22,7 +22,7 @@ ZIP，因此文件名不会出现多余的 `v`。
 
 Python 3.11 构建使用 `packaging/computation.json` 固定 `flame-ms-core` 与 `flame-feature-core` 的 commit 和包版本。`scripts/resolve_computation.py` 从干净 Git archive 安装；原 HRGC 源码不复制进产品仓库。Numba 源文件、LLVM、HDF5 和依赖版本元数据进入冻结包，隐藏科学冒烟实际启动子进程提取并重开 H5AD。
 
-Actions 需要 `FLAME_COMPUTATION_READ_TOKEN`，对两个私有计算仓库均有 contents:read。既有 `FLAME_MS_CORE_READ_TOKEN` 若具备相同权限亦可；默认 github.token 通常不能跨私有仓库。源码锁不含凭据。旧 `FLAME_MS_CORE_WHEEL_BASE64` 不再使用。构建脚本失败时不要跳过依赖校验。
+Actions 优先使用 `FLAME_MS_CORE_011_WHEEL_BASE64` 和 `FLAME_FEATURE_CORE_WHEEL_BASE64` 中的固定 wheel，安装前严格校验 `packaging/computation.json` 的 SHA256。两份 wheel 从同一清单的精确 commit 干净 archive 构建，未改变计算源码；secret 保存的是安装包，不是账号 token。未配置 wheel 时仍可用 `FLAME_COMPUTATION_READ_TOKEN`（两个私有计算仓库的 contents:read）取得源码。旧 0.1.0 的 `FLAME_MS_CORE_WHEEL_BASE64` 不适用于当前 0.1.1。构建脚本失败时不要跳过依赖校验。
 
 ## 每个平台实际证明什么
 
