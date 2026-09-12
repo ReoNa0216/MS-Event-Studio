@@ -1,14 +1,14 @@
 # MS Event Studio 当前产品状态
 
-开发分支 `0.6.0.dev1` 已完成 HRGC 提取、原文件自动定位与完整路径显示、提取取消、最近结果概览及按用途导出。分析 ZIP 的待定选项仅作用于 CSV；LMA 事件包保留全部审阅状态，可附当前有效矩阵。QC 排除只依据用户明确填写的时间范围，不由 MS 自动识别。LMA 接入原生 UMAP 与带标签矩阵导出，新建仅保留事件包 ZIP 入口。
+`v0.6.0` 已完成 HRGC 提取、原文件自动定位与完整路径显示、提取取消、最近结果概览及按用途导出。分析 ZIP 的待定选项仅作用于 CSV；LMA 事件包保留全部审阅状态，可附当前有效矩阵。QC 排除只依据用户明确填写的时间范围，不由 MS 自动识别。LMA 接入原生 UMAP 与带标签矩阵导出，新建仅保留事件包 ZIP 入口。
 
-2026-09-12：MS 双平台 CI 完成 189 项测试及打包后的 WebView/HRGC 子进程检查；LMA 自动测试 509 项。108 标准浏览器页面和三项独立审查通过。Windows 桌面测试及最终构件哈希集中在父工作区 `studio-validation/validation.json`。macOS 无可用真机，可见交互验收未完成；正式版仍为 v0.5.0，不把候选自动检查等同正式签收。
+2026-09-12：MS 双平台 CI 完成 189 项测试及打包后的 WebView/HRGC 子进程检查；LMA 自动测试 509 项。108 标准浏览器页面和三项独立审查通过。Windows 桌面测试及最终构件哈希集中在父工作区 `studio-validation/validation.json`。macOS 无可用真机，可见交互验收未完成；2026-09-13 用户授权发布 v0.6.0，macOS 真机验收仍单列跟踪。
 
 此前 Windows 原生检查曾有一次 CLR `0x80131506` 退出，随后可重开；尚未证明根因或根除。该项与当前测试结果分开记录。
 
 完整真实数据回归已通过：MPP 1,023 × 3,549、LSK 1,794 × 2,888、CAR-T-Bez 1,389 × 7,837（事件 × features），均完成提取、分析 ZIP、LMA 接入、原生 UMAP 与重开检查。原项目及矩阵原值保持不变；另有 10 个已有 LMA 项目通过兼容检查。LSK/CAR-T 的批量保留只发生在工程测试副本中，不是人工真值。统一证据为父工作区 `studio-validation/validation.json`，简单人工步骤见 [联合验收](guided_test_zh.md)。
 
-当前正式版本：[`v0.5.0`](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.5.0)
+当前正式版本：[`v0.6.0`](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.6.0)
 
 任务 1 正式版本：`0.5.0`。解析/calling 已接入固定版本 `flame-ms-core 0.1.0`，
 正式事件包升级为供 LMA 导入的 v2，界面名称统一为“LMA 事件包”。原审阅与保存语义保持；见 [接入说明](flame_task1.md)。
