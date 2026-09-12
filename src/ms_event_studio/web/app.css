@@ -2779,7 +2779,7 @@ body[data-fixture] *::after {
   }
 }
 
-.project-path { display: block; min-width: 0; max-width: 100%; overflow-wrap: anywhere; white-space: normal; font-size: 12px; line-height: 1.5; color: var(--text-muted, #64748b); }
+.project-path { display: block; min-width: 0; max-width: 100%; overflow-wrap: anywhere; white-space: normal; font-size: 12px; line-height: 1.5; color: var(--color-text-muted); }
 .recent-project-button { flex-wrap: wrap; }
 .recent-project-button .project-path { flex-basis: 100%; text-align: left; }
 

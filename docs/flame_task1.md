@@ -12,7 +12,7 @@ Windows/Mac 构建脚本使用同一来源锁。CI 需要可读取两个私有�
 
 项目 ZIP 与事件包用途不同，见[项目分享](project_sharing.md)。
 
-MS Event Studio 导出“LMA 事件包”，LMA 新建项目选择“LMA 事件包”，提供原 MS 文件和 LIF 输入。CSV 审阅结果供人阅读；正式传递必须完整包，不能手改列名替代。
+MS Event Studio 选择“传给 LMA Studio”导出独立交接 ZIP（可附矩阵），LMA 新建项目选择“LMA 事件包 ZIP（可含矩阵）”，提供原 MS 文件和 LIF 输入。CSV 审阅结果供人阅读；正式传递必须完整包，不能手改列名替代。
 
 v2 包包含 `events.parquet`、`manifest.json`、`checksums.sha256`。完整合同见内核 `docs/event-package-v2.md`。原始自动身份包含 raw SHA、方法版本和 generation；当前事件身份、修订、原始及当前 scan/时间/支持窗、审阅状态分别保留。两个 Studio 的项目 UUID 可不同。
 
@@ -26,8 +26,8 @@ v0.4.0+ 项目加载沿用已保存事件、配对、标签、模型、名单顺
 
 新建独立分析使用共用 caller，得到稳定自动来源身份。旧 LMA 用扫描间隔近似计算峰宽，新核用实际采集时间；新分析不能覆盖历史投稿结果。±15 ppm 人工名单支持通道保留，自动 primary 使用 ±12 ppm，二者不合并。
 
-任务 2 等待专门数据，仅未来验收 label-correct；人工标签不是独立真值。标签与 feature 按事件 ID 并行产出。LIF→MS 采集时间对齐 QC 与跨批参照细胞不同，FLAME 没有色谱保留时间。HSC 特定参数不作为通用默认。测量、背景/质量证据、置信度、算法表示、化学注释和 metabolic state 分别表达。任务 3 由 Windows 先接入 MS，LMA 矩阵及原生 UMAP 延后；任务 4 只保留接口，未实现自动标签或批次校正模型。
+任务 2 等待专门数据，仅未来验收 label-correct；人工标签不是独立真值。标签与 feature 按事件 ID 并行产出。LIF→MS 采集时间对齐 QC 与跨批参照细胞不同，FLAME 没有色谱保留时间。HSC 特定参数不作为通用默认。测量、背景/质量证据、置信度、算法表示、化学注释和 metabolic state 分别表达。任务 3 已接入 MS HRGC 提取和 LMA 矩阵及原生 UMAP，当前等待 Windows 联合验收；任务 4 只保留接口，未实现自动标签或批次校正模型。
 
 ## 验收证据
 
-当前构建、真实数据与旧项目的最终结果见共享仓库 `handoff/WINDOWS_STATUS.md` 及任务 1 验收报告。本机原项目不等于尚未取得的正式投稿项目，不能宣称逐投稿项目验收。Windows 人工 UAT 后再安排 macOS 真机可见验收。
+当前 Windows 候选及真实数据回归见父工作区 `studio-validation/validation.json`；共享交接待用户验收和双平台 Release 完成后更新。本机原项目不等于尚未取得的正式投稿项目，不能宣称逐投稿项目验收。Windows 人工 UAT 后再安排 macOS 真机可见验收。

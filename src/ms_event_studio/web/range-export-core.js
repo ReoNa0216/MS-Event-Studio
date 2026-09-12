@@ -228,10 +228,12 @@ export function fixtureRangeExport(id) {
       : "review_results";
     exportFlow.state = id === "exporting" ? "exporting" : id === "export-error" ? "error" : "input";
     exportFlow.includePending = id === "export-review-results";
+    exportFlow.featureOverview = { results: [], unavailable: 0, binding: "fixture" };
+    exportFlow.featureLoading = false;
     if (["exporting", "export-error"].includes(id)) {
       exportFlow.target = {
         selectionToken: "fixture-export-target",
-        displayName: exportFlow.kind === "audit_package" ? "Lin− MPP LMA 事件包" : "Lin− MPP 审阅结果.csv",
+        displayName: "导出文件夹",
       };
     }
     if (id === "exporting") {

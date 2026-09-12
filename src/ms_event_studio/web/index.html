@@ -591,7 +591,7 @@
             <p id="exportFeatureSummary" class="feature-help" role="status"></p>
           </div>
           <label id="includePendingField" class="check-field" for="includePending"><input id="includePending" type="checkbox" data-qa="export-include-pending"><span>事件表（CSV）同时包含待定事件</span></label>
-          <p id="exportKindHelp">适合查看已确认的审阅结果。向 LMA Studio 保真传递事件，请选择LMA 事件包。</p>
+          <p id="exportKindHelp" hidden></p>
         </section>
         <section class="export-target" aria-labelledby="exportTargetTitle">
           <div class="operation-heading"><div><h3 id="exportTargetTitle">保存目标</h3><p id="exportTargetHelp">页面只显示名称，不显示本机路径。</p></div><button id="chooseExportTarget" class="button button--secondary" type="button" data-qa="export-choose-target">选择文件…</button></div>
@@ -599,8 +599,7 @@
         </section>
         <label class="field" for="exportNote"><span>导出备注（可选）</span><textarea id="exportNote" rows="2" maxlength="500" placeholder="记录本次导出的用途"></textarea></label>
         <section id="exportProgressRegion" class="operation-progress" role="status" aria-live="polite" data-qa="export-progress" hidden>
-          <div class="progress-copy"><span>正在准备导出…</span><strong id="exportProgressPercent">0%</strong></div>
-          <progress id="exportProgress" max="1" value="0">0%</progress>
+          <span id="exportProgressText">正在生成 ZIP，请稍候…</span>
         </section>
         <section id="exportResultPanel" class="export-result" role="status" aria-live="polite" data-qa="export-result" hidden><span class="export-result__icon" aria-hidden="true">✓</span><div><strong id="exportResultTitle">导出完成</strong><p id="exportResultMessage"></p></div></section>
         <p id="exportError" class="operation-error" role="alert" data-qa="export-error" hidden></p>
@@ -628,8 +627,8 @@
               <p id="featureSourceHelp" class="feature-help">正在定位原始文件…</p>
             </div>
             <div>
-              <label class="field" for="featureQc"><span>排除 QC 时间段（可选，min）</span><textarea id="featureQc" rows="2" placeholder="例如 0–2；多段分行填写" aria-describedby="featureQcHelp"></textarea></label>
-              <p id="featureQcHelp" class="feature-help">排除峰顶落在这些时间段内的事件；无 QC 留空。</p>
+              <label class="field" for="featureQc"><span>手动排除 QC 时间段（可选，min）</span><textarea id="featureQc" rows="2" placeholder="例如 0–2；多段分行填写" aria-describedby="featureQcHelp"></textarea></label>
+              <p id="featureQcHelp" class="feature-help">仅按填写的时间段排除事件，不自动识别 QC；不需排除时留空。</p>
             </div>
             <details class="feature-method"><summary>HRGC 方法与固定参数</summary><p>使用审阅后的峰顶及前后各一扫描。强度阈值 200，支持比例 0.2，10 ppm，m/z 100–1050。</p><p>保留原始强度；缺失值为 NaN，不填 0。</p></details>
           </section>

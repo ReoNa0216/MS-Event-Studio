@@ -151,5 +151,7 @@ test("front-end API paths are same-origin, query-free, and roles are narrow", ()
     target: "project_target",
     reviewExport: "review_export_file",
     auditExport: "audit_export_parent",
+    projectShare: "project_share_parent",
+    featureExport: "feature_export_parent",
   });
 });

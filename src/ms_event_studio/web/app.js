@@ -1737,7 +1737,7 @@ function exportKindCopy(kind) {
     : {
         title: "导出分析结果",
         overview: "本次导出内容",
-        help: "用于下游分析，包含事件表（CSV）和可选矩阵（H5AD）。传给 LMA 请使用另一导出用途。",
+        help: "",
         target: "选择保存位置…",
         targetHelp: "请选择项目外的文件夹，应用将创建一个 ZIP。",
         submit: "导出分析结果",
@@ -1756,10 +1756,10 @@ function renderExportFlow() {
   const analysisReady = Boolean(state.fixture) || Boolean(flow.featureOverview) && !flow.featureLoading;
   const featureRow = flow.featureOverview?.results.find(row => row.result_id === flow.featureResultId);
   const copy = exportKindCopy(flow.kind);
-  element("exportDialog").setAttribute("aria-busy", String(exporting));
   setText("exportTitle", copy.title);
   setText("exportOverviewTitle", copy.overview);
   setText("exportKindHelp", copy.help);
+  element("exportKindHelp").hidden = !copy.help;
   element("reviewExportKind").setAttribute("aria-checked", String(!audit && !sharing));
   element("auditExportKind").setAttribute("aria-checked", String(audit));
   element("reviewExportKind").disabled = exporting;
@@ -1785,7 +1785,7 @@ function renderExportFlow() {
     element("includeFeatureMatrix").checked = Boolean(flow.includeFeature && featureRow);
     element("includeFeatureMatrix").disabled = exporting || success || !featureRow;
     setText("exportFeatureSummary", flow.featureLoading ? "正在读取已保存矩阵…" : featureRow
-      ? (flow.includeFeature ? `${featureRow.events.toLocaleString()} 个事件 × ${featureRow.features.toLocaleString()} 个 feature。矩阵仅含已保留事件，且排除 QC；待定事件不会加入矩阵。` : '本次仅导出事件表。')
+      ? (flow.includeFeature ? `${featureRow.events.toLocaleString()} 个事件 × ${featureRow.features.toLocaleString()} 个 feature。矩阵仅含已保留事件。${featureRow.qc_intervals?.length ? "已按提取时手动填写的 QC 时间段排除事件。" : "未设置排除时间段。"}` : '本次仅导出事件表。')
       : flow.featureOverview ? (flow.featureOverview.results.length ? '事件已更新，旧矩阵不随本次导出；如需矩阵，请先重新提取。' : '尚未提取矩阵，本次仅导出事件表。') : `读取失败，请重新选择「${audit ? "传给 LMA Studio" : "导出分析结果"}」重试。`);
   }
   element("includePending").checked = !audit && flow.includePending;
@@ -1804,9 +1804,8 @@ function renderExportFlow() {
   element("chooseExportTarget").disabled = exporting || success || (features && !analysisReady);
   element("exportNote").disabled = exporting || success;
   element("exportProgressRegion").hidden = !exporting;
-  element("exportProgress").value = flow.fraction;
-  element("exportProgress").textContent = `${Math.round(flow.fraction * 100)}%`;
-  setText("exportProgressPercent", `${Math.round(flow.fraction * 100)}%`);
+  const exportMessage = sharing ? "正在打包项目，请稍候…" : "正在生成 ZIP，请稍候…";
+  if (element("exportProgressText").textContent !== exportMessage) setText("exportProgressText", exportMessage);
   element("exportResultPanel").hidden = !success;
   if (flow.result) {
     setText("exportResultTitle", `${flow.result.displayName} 已导出`);

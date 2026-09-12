@@ -32,7 +32,7 @@ export function installFeatures({ get, post, selectPath, openDialog, closeDialog
     el('featureMissing').textContent = row.missing_fraction === null ? '不适用' : (row.missing_fraction * 100).toFixed(1) + '%';
     el('featureSummary').textContent = row.current ? '对应当前审阅事件。' : '事件已更新。这是旧结果，建议重新提取。';
     el('featureSummary').classList.toggle('feature-result-status--stale', !row.current);
-    el('featureSavedQc').textContent = `此结果排除的 QC：${qc}。`;
+    el('featureSavedQc').textContent = `手动排除时间段：${qc}。`;
   }
   async function refresh(selectedId, generation = opening) {
     const response = await get('/api/features');

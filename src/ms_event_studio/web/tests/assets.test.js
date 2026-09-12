@@ -18,7 +18,8 @@ test("HTML declares one Chinese-first application shell with accessible dialogs"
   assert.match(html, /<dialog id="openDialog"[^>]+aria-modal="true"/);
   assert.match(html, /<dialog id="rangeDialog"[^>]+aria-modal="true"/);
   assert.match(html, /<dialog id="exportDialog"[^>]+aria-modal="true"/);
-  assert.equal((html.match(/class="modal__surface[^"]*" tabindex="-1"/g) || []).length, 4);
+  assert.match(html, /<dialog id="featureDialog"[^>]+aria-modal="true"/);
+  assert.equal((html.match(/class="modal__surface[^"]*" tabindex="-1"/g) || []).length, 5);
   assert.match(html, /aria-live="polite"/);
   assert.match(html, /<progress id="analysisProgress"/);
   assert.doesNotMatch(html, /type="file"/i);
@@ -142,7 +143,7 @@ test("design tokens are a single shared source for the approved family palette",
   assert.match(css, /:focus-visible/);
   assert.match(css, /\.skip-link:focus-visible\s*\{[^}]*outline:\s*3px solid var\(--color-focus\)/s);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.doesNotMatch(css, /#[0-9a-f]{3,8}/i);
+  assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b/i);
   assert.match(
     css,
     /\.interaction-hint\s*\{[^}]*color:\s*var\(--color-text-muted\)/s,
