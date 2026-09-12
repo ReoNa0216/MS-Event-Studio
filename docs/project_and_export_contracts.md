@@ -116,28 +116,8 @@ See [project sharing](project_sharing.md). This copies a complete project for re
 
 矩阵唯一入口为「导出结果 → 导出分析结果」中的可选复选框。一个 `analysis-*.zip` 包含 `events.csv`、`analysis_record.json`，以及选定当前结果的完整 `features/`（含 v2 `source_events/`）。`POST /api/exports/analysis` 使用 binding、可选 result_id、target_token、include_pending 与 note；任务与范围修改互斥，导出前后核验版本，成功仅记一条审计。原始文件缺失不阻止导出，过期矩阵不能与新事件 CSV 混合。Feature 提取窗口只负责计算及结果概览。导出页第二个用途保留 v2「传给 LMA Studio」事件包；完整项目分享入口位于「新建 / 打开 → 分享当前项目…」。
 
-本轮不合并多个项目的特征轴。单 run 验证通过不等于五套研究矩阵复现；多 run 必须一次组轴，不能直接按列拼接各项目矩阵。LMA 后续以同一事件 ID 与版本接入矩阵，再保存预处理/UMAP 参数和坐标；UMAP 不属于 HRGC 原始矩阵。
+本轮不合并多个项目的特征轴。单 run 验证通过不等于五套研究矩阵复现；多 run 必须一次组轴，不能直接按列拼接各项目矩阵。LMA 联合验收候选已按同一事件 ID 与版本接入矩阵，并独立保存预处理/UMAP 参数和坐标；UMAP 不属于 HRGC 原始矩阵。
 
-## 用户提供的 UMAP 参考与旧项目边界（待 LMA 实现）
+## LMA 原生 UMAP
 
-2026-09-12 用户提供 Scanpy `embed_and_cluster` 参考；这里只记录研究入口，不增加 Scanpy 运行依赖，也不宣称已复现原图。参考函数复制 AnnData；支持 PCA、t-SNE、UMAP、Leiden，默认 `n_pcs=50`、`n_neighbors=15`、`leiden_resolution=1.0`、`random_state=42`，可按 obs 字段着色。PCA 分支显式 `sc.tl.pca(..., svd_solver='arpack')`；各分支之后均调用 `sc.pp.neighbors(..., n_neighbors=n_neighbors, n_pcs=n_pcs)`，UMAP 分支调用 `sc.tl.umap(..., random_state=random_state)`。用户实际使用的调用为：
-
-```python
-madata_hrgc = mc.pp.fill_nan_values(madata_hrgc, fill_method='zero')
-madata_hrgc = embed_and_cluster(
-    madata_hrgc, method='umap', random_state=1, color='scan_start_time'
-)
-madata_hrgc.obs['UMAP1'] = madata_hrgc.obsm['X_umap'][:, 0]
-madata_hrgc.obs['UMAP2'] = madata_hrgc.obsm['X_umap'][:, 1]
-```
-
-产品接入时需明确：
-
-- `mc.pp.fill_nan_values` 的具体实现和原环境版本未提供，不能声称上述行为已逐值复现。零填充是用户提供的降维参考方案，只在独立计算副本使用；HRGC 原始 float64/NaN 矩阵保留。
-- 原函数只有 PCA 分支显式计算 PCA；UMAP 分支会依赖 `neighbors` 的自动表示选择及可能已有的 PCA。应显式记录所用表示、实际 PCA 维数和邻居数，处理小样本维数限制，避免沿用来源不明的旧 PCA。固定随机性时同时记录 PCA、邻居图与 UMAP 的随机设置；示例仅给 UMAP/t-SNE 传入函数种子。
-- 不因参考函数包含 t-SNE/Leiden 就扩大首轮范围。首先完成矩阵 → 二维 UMAP；不默认增加归一化、log、缩放、删 feature 或批次校正。采集时间只用于着色，不作为距离计算的输入列。记录输入矩阵/事件版本、填零策略、计算参数、依赖版本及输出坐标。
-- 当前 LMA 已能读取成对的 UMAP1/UMAP2，并允许没有 UMAP 的事件项目。原生计算应增加可选坐标来源，沿用显示层；新版打开旧项目时保留原坐标、事件、人工标签、配对和时间模型，不要求矩阵、不自动计算或迁移。新坐标作为独立结果保存，显式切换才用于显示。
-- 原生矩阵按共同来源、事件 ID 和版本附加。旧项目中仅有时间匹配坐标或不同调用事件身份时，不能仅凭时间近似给矩阵行强行绑定；需要明确验证或使用独立新项目。兼容目标是新版读取已有 v0.4.0+ 项目，不能提前承诺旧版可读取新增结果格式。
-- 实现阶段仍须用旧项目副本验证打开/保存/重开后的事件、标签、配对、时间模型及既有坐标保真；当前仅核对读取逻辑，没有执行 LMA 兼容性验收。共享交接按用户要求待 Windows UAT、双平台 Release 后再同步。
-
-实现参考：[Scanpy neighbors](https://scanpy.readthedocs.io/en/stable/api/generated/scanpy.pp.neighbors.html)、[Scanpy UMAP](https://scanpy.readthedocs.io/en/stable/generated/scanpy.tl.umap.html)。API 的稳定版与开发版随机数参数不同，接入时固定实际依赖版本，不照搬隐式默认值。
+Windows 联合候选可直接接收上述分析 ZIP 的事件与矩阵；用户参考代码、实现差异、旧项目兼容边界及验证记录统一维护在相邻 LMA 仓库的 [接入说明](../../lma-studio/docs/flame_task1.md)。MS 不增加 Scanpy 依赖。共享交接按用户要求待 Windows UAT、双平台 Release 后再同步。
