@@ -380,4 +380,5 @@ def export_result(project, identity, parent):
             os.link(temp, destination)
         except FileExistsError as exc:
             raise FeatureError('该文件夹中已有同名 ZIP，请选择其他保存文件夹。') from exc
-    return dict(display_name=name, message='Feature 矩阵及事件溯源已导出。')
+    return dict(kind='feature_matrix', display_name=name, row_count=record['events'],
+                message='已导出矩阵、feature 信息和对应事件记录。')

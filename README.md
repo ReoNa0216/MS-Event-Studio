@@ -1,7 +1,7 @@
 # MS Event Studio
 
 项目内新增“打包分享项目”，自动排除 macOS 系统元数据；MS→LMA 正式交换入口统一为“LMA 事件包”。操作与保存边界见[项目分享](docs/project_sharing.md)。
-开发分支 `0.6.0.dev1` 已接入 HRGC：打开项目 → **Feature 提取** → 选择原始 MS 文件 → 填写需排除的 QC 时间段（可选）→ 开始提取。结果随项目自动保存；需要单独使用时，在右侧选择结果，点击底部 **导出 ZIP…** 并选择保存文件夹。ZIP 包含 H5AD 矩阵、feature 信息和对应事件记录；正式 Release 仍为下述 v0.5.0。
+开发分支 `0.6.0.dev1` 已接入 HRGC：打开项目 → **Feature 提取** → 排除 QC 时间段（可选）→ 开始提取。自动定位创建项目时使用的原始 MS 文件；仅缺失时重新定位。结果随项目保存。**导出结果 → 导出分析结果** 生成一个 ZIP，包含事件 CSV 和勾选的当前矩阵（H5AD）；已有矩阵导出不依赖原始 MS 文件。**传给 LMA Studio** 保留 v2 事件包入口；项目分享移至 **新建 / 打开 → 分享当前项目…**。正式 Release 仍为下述 v0.5.0。
 
 构建使用 `packaging/computation.json` 固定两个计算包的源码 commit；运行 `python scripts/resolve_computation.py` 后安装本产品。CI 的 `FLAME_COMPUTATION_READ_TOKEN` 需能读取两个私有计算仓库，详见[构建说明](docs/github_actions_builds.md)。
 

@@ -148,6 +148,10 @@ class WebSessionContractTest(unittest.TestCase):
                 self.assertEqual(bootstrap["view"], "project")
                 self.assertEqual(bootstrap["active_project"]["display_name"], "边界测试项目")
                 assert_browser_safe(self, bootstrap, str(source), str(target), str(root))
+                features = session.feature_overview()
+                self.assertEqual(features['source']['status'], 'located')
+                self.assertEqual(features['source']['selection']['selection_token'], source_selection['selection_token'])
+                assert_browser_safe(self, features, str(source), str(target), str(root))
             finally:
                 session.close()
 
@@ -159,6 +163,9 @@ class WebSessionContractTest(unittest.TestCase):
                 response = reopened.open_project(token)
                 self.assertEqual(response["project"]["event_count"], 3)
                 assert_browser_safe(self, response, str(target), str(root))
+                features = reopened.feature_overview()
+                self.assertEqual(features['source']['status'], 'located')
+                assert_browser_safe(self, features, str(source), str(root))
             finally:
                 reopened.close()
 

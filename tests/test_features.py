@@ -184,6 +184,135 @@ class FeatureTests(unittest.TestCase):
             finally:
                 session.close()
 
+    def test_cached_source_relocation_wrong_content_and_export_without_raw(self):
+        from ms_event_studio.project_archive import share_project
+        import zipfile
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            source, project = feature_project(root)
+            before = snapshot(project)['binding']
+            session = open_session(root, project)
+            def extract(token):
+                return wait_job(session, session.start_feature_extraction({
+                    'source_token': token, 'binding': session.feature_overview()['binding'], 'qc_intervals': []}), timeout=90)
+            try:
+                self.assertEqual(session.feature_overview()['source']['status'], 'unlocated')
+                initial = extract(session.register_path('source_file', source)['selection_token'])
+                self.assertEqual(initial['state'], 'succeeded', initial)
+                identity = initial['result']['feature']['result_id']
+            finally:
+                session.close()
+            relocated = root / 'relocated.txt'
+            source.rename(relocated)
+            session = open_session(root, project)
+            try:
+                overview = session.feature_overview()
+                self.assertEqual(overview['source']['status'], 'missing')
+                self.assertEqual(overview['results'][0]['result_id'], identity)
+                audit_count = len(session._workspace._window_service.review_store.audit_events())
+                exported = wait_job(session, session.start_analysis_export({
+                    'result_id': identity, 'binding': overview['binding'], 'include_pending': False, 'note': '',
+                    'target_token': session.register_path('feature_export_parent', root)['selection_token']}))
+                self.assertEqual(exported['state'], 'succeeded', exported)
+                self.assertEqual(exported['result']['export']['kind'], 'review_results')
+                self.assertEqual(len(session._workspace._window_service.review_store.audit_events()), audit_count + 1)
+                with zipfile.ZipFile(root/exported['result']['export']['display_name']) as archive:
+                    self.assertIsNone(archive.testzip())
+                    self.assertIn('events.csv', archive.namelist())
+                    self.assertIn('features/native_matrix.h5ad', archive.namelist())
+                    self.assertIn('features/source_events/manifest.json', archive.namelist())
+                    self.assertEqual(json.loads(archive.read('analysis_record.json'))['event_binding'], before)
+                # A same-size substitution must still fail full-content validation.
+                contents = relocated.read_bytes()
+                changed = contents.replace(b'555.123456789123', b'556.123456789123')
+                self.assertNotEqual(changed, contents)
+                self.assertEqual(len(changed), len(contents))
+                source.write_bytes(changed)
+                cached = session.feature_overview()['source']
+                self.assertEqual(cached['status'], 'located')  # location, never an identity verdict
+                cache = (root/'recent.sources.json').read_bytes()
+                failed = extract(cached['selection']['selection_token'])
+                self.assertEqual(failed['state'], 'failed')
+                self.assertEqual(len(session.feature_overview()['results']), 1)
+                self.assertEqual((root/'recent.sources.json').read_bytes(), cache)
+                # Local-cache write failure cannot turn a successful extraction into failure.
+                with patch('ms_event_studio.source_locations.os.replace', side_effect=OSError('cache unavailable')):
+                    result = extract(session.register_path('source_file', relocated)['selection_token'])
+                self.assertEqual(result['state'], 'succeeded', result)
+                self.assertEqual(session.feature_overview()['source']['selection']['display_name'], 'relocated.txt')
+                self.assertEqual(snapshot(project)['binding'], before)
+                sharing = share_project(project.project_dir, root, database=project.project_dir/project.manifest['review']['path'])
+                with zipfile.ZipFile(root/sharing['filename']) as archive:
+                    self.assertFalse(any('sources.json' in name for name in archive.namelist()))
+                from ms_event_studio.analysis_export import export_analysis
+                with ProjectWindowService.open(project.project_dir) as service:
+                    row = service.all_events()[0]
+                    service.review_store.set_status(row['event_id'], 'pending', expected_revision=row['revision'],
+                        actor='test', session_id='test', reason='stale matrix test')
+                with self.assertRaisesRegex(FeatureError, '矩阵与当前事件不一致'):
+                    export_analysis(project, root, binding=snapshot(project)['binding'], result_id=identity, include_pending=False)
+            finally:
+                session.close()
+
+    def test_invalid_local_cache_and_changed_file_do_not_block_overview(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            source, project = feature_project(root)
+            (root/'recent.sources.json').write_text('not-json')
+            session = open_session(root, project)
+            try:
+                self.assertEqual(session.feature_overview()['source']['status'], 'unlocated')
+                session._remember_source(project, source)
+                source.write_bytes(b'changed')
+                self.assertEqual(session.feature_overview()['source']['status'], 'changed')
+                self.assertIsNone(session.feature_overview()['source']['selection'])
+            finally:
+                session.close()
+
+    def test_analysis_export_refuses_stale_binding_and_supports_events_only(self):
+        from ms_event_studio.analysis_export import export_analysis
+        import zipfile
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            _, project = feature_project(root)
+            binding = snapshot(project)['binding']
+            with self.assertRaises(FeatureError):
+                export_analysis(project, root, binding='stale', result_id=None, include_pending=False)
+            self.assertEqual(list(root.glob('analysis-*.zip')), [])
+            exported = export_analysis(project, root, binding=binding, result_id=None, include_pending=False)
+            with zipfile.ZipFile(root/exported['display_name']) as archive:
+                self.assertEqual(set(archive.namelist()), {'events.csv', 'analysis_record.json'})
+                self.assertEqual(json.loads(archive.read('analysis_record.json'))['csv_rows'], 20)
+            with patch('ms_event_studio.analysis_export.snapshot', side_effect=[snapshot(project), {'binding':'changed'}]):
+                with self.assertRaises(FeatureError):
+                    export_analysis(project, root, binding=binding, result_id=None, include_pending=False)
+            self.assertEqual(len(list(root.glob('analysis-*.zip'))), 1)
+
+    def test_analysis_export_blocks_range_apply_while_running(self):
+        import threading
+        from ms_event_studio.web_app import WebBoundaryError
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = Path(tmp)
+            _, project = feature_project(root)
+            session = open_session(root, project)
+            entered, release = threading.Event(), threading.Event()
+            def blocked(*args, **kwargs):
+                entered.set(); release.wait(5)
+                return {'kind': 'review_results'}
+            try:
+                with patch('ms_event_studio.web_review_service.BrowserWorkspaceService.export_analysis_results', side_effect=blocked):
+                    started = session.start_analysis_export({'binding':session.feature_overview()['binding'],
+                        'result_id':None, 'include_pending':False, 'note':'',
+                        'target_token':session.register_path('feature_export_parent', root)['selection_token']})
+                    self.assertTrue(entered.wait(5))
+                    with self.assertRaises(WebBoundaryError) as error:
+                        session.start_range_apply({'preview_token':'unused', 'confirmed':True})
+                    self.assertEqual(error.exception.code, 'project_busy')
+                    release.set()
+                    self.assertEqual(wait_job(session, started)['state'], 'succeeded')
+            finally:
+                release.set(); session.close()
+
     def test_broken_history_does_not_block_new_extraction(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             _, project = feature_project(Path(tmp))

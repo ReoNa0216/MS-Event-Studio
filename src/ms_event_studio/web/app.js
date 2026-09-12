@@ -1642,6 +1642,8 @@ function openCreate({ reset = true } = {}) {
 }
 
 function openOpen() {
+  element("shareCurrentProject").hidden = !state.workspace || Boolean(state.fixture);
+  element("shareCurrentProject").disabled = workbenchBusy();
   setText("openStatus", "项目原始路径不会显示在页面中。");
   renderRecentProjects();
   openDialog("open");
@@ -1730,12 +1732,12 @@ function exportKindCopy(kind) {
         submit: "导出 LMA 事件包",
       }
     : {
-        title: "导出审阅结果",
-        overview: "审阅结果",
-        help: "适合查看已确认的审阅结果。向 LMA Studio 保真传递事件，请选择 LMA 事件包。",
-        target: "选择文件…",
-        targetHelp: "选择 CSV 文件名；页面不显示本机路径。",
-        submit: "导出审阅结果",
+        title: "导出分析结果",
+        overview: "本次导出内容",
+        help: "一个 ZIP 包含事件表（CSV）和选定的已提取矩阵（H5AD）。",
+        target: "选择保存位置…",
+        targetHelp: "请选择项目外的文件夹，应用将创建一个 ZIP。",
+        submit: "导出分析结果",
       };
 }
 
@@ -1747,19 +1749,42 @@ function renderExportFlow() {
   const errorVisible = flow.state === "error" && Boolean(flow.error);
   const audit = flow.kind === "audit_package";
   const sharing = flow.kind === "project_share";
+  const features = !audit && !sharing;
+  const analysisReady = Boolean(state.fixture) || Boolean(flow.featureOverview) && !flow.featureLoading;
+  const featureRow = flow.featureOverview?.results.find(row => row.result_id === flow.featureResultId);
   const copy = exportKindCopy(flow.kind);
   element("exportDialog").setAttribute("aria-busy", String(exporting));
   setText("exportTitle", copy.title);
   setText("exportOverviewTitle", copy.overview);
   setText("exportKindHelp", copy.help);
-  element("reviewExportKind").setAttribute("aria-checked", String(!audit && !sharing));
+  element("reviewExportKind").setAttribute("aria-checked", String(features));
   element("auditExportKind").setAttribute("aria-checked", String(audit));
   element("reviewExportKind").disabled = exporting;
   element("auditExportKind").disabled = exporting;
-  element("projectShareKind").setAttribute("aria-checked", String(sharing));
-  element("projectShareKind").disabled = exporting;
+  element("exportKindSwitch").hidden = sharing;
   element("exportNote").closest('label').hidden = sharing;
   element("includePendingField").hidden = audit || sharing;
+  element("exportEventOverview").hidden = sharing;
+  element("exportFeatureOverview").hidden = !features;
+  if (features) {
+    const select = element("exportFeatureResults");
+    select.replaceChildren();
+    for (const [i, row] of (flow.featureOverview?.results.filter(row => row.current) || []).entries()) {
+      const option = document.createElement("option");
+      option.value = row.result_id;
+      option.textContent = `${i === 0 ? '最近结果' : '此前结果 ' + i} · ${row.events} × ${row.features}${row.current ? '' : ' · 事件已变化'}`;
+      select.append(option);
+    }
+    select.value = flow.featureResultId || '';
+    const available = flow.featureOverview?.results.filter(row => row.current) || [];
+    select.disabled = exporting || success || !flow.includeFeature || !featureRow;
+    element("exportFeaturePicker").hidden = available.length < 2 || !flow.includeFeature;
+    element("includeFeatureMatrix").checked = Boolean(flow.includeFeature && featureRow);
+    element("includeFeatureMatrix").disabled = exporting || success || !featureRow;
+    setText("exportFeatureSummary", flow.featureLoading ? "正在读取已保存矩阵…" : featureRow
+      ? (flow.includeFeature ? `${featureRow.events.toLocaleString()} 个事件 × ${featureRow.features.toLocaleString()} 个 feature。矩阵不包含排除的 QC 和待定事件。` : '本次仅导出事件表。')
+      : flow.featureOverview ? (flow.featureOverview.results.length ? '事件已更新，旧矩阵不随本次导出；如需矩阵，请先重新提取。' : '尚未提取矩阵，本次仅导出事件表。') : "读取失败，请重新选择「导出分析结果」重试。");
+  }
   element("includePending").checked = !audit && flow.includePending;
   element("includePending").disabled = exporting;
   setText("exportCurrentRange", formatRange(state.workspace.project.analysisRange));
@@ -1773,7 +1798,7 @@ function renderExportFlow() {
   setText("exportTargetName", flow.target?.displayName || "尚未选择");
   setText("exportTargetHelp", copy.targetHelp);
   element("chooseExportTarget").textContent = copy.target;
-  element("chooseExportTarget").disabled = exporting || success;
+  element("chooseExportTarget").disabled = exporting || success || (features && !analysisReady);
   element("exportNote").disabled = exporting || success;
   element("exportProgressRegion").hidden = !exporting;
   element("exportProgress").value = flow.fraction;
@@ -1786,7 +1811,7 @@ function renderExportFlow() {
   }
   setText("exportError", errorVisible ? flow.error : "");
   element("exportError").hidden = !errorVisible;
-  element("submitExport").disabled = exporting || success || !flow.target;
+  element("submitExport").disabled = exporting || success || !flow.target || (features && !analysisReady);
   element("submitExport").textContent = exporting ? "正在导出…" : copy.submit;
   element("cancelExport").disabled = exporting;
   element("closeExport").disabled = exporting;
@@ -1797,7 +1822,7 @@ function renderExportFlow() {
       ? "导出已完成，可以安全关闭此窗口。"
       : errorVisible
         ? "项目没有改变。请选择新的保存位置后重试。"
-        : "选择保存目标后即可导出。");
+        : features && !analysisReady ? "正在读取导出内容，或请按提示重试。" : "选择保存目标后即可导出。");
 }
 
 function openRangeFlow() {
@@ -1813,7 +1838,7 @@ function openRangeFlow() {
   openDialog("range");
 }
 
-function setExportKind(kind) {
+async function setExportKind(kind) {
   if (state.exportFlow.state === "exporting") return;
   const normalized = ["audit_package", "project_share"].includes(kind) ? kind : "review_results";
   if (state.exportFlow.kind !== normalized) {
@@ -1826,6 +1851,34 @@ function setExportKind(kind) {
     ? state.exportFlow.includePending
     : false;
   state.exportFlow.state = "input";
+  const flow = state.exportFlow;
+  const request = flow.featureRequest = (flow.featureRequest || 0) + 1;
+  if (normalized === "review_results" && !state.fixture) {
+    flow.featureLoading = true;
+    flow.featureOverview = null;
+    flow.featureResultId = '';
+    flow.target = null;
+    flow.error = '';
+    flow.result = null;
+  }
+  renderExportFlow();
+  if (normalized !== "review_results" || state.fixture) return;
+  try {
+    const overview = await apiRequest(API_ENDPOINTS.features);
+    if (state.exportFlow !== flow || request !== flow.featureRequest) return;
+    flow.featureOverview = overview;
+    flow.featureResultId = overview.results.find(row => row.current)?.result_id || '';
+    flow.includeFeature = Boolean(flow.featureResultId);
+    if (overview.unavailable) {
+      flow.error = `${overview.unavailable} 个历史结果无法读取；其余结果仍可导出。`;
+      flow.state = "error";
+    }
+  } catch (error) {
+    if (state.exportFlow !== flow || request !== flow.featureRequest) return;
+    flow.error = error instanceof ApiError ? error.message : DEFAULT_ERROR_MESSAGE;
+    flow.state = "error";
+  }
+  flow.featureLoading = false;
   renderExportFlow();
 }
 
@@ -1837,6 +1890,7 @@ function openExportFlow(kind = "review_results") {
   renderExportFlow();
   renderWorkspace();
   openDialog("export");
+  if (kind === "review_results") setExportKind(kind);
 }
 
 function scheduleOperationPoll(kind) {
@@ -1966,6 +2020,11 @@ async function pollOperationJob(kind, generation) {
     else applyExportOperationJob(response);
   } catch (error) {
     if (generation !== state.operationGeneration) return;
+    if (kind === "export" && flow.jobId) {
+      setText("exportFooterHint", "暂时无法读取进度，正在重试，请保持应用打开。");
+      scheduleOperationPoll(kind);
+      return;
+    }
     flow.jobId = "";
     flow.jobCancellable = false;
     flow.state = "error";
@@ -2110,17 +2169,21 @@ async function performRangeCancellation({ pending = false } = {}) {
 
 async function chooseExportTarget() {
   if (state.fixture || !["input", "error"].includes(state.exportFlow.state)) return;
-  const role = state.exportFlow.kind === "project_share" ? PATH_ROLES.projectShare : state.exportFlow.kind === "audit_package"
+  const flow = state.exportFlow, kind = flow.kind;
+  if (kind === "review_results" && (!flow.featureOverview || flow.featureLoading)) return;
+  const role = kind === "review_results" ? PATH_ROLES.featureExport : kind === "project_share" ? PATH_ROLES.projectShare : kind === "audit_package"
     ? PATH_ROLES.auditExport
     : PATH_ROLES.reviewExport;
   element("chooseExportTarget").disabled = true;
   try {
     const selection = await selectPath(role);
+    if (state.exportFlow !== flow || flow.kind !== kind) return;
     if (!selection) return;
     state.exportFlow.target = selection;
     state.exportFlow.state = "input";
     state.exportFlow.error = "";
   } catch (error) {
+    if (state.exportFlow !== flow || flow.kind !== kind) return;
     state.exportFlow.state = "error";
     state.exportFlow.error = error instanceof ApiError ? error.message : DEFAULT_ERROR_MESSAGE;
   } finally {
@@ -2131,6 +2194,7 @@ async function chooseExportTarget() {
 async function submitExport() {
   const flow = state.exportFlow;
   if (state.fixture || !["input", "error"].includes(flow.state) || !flow.target) return;
+  if (flow.kind === "review_results" && (!flow.featureOverview || flow.featureLoading)) return;
   clearOperationPoll();
   flow.state = "exporting";
   flow.error = "";
@@ -2140,8 +2204,8 @@ async function submitExport() {
   try {
     const audit = flow.kind === "audit_package";
     const response = await post(
-      flow.kind === "project_share" ? API_ENDPOINTS.exportProjectShare : audit ? API_ENDPOINTS.exportAuditPackage : API_ENDPOINTS.exportReviewResults,
-      flow.kind === "project_share" ? { target_token: flow.target.selectionToken } : audit
+      flow.kind === "review_results" ? API_ENDPOINTS.exportAnalysis : flow.kind === "project_share" ? API_ENDPOINTS.exportProjectShare : audit ? API_ENDPOINTS.exportAuditPackage : API_ENDPOINTS.exportReviewResults,
+      flow.kind === "review_results" ? { target_token: flow.target.selectionToken, result_id: flow.includeFeature ? flow.featureResultId : null, binding: flow.featureOverview.binding, include_pending: flow.includePending, note: element("exportNote").value } : flow.kind === "project_share" ? { target_token: flow.target.selectionToken } : audit
         ? auditExportBody(flow.target.selectionToken, element("exportNote").value)
         : reviewExportBody(
             flow.target.selectionToken,
@@ -2162,11 +2226,12 @@ function closeExportFlow() {
     showToast("请等待导出完成。", "error");
     return;
   }
+  const sharing = state.exportFlow.kind === "project_share";
   clearOperationPoll();
   state.exportFlow = emptyExportFlow();
   closeDialog("export", { force: true });
   renderWorkspace();
-  focusEnabledControl("openExport");
+  focusEnabledControl(sharing ? "headerNew" : "openExport");
 }
 
 function stateCopy() {
@@ -2664,7 +2729,22 @@ function installEvents() {
   element("cancelRange").addEventListener("click", cancelRangeFlow);
   element("closeRange").addEventListener("click", cancelRangeFlow);
   element("reviewExportKind").addEventListener("click", () => setExportKind("review_results"));
-  element("projectShareKind").addEventListener("click", () => setExportKind("project_share"));
+  element("shareCurrentProject").addEventListener("click", () => {
+    if (workbenchBusy()) return;
+    closeDialog("open"); openExportFlow("project_share");
+  });
+  element("includeFeatureMatrix").addEventListener("change", () => {
+    state.exportFlow.includeFeature = element("includeFeatureMatrix").checked;
+    renderExportFlow();
+  });
+  element("exportFeatureResults").addEventListener("change", () => {
+    state.exportFlow.featureResultId = element("exportFeatureResults").value;
+    state.exportFlow.target = null;
+    state.exportFlow.state = "input";
+    state.exportFlow.result = null;
+    state.exportFlow.error = '';
+    renderExportFlow();
+  });
   element("auditExportKind").addEventListener("click", () => setExportKind("audit_package"));
   element("includePending").addEventListener("change", () => {
     state.exportFlow.includePending = element("includePending").checked;

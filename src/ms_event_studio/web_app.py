@@ -237,6 +237,8 @@ class WebSession:
             raise ValueError("max_workers must be a positive integer")
         self.request_token = secrets.token_urlsafe(32)
         self._recent = RecentProjects(recent_path or default_recent_path())
+        from .source_locations import SourceLocations
+        self._sources = SourceLocations(self._recent.path.with_suffix('.sources.json'))
         self._executor = ThreadPoolExecutor(
             max_workers=int(max_workers),
             thread_name_prefix="ms-event-web",
@@ -680,6 +682,7 @@ class WebSession:
                 ),
             )
             project = create_project(request, prepared_source=inspection.prepared)
+            self._remember_source(project, source.path)
             summary = self._project_summary(project)
             workspace = BrowserWorkspaceService(project)
             with self._lock:
@@ -806,7 +809,7 @@ class WebSession:
         with self._lock:
             self._require_open()
             export_running = any(
-                record.kind in {"review_export", "audit_export", "project_share"}
+                record.kind in {"review_export", "audit_export", "project_share", "analysis_export", "feature_export"}
                 and record.state in {JobState.QUEUED, JobState.RUNNING, JobState.CANCELLING}
                 for record in self._jobs.values()
             )
@@ -879,6 +882,24 @@ class WebSession:
                 self._project_mutation_pending = False
             raise
 
+    def start_analysis_export(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        if not isinstance(payload, Mapping) or set(payload) != {'binding', 'result_id', 'target_token', 'include_pending', 'note'}:
+            raise WebBoundaryError('分析结果导出请求不完整。')
+        binding = _exact_text(payload, 'binding')
+        identity = payload['result_id']
+        if identity is not None and not isinstance(identity, str):
+            raise WebBoundaryError('请选择有效的矩阵。')
+        if not isinstance(payload['include_pending'], bool):
+            raise WebBoundaryError('事件纳入选项无效。')
+        note = _optional_note(payload['note'])
+        with self._lock:
+            self._require_project_stable()
+            workspace = self._active_workspace()
+            target = self._consume_selection(payload['target_token'], PathRole.FEATURE_EXPORT_PARENT)
+            return self._new_job('analysis_export', lambda record: {'export': workspace.export_analysis_results(
+                target.path, binding=binding, result_id=identity,
+                include_pending=payload['include_pending'], note=note)}, cancel_allowed=False)
+
     def start_review_export(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(payload, Mapping) or set(payload).difference(
             {"target_token", "include_pending", "note"}
@@ -921,11 +942,42 @@ class WebSession:
 
             return self._new_job("project_share", run, cancel_allowed=False)
 
+    def _remember_source(self, project: Project, source: Path) -> None:
+        # Called only after successful creation or extraction verified the raw.
+        with self._lock:
+            try:
+                self._sources.remember(project.manifest['source']['source_sha256'], source)
+            except OSError:
+                LOGGER.warning('Could not save local source location', exc_info=True)
+
+    def _feature_source(self, project: Project) -> dict[str, Any]:
+        from .features import artifact
+        manifest = json.loads(artifact(project, 'input_manifest').read_text('utf-8'))
+        fingerprint = manifest['source_fingerprint']
+        source = self._sources.get(fingerprint['sha256'])
+        status = 'unlocated'
+        selection = None
+        if source is not None:
+            try:
+                if not source.is_file():
+                    status = 'missing'
+                elif source.stat().st_size != fingerprint['size_bytes']:
+                    status = 'changed'
+                else:
+                    selection = self._register_selection(PathRole.SOURCE_FILE, source).to_dict()
+                    status = 'located'
+            except (OSError, ValueError, WebBoundaryError):
+                status = 'missing'
+        return dict(status=status, name=manifest['source_file_name'], selection=selection)
+
     def feature_overview(self) -> dict[str, Any]:
         from .features import overview
         with self._lock:
             self._require_project_stable()
-            return overview(self._active_workspace().project)
+            project = self._active_workspace().project
+            result = overview(project)
+            result['source'] = self._feature_source(project)
+            return result
 
     def start_feature_extraction(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         from .features import snapshot, qc_intervals, run_extraction
@@ -948,8 +1000,10 @@ class WebSession:
                         with self._lock:
                             record.phase = phase
                             record.fraction = .7 * fraction if phase == 'reading' else .75 if phase == 'extracting' else .95
-                    return {"feature": run_extraction(project, selection.path, saved, intervals,
-                                                      record.cancel_event.is_set, progress)}
+                    result = run_extraction(project, selection.path, saved, intervals,
+                                            record.cancel_event.is_set, progress)
+                    self._remember_source(project, selection.path)
+                    return {"feature": result}
                 finally:
                     with self._lock:
                         self._feature_busy = False
@@ -1652,6 +1706,8 @@ class WebRequestHandler(BaseHTTPRequestHandler):
                 if parsed.path == "/api/range-changes/cancel":
                     self._send_json(self.server.session.cancel_range_preview(payload))
                     return
+                if parsed.path == "/api/exports/analysis":
+                    return self._send_json(self.server.session.start_analysis_export(payload), HTTPStatus.ACCEPTED)
                 if parsed.path == "/api/exports/review-results":
                     self._send_json(
                         self.server.session.start_review_export(payload),

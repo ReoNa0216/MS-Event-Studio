@@ -1,6 +1,6 @@
 # MS Event Studio 当前产品状态
 
-开发分支 `0.6.0.dev1`：单 MS 项目的 HRGC feature 提取、取消、保存、重开和独立 ZIP 导出已实现。只纳入 accepted，按当前峰顶排除显式 QC，保留 Unknown、float64 原始强度和 NaN；既有审阅不修改。Feature 界面分为提取设置和结果，底部提供「导出 ZIP…」。LMA 接入与原生 UMAP 延后。Windows 候选位于 `dist/windows`，已通过 182 项测试、打包 smoke、标准截图矩阵与三项独立代码审查，等待用户 UAT；当前本地证据见 `build/feature-qa/validation.json`。用户确认后再发布 Windows/macOS Release，随后更新共享交接，不能沿用下面正式版的历史验收结论。
+开发分支 `0.6.0.dev1`：HRGC 提取自动定位项目原始 MS 文件，完整核验后计算；本机位置提示不进入项目分享。提取窗口只负责计算和结果；「导出结果」仅有分析结果与 LMA 交接两个用途。分析 ZIP 合并事件 CSV 和可选的当前矩阵，拒绝混入过期矩阵。项目分享移至「新建 / 打开」。Windows `dist/windows` 已通过 186 项完整测试、打包 smoke、108 个标准场景和 9 个实际 Feature/分析导出/分享场景检查，以及三项独立审查。LMA 接入与原生 UMAP 正同步开发，待两端一起人工 UAT。用户确认后再发布 Windows/macOS Release，随后更新共享交接。证据见 `build/feature-qa/validation.json`。
 
 
 更新日期：2026-09-09（Asia/Shanghai）

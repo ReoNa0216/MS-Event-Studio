@@ -71,6 +71,8 @@ test("export bodies are closed and results remain browser-safe", () => {
   assert.deepEqual(result, {
     kind: "review_results", displayName: "review.csv", rowCount: 4, message: "导出完成",
   });
+  assert.deepEqual(normalizeExportResult({ kind: 'feature_matrix', display_name: 'features-a.zip', row_count: 20, message: '已导出矩阵' }),
+    { kind: 'feature_matrix', displayName: 'features-a.zip', rowCount: 20, message: '已导出矩阵' });
 });
 
 test("operation jobs expose lifecycle without leaking worker result fields", () => {

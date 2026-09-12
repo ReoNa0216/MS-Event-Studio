@@ -10,7 +10,7 @@ export const RANGE_EXPORT_FIXTURE_IDS = Object.freeze([
   "export-error",
 ]);
 
-const EXPORT_KINDS = new Set(["review_results", "audit_package", "project_share"]);
+const EXPORT_KINDS = new Set(["review_results", "audit_package", "project_share", "feature_matrix"]);
 
 function safeText(value, fallback = "", maximum = 240) {
   const text = String(value ?? "")
