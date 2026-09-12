@@ -212,6 +212,7 @@ class FeatureTests(unittest.TestCase):
                 audit_count = len(session._workspace._window_service.review_store.audit_events())
                 exported = wait_job(session, session.start_analysis_export({
                     'result_id': identity, 'binding': overview['binding'], 'include_pending': False, 'note': '',
+                    'filename': '真实样例-导出.zip',
                     'target_token': session.register_path('feature_export_parent', root)['selection_token']}))
                 self.assertEqual(exported['state'], 'succeeded', exported)
                 self.assertEqual(exported['result']['export']['kind'], 'review_results')
@@ -303,6 +304,24 @@ class FeatureTests(unittest.TestCase):
                 with self.assertRaises(FeatureError):
                     export_analysis(project, root, binding=binding, result_id=None, include_pending=False)
             self.assertEqual(len(list(root.glob('analysis-*.zip'))), 1)
+
+    def test_named_zip_rejects_unsafe_names_and_never_overwrites(self):
+        from ms_event_studio.analysis_export import archive_filename, export_analysis
+        for name in ['', '../outside', 'C:\\bad', 'CON', 'NUL.zip', 'bad?.zip', 'abc. .zip', 'x' * 181]:
+            with self.subTest(name=name), self.assertRaises(FeatureError):
+                archive_filename(name)
+        self.assertEqual(archive_filename('PC9-三色'), 'PC9-三色.zip')
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp:
+            root = Path(temp)
+            _, project = feature_project(root)
+            args = dict(binding=snapshot(project)['binding'], result_id=None,
+                        include_pending=False, handoff=True, filename='PC9-三色')
+            result = export_analysis(project, root, **args)
+            self.assertEqual(result['display_name'], 'PC9-三色.zip')
+            content = (root / result['display_name']).read_bytes()
+            with self.assertRaisesRegex(FeatureError, '同名 ZIP'):
+                export_analysis(project, root, **args)
+            self.assertEqual((root / result['display_name']).read_bytes(), content)
 
     def test_analysis_export_blocks_range_apply_while_running(self):
         import threading

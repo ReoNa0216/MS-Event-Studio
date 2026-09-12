@@ -597,6 +597,7 @@
           <div class="operation-heading"><div><h3 id="exportTargetTitle">保存目标</h3><p id="exportTargetHelp">页面只显示名称，不显示本机路径。</p></div><button id="chooseExportTarget" class="button button--secondary" type="button" data-qa="export-choose-target">选择文件…</button></div>
           <div class="selection-readout"><span class="selection-readout__icon selection-readout__icon--folder" aria-hidden="true"></span><div><span class="selection-readout__label">保存目标</span><strong id="exportTargetName" data-qa="export-target-name">尚未选择</strong></div></div>
         </section>
+        <label id="exportFilenameField" class="field" for="exportFilename"><span>ZIP 文件名</span><input id="exportFilename" type="text" maxlength="180" placeholder="例如 PC9-三色-LMA事件包.zip"></label>
         <label class="field" for="exportNote"><span>导出备注（可选）</span><textarea id="exportNote" rows="2" maxlength="500" placeholder="记录本次导出的用途"></textarea></label>
         <section id="exportProgressRegion" class="operation-progress" role="status" aria-live="polite" data-qa="export-progress" hidden>
           <span id="exportProgressText">正在生成 ZIP，请稍候…</span>

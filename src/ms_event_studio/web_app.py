@@ -885,8 +885,10 @@ class WebSession:
             raise
 
     def start_analysis_export(self, payload: Mapping[str, Any], *, handoff: bool = False) -> dict[str, Any]:
-        if not isinstance(payload, Mapping) or set(payload) != {'binding', 'result_id', 'target_token', 'include_pending', 'note'}:
+        if not isinstance(payload, Mapping) or set(payload) - {'filename'} != {'binding', 'result_id', 'target_token', 'include_pending', 'note'}:
             raise WebBoundaryError('分析结果导出请求不完整。')
+        from .analysis_export import archive_filename
+        filename = archive_filename(payload['filename']) if 'filename' in payload else None
         binding = _exact_text(payload, 'binding')
         identity = payload['result_id']
         if identity is not None and not isinstance(identity, str):
@@ -900,7 +902,7 @@ class WebSession:
             target = self._consume_selection(payload['target_token'], PathRole.FEATURE_EXPORT_PARENT)
             return self._new_job('analysis_export', lambda record: {'export': workspace.export_analysis_results(
                 target.path, binding=binding, result_id=identity,
-                include_pending=payload['include_pending'], note=note, handoff=handoff)}, cancel_allowed=False)
+                include_pending=payload['include_pending'], note=note, handoff=handoff, filename=filename)}, cancel_allowed=False)
 
     def start_review_export(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(payload, Mapping) or set(payload).difference(

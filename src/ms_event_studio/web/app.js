@@ -1803,6 +1803,8 @@ function renderExportFlow() {
   element("chooseExportTarget").textContent = copy.target;
   element("chooseExportTarget").disabled = exporting || success || (features && !analysisReady);
   element("exportNote").disabled = exporting || success;
+  element("exportFilenameField").hidden = sharing;
+  element("exportFilename").disabled = exporting || success;
   element("exportProgressRegion").hidden = !exporting;
   const exportMessage = sharing ? "正在打包项目，请稍候…" : "正在生成 ZIP，请稍候…";
   if (element("exportProgressText").textContent !== exportMessage) setText("exportProgressText", exportMessage);
@@ -1847,6 +1849,7 @@ async function setExportKind(kind) {
     state.exportFlow.target = null;
     state.exportFlow.error = "";
     state.exportFlow.result = null;
+    setDefaultExportFilename(normalized);
   }
   state.exportFlow.kind = normalized;
   state.exportFlow.includePending = normalized === "review_results"
@@ -1884,11 +1887,17 @@ async function setExportKind(kind) {
   renderExportFlow();
 }
 
+function setDefaultExportFilename(kind) {
+  const name = String(state.workspace?.project?.displayName || '项目').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 100);
+  element("exportFilename").value = `${name}-${kind === 'audit_package' ? 'LMA事件包' : '分析结果'}.zip`;
+}
+
 function openExportFlow(kind = "review_results") {
   if (!state.workspace || workbenchBusy()) return;
   clearOperationPoll();
   state.exportFlow = { ...emptyExportFlow(), state: "input", kind };
   element("exportNote").value = "";
+  setDefaultExportFilename(kind);
   renderExportFlow();
   renderWorkspace();
   openDialog("export");
@@ -2207,7 +2216,7 @@ async function submitExport() {
       flow.kind === "review_results" ? API_ENDPOINTS.exportAnalysis : flow.kind === "project_share" ? API_ENDPOINTS.exportProjectShare : audit ? API_ENDPOINTS.exportLma : API_ENDPOINTS.exportReviewResults,
       flow.kind === "project_share" ? { target_token: flow.target.selectionToken }
         : { target_token: flow.target.selectionToken, result_id: flow.includeFeature ? flow.featureResultId : null,
-            binding: flow.featureOverview.binding, include_pending: flow.includePending, note: element("exportNote").value },
+            filename: element("exportFilename").value, binding: flow.featureOverview.binding, include_pending: flow.includePending, note: element("exportNote").value },
     );
     applyExportOperationJob(response);
   } catch (error) {

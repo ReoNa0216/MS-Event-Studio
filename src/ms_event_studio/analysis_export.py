@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import re
 import uuid
 import zipfile
 
@@ -11,7 +12,21 @@ from .features import FeatureError, read_result, sha256, snapshot
 from .paths import resolve_project_path
 
 
-def export_analysis(project, parent, *, binding, result_id, include_pending, handoff=False):
+def archive_filename(value):
+    if not isinstance(value, str) or not value.strip():
+        raise FeatureError('请填写 ZIP 文件名。')
+    name = value.strip()
+    if not name.lower().endswith('.zip'):
+        name += '.zip'
+    stem = name[:-4]
+    if (not stem or stem.endswith(('.', ' ')) or len(name) > 180
+            or re.search(r'[<>:"/\\|?*\x00-\x1f\x7f]', name)
+            or re.fullmatch(r'(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?', stem, re.I)):
+        raise FeatureError('文件名无效，请使用普通名称，不要填写路径或特殊字符。')
+    return name
+
+
+def export_analysis(project, parent, *, binding, result_id, include_pending, handoff=False, filename=None):
     parent = Path(parent).resolve(strict=True)
     if parent == project.project_dir or project.project_dir in parent.parents:
         raise FeatureError('请选择项目文件夹以外的位置。')
@@ -24,7 +39,10 @@ def export_analysis(project, parent, *, binding, result_id, include_pending, han
         if record['event_binding'] != binding:
             raise FeatureError('矩阵与当前事件不一致，请重新提取，或仅导出事件表。')
     name = f'{"lma-events" if handoff else "analysis"}-{uuid.uuid4().hex[:12]}.zip'
+    name = archive_filename(filename) if filename is not None else name
     destination = parent / name
+    if destination.exists():
+        raise FeatureError("同名 ZIP 已存在，请修改文件名。")
     with tempfile.TemporaryDirectory(prefix='.ms-analysis-', dir=parent) as temp:
         temp = Path(temp)
         csv = export_human_csv(saved['reviews'], temp/'events.csv',
@@ -66,7 +84,10 @@ def export_analysis(project, parent, *, binding, result_id, include_pending, han
         digest = sha256(archive_path)
         if snapshot(project)['binding'] != binding:
             raise FeatureError('导出期间事件已变化，未生成结果，请重新打开导出窗口。')
-        os.link(archive_path, destination)
+        try:
+            os.link(archive_path, destination)
+        except FileExistsError as exc:
+            raise FeatureError("同名 ZIP 已存在，请修改文件名。") from exc
     return dict(kind='audit_package' if handoff else 'review_results', display_name=name,
                 row_count=len(saved['rows']) if handoff else csv.row_count, sha256=digest,
                 message=('已导出 LMA 事件包，' if handoff else '已导出分析结果，') +
