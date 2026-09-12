@@ -73,9 +73,23 @@ def assert_browser_safe(test: unittest.TestCase, payload: object, *private_value
     }
     keys = {key.casefold() for key in recursive_keys(payload)}
     test.assertTrue(keys.isdisjoint(forbidden_keys), keys.intersection(forbidden_keys))
-    serialized = json.dumps(payload, ensure_ascii=False)
-    for private in private_values:
-        test.assertNotIn(private, serialized)
+    def check_values(value: object) -> None:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key == "display_path":
+                    # User-requested read-only path display; writes still use tokens.
+                    test.assertIsInstance(child, str)
+                else:
+                    check_values(child)
+        elif isinstance(value, list):
+            for child in value:
+                check_values(child)
+        elif isinstance(value, str):
+            # Check decoded values so Windows backslashes cannot mask a leak.
+            for private in private_values:
+                test.assertNotIn(private, value)
+
+    check_values(payload)
 
 
 class WebViewModelContractTest(unittest.TestCase):
@@ -100,7 +114,7 @@ class WebViewModelContractTest(unittest.TestCase):
 
 
 class WebSessionContractTest(unittest.TestCase):
-    def test_inspect_and_create_keep_source_read_only_and_paths_private(self):
+    def test_inspect_and_create_keep_source_read_only_and_paths_display_only(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             root = Path(tmp)
             source = make_source(root / "private-source.txt")
@@ -110,6 +124,8 @@ class WebSessionContractTest(unittest.TestCase):
             try:
                 source_selection = session.register_path("source_file", source)
                 target_selection = session.register_path("project_target", target)
+                self.assertEqual(source_selection["display_path"], str(source.resolve()))
+                self.assertEqual(target_selection["display_path"], "")
                 assert_browser_safe(self, source_selection, str(source), str(root))
                 assert_browser_safe(self, target_selection, str(target), str(root))
 
@@ -337,7 +353,7 @@ class LoopbackHTTPContractTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             create_http_server("0.0.0.0")
 
-    def test_native_dialog_and_bootstrap_never_return_the_selected_path(self):
+    def test_native_dialog_and_bootstrap_keep_selected_paths_display_only(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             root = Path(tmp)
             source = root / "private-source.txt"
@@ -368,6 +384,7 @@ class LoopbackHTTPContractTest(unittest.TestCase):
                 self.assertEqual(status, 200)
                 selection = json.loads(raw)
                 self.assertEqual(selection["display_name"], source.name)
+                self.assertEqual(selection["display_path"], str(source.resolve()))
                 self.assertIn("selection_token", selection)
                 assert_browser_safe(self, selection, str(source), str(root))
             finally:

@@ -1,7 +1,8 @@
 """Install both private calculation packages from exact, clean Git commits.
 
 Local builds reuse sibling repositories via git archive (never their dirty
-working trees). Hosted builds need authenticated gh access to both repositories.
+working trees). Hosted builds use hash-pinned wheel secrets or authenticated gh
+access to both repositories.
 No release is created and no credential is serialized.
 """
 from pathlib import Path

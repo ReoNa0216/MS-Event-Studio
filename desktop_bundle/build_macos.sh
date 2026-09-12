@@ -31,6 +31,7 @@ if [[ "$machine" != "arm64" ]]; then
 fi
 
 "$python_bin" scripts/resolve_computation.py
+unset FLAME_MS_CORE_011_WHEEL_BASE64 FLAME_FEATURE_CORE_WHEEL_BASE64
 "$python_bin" -m pip install --upgrade pip wheel setuptools
 "$python_bin" -m pip install -e . -r packaging/macos/requirements-macos.txt
 PYTHONPATH="src:tests:." "$python_bin" -m unittest discover -s tests -q

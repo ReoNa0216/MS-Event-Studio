@@ -35,6 +35,10 @@ Write-Host "Using Python: $Python"
 # Resolve both scientific packages from clean, exact Git commits.
 & $Python scripts/resolve_computation.py
 if ($LASTEXITCODE -ne 0) { throw "Failed to install the pinned computation packages." }
+# Installation payloads are no longer needed. In particular, Windows cannot
+# restore an individual environment value longer than 32767 characters.
+Remove-Item -LiteralPath Env:FLAME_MS_CORE_011_WHEEL_BASE64 -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath Env:FLAME_FEATURE_CORE_WHEEL_BASE64 -ErrorAction SilentlyContinue
 
 & $Python -m pip install --upgrade pip wheel setuptools
 if ($LASTEXITCODE -ne 0) { throw "Failed to update the Windows build toolchain." }
