@@ -1,9 +1,11 @@
 # MS Event Studio 当前产品状态
 
-开发分支 `0.6.0.dev1`：HRGC 提取自动定位项目原始 MS 文件，完整核验后计算；本机位置提示不进入项目分享。提取窗口只负责计算和结果；「导出结果」仅有分析结果与 LMA 交接两个用途。分析 ZIP 合并事件 CSV 和可选的当前矩阵，拒绝混入过期矩阵。项目分享移至「新建 / 打开」。Windows `dist/windows` 已通过 186 项完整测试、打包 smoke、108 个标准场景和 9 个实际 Feature/分析导出/分享场景检查，以及三项独立审查。LMA 接入与原生 UMAP 正同步开发，待两端一起人工 UAT。用户确认后再发布 Windows/macOS Release，随后更新共享交接。证据见 `build/feature-qa/validation.json`。
+开发分支 `0.6.0.dev1`：HRGC 提取自动定位项目原始 MS 文件，完整核验后计算；本机位置提示不进入项目分享。提取窗口只负责计算和结果；「导出结果」仅有分析结果与 LMA 交接两个用途。分析 ZIP 合并事件 CSV 和可选的当前矩阵，拒绝混入过期矩阵。项目分享移至「新建 / 打开」。Windows `dist/windows` 已通过 186 项完整测试、打包 smoke、108 个标准场景和 9 个实际 Feature/分析导出/分享场景检查，以及三项独立审查。LMA 矩阵接入与原生 UMAP 已完成开发，待两端一起人工 UAT。用户确认后再发布 Windows/macOS Release，随后更新共享交接。证据见 `build/feature-qa/validation.json`。
 
 
-更新日期：2026-09-09（Asia/Shanghai）
+更新日期：2026-09-12（Asia/Shanghai）
+
+完整真实数据回归已通过：MPP 1,023 × 3,549、LSK 1,794 × 2,888、CAR-T-Bez 1,389 × 7,837（事件 × features），均完成提取、分析 ZIP、LMA 接入、原生 UMAP 与重开检查。原项目及矩阵原值保持不变；另有 10 个已有 LMA 项目通过兼容检查。LSK/CAR-T 的批量保留只发生在工程测试副本中，不是人工真值。统一证据为父工作区 `studio-validation/validation.json`，简单人工步骤见 [联合验收](guided_test_zh.md)。
 
 当前正式版本：[`v0.5.0`](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.5.0)
 
@@ -15,7 +17,7 @@ Windows 人工验收的历史证据指 v0.4.1；v0.5.0 已获用户正式发布�
 
 ## 已完成
 
-本轮新增“导出结果 → 打包分享项目”，保留完整项目的科学内容和历史，排除 macOS 元数据。见[项目分享](project_sharing.md)；构建和人工 UAT 状态以共享 Windows 交接为准。
+当前项目分享入口为“新建 / 打开 → 分享当前项目…”，保留完整项目的科学内容和历史，排除 macOS 元数据。见[项目分享](project_sharing.md)；构建和人工 UAT 状态以共享 Windows 交接为准。
 
 | 用户目标 | 当前状态 |
 |---|---|
