@@ -3,7 +3,7 @@
 项目内新增“打包分享项目”，自动排除 macOS 系统元数据；MS→LMA 正式交换入口统一为“LMA 事件包”。操作与保存边界见[项目分享](docs/project_sharing.md)。
 开发分支 `0.6.0.dev1` 已接入 HRGC：打开项目 → **Feature 提取** → 手动排除 QC 时间段（可选）→ 开始提取。自动定位创建项目时使用的原始 MS 文件；仅缺失时重新定位。结果随项目保存。**导出结果 → 导出分析结果** 生成一个 ZIP，包含事件 CSV 和勾选的当前矩阵（H5AD）；已有矩阵导出不依赖原始 MS 文件。**传给 LMA Studio** 生成独立交接 ZIP，保留完整 v2 事件并可附带矩阵；项目分享移至 **新建 / 打开 → 分享当前项目…**。正式 Release 仍为下述 v0.5.0。
 
-构建使用 `packaging/computation.json` 固定两个计算包的源码 commit；运行 `python scripts/resolve_computation.py` 后安装本产品。CI 的 `FLAME_COMPUTATION_READ_TOKEN` 需能读取两个私有计算仓库，详见[构建说明](docs/github_actions_builds.md)。
+构建使用 `packaging/computation.json` 固定两个计算包的源码 commit；运行 `python scripts/resolve_computation.py` 后安装本产品。CI 优先使用 `FLAME_MS_CORE_011_WHEEL_BASE64` 与 `FLAME_FEATURE_CORE_WHEEL_BASE64` 的哈希锁定安装包，也支持具有私有仓库读取权限的 `FLAME_COMPUTATION_READ_TOKEN`，详见[构建说明](docs/github_actions_builds.md)。
 
 
 MS Event Studio 是一个独立的 MS-only 事件提取、审阅与导出工具。它只处理质谱信号，

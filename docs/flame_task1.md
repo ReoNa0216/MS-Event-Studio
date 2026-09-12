@@ -6,7 +6,7 @@
 
 当前固定源码见 `packaging/computation.json`：MS core `0899d60`（0.1.1）、feature core `7eb67c0`（0.1.0）。Python 3.11 环境运行 `python scripts/resolve_computation.py`，再安装 `pip install -e .`。解析脚本从相邻 Git 仓库的精确 commit 导出干净源码；没有本地仓库时通过已认证的 GitHub CLI clone。不会安装相邻仓库的未提交改动，也不会创建发布。
 
-Windows/Mac 构建脚本使用同一来源锁。CI 需要可读取两个私有仓库的 `FLAME_COMPUTATION_READ_TOKEN`（也接受具备相同权限的既有 `FLAME_MS_CORE_READ_TOKEN`）；旧 base64 wheel 流程已删除。平台验收状态见共享交接。
+Windows/Mac 构建脚本使用同一来源锁。CI 优先使用哈希锁定的 `FLAME_MS_CORE_011_WHEEL_BASE64` 与 `FLAME_FEATURE_CORE_WHEEL_BASE64`；未配置时可用私有仓库读取 token，详见[构建说明](github_actions_builds.md)。安装成功后清除 wheel 环境变量，再运行测试与打包。
 
 ## 事件传递
 
@@ -18,7 +18,7 @@ v2 包包含 `events.parquet`、`manifest.json`、`checksums.sha256`。完整合
 
 LMA 导入保留所有事件及顺序，只有 accepted 进入标注名单。pending、rejected、unreviewed 仍留在工作表和不可变原包中。raw 严格解析仅用于曲线及原始/当前物理位置校验，导入不重新 MS calling，不走旧 CSV roster 补峰。
 
-LMA 项目配置可只读检查新版审阅包，逐事件比较新增/删除/修改及生成版本。更新创建新项目；不在原项目原位替换事件或自动迁移标注。同名 ID 的峰顶、窗口、状态变化也被识别。发布前完整校验在 sibling staging 完成，失败回滚，原项目不受影响。
+LMA 新建界面仅提供事件包 ZIP；旧文件夹来源的保存项目仍可打开。新版审阅事件应创建新项目，配置页不再提供只读差异检查入口；不在原项目原位替换事件或自动迁移标注。同名 ID 的峰顶、窗口、状态变化也被识别。发布前完整校验在 sibling staging 完成，失败回滚，原项目不受影响。
 
 ## 旧项目与科学边界
 
