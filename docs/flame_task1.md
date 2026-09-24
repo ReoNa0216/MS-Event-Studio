@@ -26,8 +26,8 @@ v0.4.0+ 项目加载沿用已保存事件、配对、标签、模型、名单顺
 
 新建独立分析使用共用 caller，得到稳定自动来源身份。旧 LMA 用扫描间隔近似计算峰宽，新核用实际采集时间；新分析不能覆盖历史投稿结果。±15 ppm 人工名单支持通道保留，自动 primary 使用 ±12 ppm，二者不合并。
 
-任务 2 等待专门数据，仅未来验收 label-correct；人工标签不是独立真值。标签与 feature 按事件 ID 并行产出。LIF→MS 采集时间对齐 QC 与跨批参照细胞不同，FLAME 没有色谱保留时间。HSC 特定参数不作为通用默认。测量、背景/质量证据、置信度、算法表示、化学注释和 metabolic state 分别表达。任务 3 已接入 MS HRGC 提取和 LMA 矩阵及原生 UMAP，正式版已完成 Windows 联合验收；0.6.1rc1 只升级 feature core；任务 4 只保留接口，未实现自动标签或批次校正模型。
+任务 2 等待专门数据，仅未来验收 label-correct；人工标签不是独立真值。标签与 feature 按事件 ID 并行产出。LIF→MS 采集时间对齐 QC 与跨批参照细胞不同，FLAME 没有色谱保留时间。HSC 特定参数不作为通用默认。测量、背景/质量证据、置信度、算法表示、化学注释和 metabolic state 分别表达。任务 3 已接入 MS HRGC 提取和 LMA 矩阵及原生 UMAP，正式版已完成 Windows 联合验收；0.6.1 只升级 feature core；任务 4 只保留接口，未实现自动标签或批次校正模型。
 
 ## 验收证据
 
-正式版验证见父工作区 `studio-validation/validation.json`。0.6.1rc1 的 core 升级验证见 `build/core020-validation/validation.json`；本次仅候选构建，正式版仍为 v0.6.0。共享交接随实际代码和检查同步。本机原项目不等于尚未取得的正式投稿项目，不能宣称逐投稿项目验收。Windows 人工 UAT 后再安排 macOS 真机可见验收。
+正式版验证见父工作区 `studio-validation/validation.json`。v0.6.1 的 core 升级验证摘要见共享仓库 `records/evidence/task3_feature_core/windows_studio_core020.json`，正式构件与 CI 见 GitHub Release。共享交接随实际代码和检查同步。本机原项目不等于尚未取得的正式投稿项目，不能宣称逐投稿项目验收。Windows 人工 UAT 后再安排 macOS 真机可见验收。

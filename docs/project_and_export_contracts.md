@@ -104,7 +104,7 @@ See [project sharing](project_sharing.md). This copies a complete project for re
 
 ## HRGC feature 结果
 
-一个项目对应一个原始 MS run。Feature 提取重读外部原文件，验证全量 SHA256、文件大小、物理扫描行、scan ID、spectrum index 和时间；以当前审阅峰顶及前后各一扫描调用独立 `flame-feature-core 0.2.0`（0.6.1rc1 起）。强度阈值 200、支持比例 0.2、10 ppm、m/z 100–1050 固定。只纳入 accepted，显式 QC 时间段按闭区间峰顶时间排除；细胞标签及 MS barcode 不参与提取。
+一个项目对应一个原始 MS run。Feature 提取重读外部原文件，验证全量 SHA256、文件大小、物理扫描行、scan ID、spectrum index 和时间；以当前审阅峰顶及前后各一扫描调用独立 `flame-feature-core 0.2.0`（0.6.1 起）。强度阈值 200、支持比例 0.2、10 ppm、m/z 100–1050 固定。只纳入 accepted，显式 QC 时间段按闭区间峰顶时间排除；细胞标签及 MS barcode 不参与提取。
 
 每次成功结果保存为 `features/<opaque result id>/`。保留包原生 `native_matrix.h5ad`（float64、NaN）、feature 轴、事件行、质量信息与代表点；另附原始 v2 `source_events/` 和含所有事件排除原因的 `event_inclusion.parquet`。`execution_record.json` 记录原始来源、逐事件版本、依赖、固定参数、QC 段、适配器哈希与所有产物哈希。项目 manifest 和 SQLite 审阅不改动，不把预测写成 accepted。
 
