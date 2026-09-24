@@ -164,8 +164,12 @@ def packaged_feature_smoke() -> dict[str, Any]:
         _, record = read_result(project, result['result_id'], verify=True)
         if result['events'] != 20 or result['features'] < 1 or snapshot(project)['binding'] != saved['binding']:
             raise RuntimeError('Packaged feature extraction failed the identity/shape check')
+        if (record['package_version'] != '0.2.0' or record['method_id'] != 'B_owned_mz_center_v1'
+                or record['local_method_id'] != 'B_owned_v1'):
+            raise RuntimeError('Packaged feature core differs from the pinned version/method')
         return {'events': result['events'], 'features': result['features'],
-                'package_version': record['package_version'], 'float64': True, 'spawned': True}
+                'package_version': record['package_version'], 'method_id': record['method_id'],
+                'local_method_id': record['local_method_id'], 'float64': True, 'spawned': True}
 
 
 # Transitional name retained for callers of the scientific regression probe.

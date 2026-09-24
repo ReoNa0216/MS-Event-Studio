@@ -102,9 +102,9 @@ status explicitly. This contract is not permission to overwrite an LMA Studio
 See [project sharing](project_sharing.md). This copies a complete project for reopening in the same Studio; it is separate from the event exchange package. Sharing is read-only and does not append an export audit row.
 
 
-## HRGC feature 结果（开发分支）
+## HRGC feature 结果
 
-一个项目对应一个原始 MS run。Feature 提取重读外部原文件，验证全量 SHA256、文件大小、物理扫描行、scan ID、spectrum index 和时间；以当前审阅峰顶及前后各一扫描调用独立 `flame-feature-core 0.1.0`。强度阈值 200、支持比例 0.2、10 ppm、m/z 100–1050 固定。只纳入 accepted，显式 QC 时间段按闭区间峰顶时间排除；细胞标签及 MS barcode 不参与提取。
+一个项目对应一个原始 MS run。Feature 提取重读外部原文件，验证全量 SHA256、文件大小、物理扫描行、scan ID、spectrum index 和时间；以当前审阅峰顶及前后各一扫描调用独立 `flame-feature-core 0.2.0`（0.6.1rc1 起）。强度阈值 200、支持比例 0.2、10 ppm、m/z 100–1050 固定。只纳入 accepted，显式 QC 时间段按闭区间峰顶时间排除；细胞标签及 MS barcode 不参与提取。
 
 每次成功结果保存为 `features/<opaque result id>/`。保留包原生 `native_matrix.h5ad`（float64、NaN）、feature 轴、事件行、质量信息与代表点；另附原始 v2 `source_events/` 和含所有事件排除原因的 `event_inclusion.parquet`。`execution_record.json` 记录原始来源、逐事件版本、依赖、固定参数、QC 段、适配器哈希与所有产物哈希。项目 manifest 和 SQLite 审阅不改动，不把预测写成 accepted。
 
@@ -115,6 +115,8 @@ See [project sharing](project_sharing.md). This copies a complete project for re
 创建项目或成功提取后，在本机 recent-project 配置旁的 `.sources.json` 文件记录完整 raw SHA256 → 位置。它只用于定位，不进入项目/分享包；写入失败不改变计算结果。打开 Feature 时仅检查存在性与大小，返回文件名、本机展示路径和 opaque token，不把 located 当作内容已经校验。实际提取仍完整核验 SHA256 与物理扫描。旧项目没有位置记录时首次定位一次；错误/取消提取不写入新提示。缺失 raw 不影响已有矩阵导出。
 
 「导出结果」按用途提供分析结果和 LMA 交接，两者都可附带最近一次且仍有效的矩阵。一个分析 ZIP 包含 `events.csv`、`analysis_record.json`，以及选定当前结果的完整 `features/`（含 v2 `source_events/`）。`POST /api/exports/analysis` 使用 binding、可选 result_id、target_token、include_pending 与 note，并接受可选 filename；任务与范围修改互斥，导出前后核验版本，成功仅记一条审计。原始文件缺失不阻止导出，过期矩阵不能与新事件 CSV 混合。Feature 提取窗口只负责计算及结果概览。两种用途均可自命名 ZIP，默认“项目名-分析结果.zip”或“项目名-LMA事件包.zip”；校验 Windows 文件名，缺少扩展名时补齐，遇到同名文件拒绝覆盖。导出页「传给 LMA Studio」通过 `POST /api/exports/lma` 生成 LMA 事件包 ZIP：`events/` 保留正式 v2 三文件，`handoff_record.json` 绑定事件 manifest 哈希和可选矩阵记录哈希，`features/` 仅在选择矩阵时加入。LMA 校验交接用途、事件与矩阵一致性；分析 ZIP 不作为 LMA 导入入口。新建界面仅保留 ZIP，旧文件夹来源的保存项目仍可打开；完整项目分享入口位于「新建 / 打开 → 分享当前项目…」。
+
+0.2.0 记录全局方法 `B_owned_mz_center_v1`，局部方法仍为 `B_owned_v1`。单 run 数值与局部身份不变；多 run 组轴按 mz_center，输出 mz_mean 保留原语义。旧 0.1.0 结果按已保存版本读取、校验和导出，不在打开时重算或改写。
 
 本轮不合并多个项目的特征轴。单 run 验证通过不等于五套研究矩阵复现；多 run 必须一次组轴，不能直接按列拼接各项目矩阵。LMA 联合验收候选已按同一事件 ID 与版本接入矩阵，并独立保存预处理/UMAP 参数和坐标；UMAP 不属于 HRGC 原始矩阵。
 

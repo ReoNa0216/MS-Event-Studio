@@ -105,7 +105,9 @@ class FeatureTests(unittest.TestCase):
             self.assertEqual(manifest_hash, sha256(project.project_dir / 'ms_event_project.json'))
             self.assertEqual(saved['binding'], snapshot(project)['binding'])
             self.assertTrue(overview(project)['results'][0]['current'])
-            self.assertEqual(record['package_version'],'0.1.0')
+            self.assertEqual(record['package_version'], '0.2.0')
+            self.assertEqual(record['method_id'], 'B_owned_mz_center_v1')
+            self.assertEqual(record['local_method_id'], 'B_owned_v1')
             self.assertEqual(read_event_package(folder / 'source_events').event_versions,
                 {r.event_id:r.event_version for r in pd.read_parquet(folder / 'event_inclusion.parquet').itertuples()})
             # Same raw/roster through a direct package call must reproduce X.
@@ -118,6 +120,11 @@ class FeatureTests(unittest.TestCase):
             extract_dataset([raw], dataset_id=saved['project_id'], output=direct)
             np.testing.assert_array_equal(anndata.read_h5ad(folder/'native_matrix.h5ad').X,
                                           anndata.read_h5ad(direct/'native_matrix.h5ad').X)
+            matrix = anndata.read_h5ad(folder / 'native_matrix.h5ad')
+            self.assertEqual(matrix.uns['package_version'], '0.2.0')
+            self.assertEqual(matrix.uns['method'], record['method_id'])
+            self.assertEqual(matrix.uns['local_method_id'], 'B_owned_v1')
+            self.assertTrue(all(':B_owned_v1:' in str(fid) for fid in matrix.var_names))
             exported = export_result(project, result['result_id'], root)
             self.assertTrue((root/exported['display_name']).is_file())
             with self.assertRaisesRegex(FeatureError, '同名 ZIP'): export_result(project,result['result_id'],root)

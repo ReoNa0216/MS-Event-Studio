@@ -1,5 +1,7 @@
 # MS Event Studio 当前产品状态
 
+2026-09-24：源码候选 **0.6.1rc1** 已升级至官方 `flame-feature-core 0.2.0`，保留 `flame-ms-core 0.1.1`。189 项 Studio 测试、19 项 core 测试、Windows 打包冒烟及 108 页浏览器矩阵完成。真实 MPP 新旧提取结果严格一致，LSK 新核提取通过；LMA v0.7.2 完成矩阵更新、保存重开和带标签导出。只在隔离工程副本验证，不改原项目或人工标注；当前未正式发布。证据见 `build/core020-validation/validation.json`。
+
 `v0.6.0` 已完成 HRGC 提取、原文件自动定位与完整路径显示、提取取消、最近结果概览及按用途导出。分析 ZIP 的待定选项仅作用于 CSV；LMA 事件包保留全部审阅状态，可附当前有效矩阵。QC 排除只依据用户明确填写的时间范围，不由 MS 自动识别。LMA 接入原生 UMAP 与带标签矩阵导出，新建仅保留事件包 ZIP 入口。
 
 2026-09-12：MS 双平台 CI 完成 189 项测试及打包后的 WebView/HRGC 子进程检查；LMA 自动测试 509 项。108 标准浏览器页面和三项独立审查通过。Windows 桌面测试及最终构件哈希集中在父工作区 `studio-validation/validation.json`。macOS 无可用真机，可见交互验收未完成；2026-09-13 用户授权发布 v0.6.0，macOS 真机验收仍单列跟踪。
