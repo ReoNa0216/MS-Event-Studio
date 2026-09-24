@@ -12,7 +12,9 @@ MS Event Studio 是一个独立的 MS-only 事件提取、审阅与导出工具�
 
 ## 当前正式版本
 
-当前正式版本为 [v0.6.0](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.6.0)，提供 Windows x64 与 macOS Apple Silicon 包及 SHA-256 校验文件。
+当前正式版本为 [v0.6.1](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.6.1)，提供 Windows x64 与 macOS Apple Silicon 包及 SHA-256 校验文件。
+
+**v0.6.1**：依赖正式 `flame-feature-core 0.2.0`，保持单 run 提取和现有保存/导出流程；旧 0.1.0 矩阵不自动重算。升级验证和使用说明见 [版本说明](README_RELEASE.md)。
 
 解析与 calling 使用独立的 `flame-ms-core==0.1.1`；“LMA 事件包”采用 v2 格式，可保真导入 LMA Studio v0.7.0。新增“打包分享项目”，用于将完整项目交给同事继续审阅。见 [接入与构建说明](docs/flame_task1.md)和[版本说明](README_RELEASE.md)。
 

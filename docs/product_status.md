@@ -1,5 +1,7 @@
 # MS Event Studio 当前产品状态
 
+2026-09-24：**v0.6.1** 已升级至官方 `flame-feature-core 0.2.0`，保留 `flame-ms-core 0.1.1`。189 项 Studio 测试、19 项 core 测试、Windows 打包冒烟及 108 页浏览器矩阵完成。真实 MPP 新旧提取结果严格一致，LSK 新核提取通过；LMA v0.7.2 完成矩阵更新、保存重开和带标签导出。只在隔离工程副本验证，不改原项目或人工标注；用户已授权正式发布；升级验证摘要保存在共享仓库 `records/evidence/task3_feature_core/windows_studio_core020.json`，正式构件与 CI 见 GitHub Release。
+
 `v0.6.0` 已完成 HRGC 提取、原文件自动定位与完整路径显示、提取取消、最近结果概览及按用途导出。分析 ZIP 的待定选项仅作用于 CSV；LMA 事件包保留全部审阅状态，可附当前有效矩阵。QC 排除只依据用户明确填写的时间范围，不由 MS 自动识别。LMA 接入原生 UMAP 与带标签矩阵导出，新建仅保留事件包 ZIP 入口。
 
 2026-09-12：MS 双平台 CI 完成 189 项测试及打包后的 WebView/HRGC 子进程检查；LMA 自动测试 509 项。108 标准浏览器页面和三项独立审查通过。Windows 桌面测试及最终构件哈希集中在父工作区 `studio-validation/validation.json`。macOS 无可用真机，可见交互验收未完成；2026-09-13 用户授权发布 v0.6.0，macOS 真机验收仍单列跟踪。
@@ -8,7 +10,7 @@
 
 完整真实数据回归已通过：MPP 1,023 × 3,549、LSK 1,794 × 2,888、CAR-T-Bez 1,389 × 7,837（事件 × features），均完成提取、分析 ZIP、LMA 接入、原生 UMAP 与重开检查。原项目及矩阵原值保持不变；另有 10 个已有 LMA 项目通过兼容检查。LSK/CAR-T 的批量保留只发生在工程测试副本中，不是人工真值。统一证据为父工作区 `studio-validation/validation.json`，简单人工步骤见 [联合验收](guided_test_zh.md)。
 
-当前正式版本：[`v0.6.0`](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.6.0)
+当前正式版本：[`v0.6.1`](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.6.1)
 
 任务 1 正式版本：`0.5.0`。解析/calling 已接入固定版本 `flame-ms-core 0.1.0`，
 正式事件包升级为供 LMA 导入的 v2，界面名称统一为“LMA 事件包”。原审阅与保存语义保持；见 [接入说明](flame_task1.md)。

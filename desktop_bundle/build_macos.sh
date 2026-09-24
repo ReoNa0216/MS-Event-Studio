@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-version="${MS_EVENT_STUDIO_VERSION:-0.6.0}"
+version="${MS_EVENT_STUDIO_VERSION:-0.6.1}"
 
 if [[ ! "$version" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
   echo "Version may contain only letters, digits, period, underscore, and hyphen (maximum 64 characters)." >&2
@@ -31,7 +31,7 @@ if [[ "$machine" != "arm64" ]]; then
 fi
 
 "$python_bin" scripts/resolve_computation.py
-unset FLAME_MS_CORE_011_WHEEL_BASE64 FLAME_FEATURE_CORE_WHEEL_BASE64
+unset FLAME_MS_CORE_011_WHEEL_BASE64 FLAME_FEATURE_CORE_020_WHEEL_BASE64
 "$python_bin" -m pip install --upgrade pip wheel setuptools
 "$python_bin" -m pip install -e . -r packaging/macos/requirements-macos.txt
 PYTHONPATH="src:tests:." "$python_bin" -m unittest discover -s tests -q
