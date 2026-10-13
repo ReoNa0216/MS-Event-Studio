@@ -102,13 +102,14 @@ def main():
     assert sha256(old_folder / 'native_matrix.h5ad') == baseline['matrix_sha256']
     protected = tree(project.project_dir)
     exports = {}
-    prefix = args.candidate_version.replace('.', '-')
+    prefix = Path(args.report_name).stem + '-' + args.candidate_version.replace('.', '-')
     # Reopen/export saved 0.2.0 without supplying raw to either operation.
     for handoff in (False, True):
         kind = 'lma' if handoff else 'analysis'
         exports['old_' + kind] = check_archive(project, old_id, root, prefix+'-old-'+kind+'.zip', handoff)
     assert next(r for r in overview(open_project(project.project_dir))['results'] if r['result_id']==old_id)['current']
     measurements = []
+    completed = []
     for repetition in range(args.repetitions):
         def progress(phase, fraction=0):
             if phase != 'reading' or fraction == 0:
@@ -119,8 +120,6 @@ def main():
         assert record['package_version'] == args.candidate_version
         assert record['method_id'] == 'B_owned_mz_center_v1' and record['local_method_id'] == 'B_owned_v1'
         assert record['status'] == 'passed' and record['complete'] is True
-        new, parity = compare_results(old_folder, new_folder)
-        assert new.uns['package_version'] == args.candidate_version
         equal_metadata(scientific_runs(old_record['runs']), scientific_runs(record['runs']), path='runs')
         for key in ['method_id','local_method_id','dataset_id','parameters','inputs','events','features',
                     'merge','python_version','platform','dependencies','event_binding','qc_intervals_ns',
@@ -128,8 +127,15 @@ def main():
             equal_metadata(old_record[key],record[key],path=key)
         measurements.append(dict(repetition=repetition+1, result_id=result['result_id'], resources=resources,
             core_api_seconds=record['elapsed_seconds'], matrix_sha256=sha256(new_folder/'native_matrix.h5ad'),
-            parity=parity))
-        print(json.dumps({k:v for k,v in measurements[-1].items() if k!='parity'}),flush=True)
+            ))
+        completed.append(new_folder)
+        print(json.dumps(measurements[-1]),flush=True)
+    # Large comparison DataFrames must not inflate the validator RSS of the
+    # next timed extraction. Each extraction still uses a fresh spawned worker.
+    for measurement, folder in zip(measurements, completed):
+        new, parity = compare_results(old_folder, folder)
+        assert new.uns['package_version'] == args.candidate_version
+        measurement['parity'] = parity
     project = open_project(project.project_dir)
     assert snapshot(project)['binding'] == saved['binding']
     assert read_result(project, old_id, verify=True)[1] == old_record
