@@ -30,4 +30,4 @@ v0.4.0+ 项目加载沿用已保存事件、配对、标签、模型、名单顺
 
 ## 验收证据
 
-正式版验证见父工作区 `studio-validation/validation.json`。v0.6.1 的 core 升级验证摘要见共享仓库 `records/evidence/task3_feature_core/windows_studio_core020.json`，正式构件与 CI 见 GitHub Release。共享交接随实际代码和检查同步。本机原项目不等于尚未取得的正式投稿项目，不能宣称逐投稿项目验收。Windows 人工 UAT 后再安排 macOS 真机可见验收。
+历史正式版验证见父工作区 `studio-validation/validation.json`。v0.6.2 的 core 0.2.1 升级摘要见共享仓库 `records/evidence/task3_feature_core/windows_studio_core021.json`：MS 192 项、core 27 项、LMA 26 项相关测试，MPP 新旧全字段精确对照、两种 ZIP、重开及 LMA 带标签导出通过。当前 Windows 资源测量和实际 EXE 页面提取另列，原生输入自动化未完成全部点击/文件选择器链路。v0.6.1 历史证据保留在 `windows_studio_core020.json`；正式构件与 CI 见 GitHub Release。本机原项目不等于尚未取得的正式投稿项目，不能宣称逐投稿项目验收；macOS 真机可见验收仍待安排。
