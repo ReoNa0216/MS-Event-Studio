@@ -10,6 +10,7 @@ from collections import Counter
 import json
 from pathlib import Path
 import shutil
+import threading
 import time
 
 import anndata as ad
@@ -27,12 +28,45 @@ def tree(root):
             if p.is_file() and not p.name.endswith(('-wal', '-shm', '-journal'))}
 
 
+def measure_extraction(operation):
+    """Sample this validator and its worker every 20 ms; requires the qa extra."""
+    import psutil
+    process = psutil.Process()
+    stop = threading.Event()
+    peaks = {'sample_interval_seconds': 0.02, 'peak_process_tree_rss_bytes': 0,
+             'peak_worker_rss_bytes': 0}
+    def sample():
+        while not stop.is_set():
+            total = 0
+            for item in [process, *process.children(recursive=True)]:
+                try:
+                    memory = item.memory_info()
+                    total += memory.rss
+                    if item.pid != process.pid:
+                        peaks['peak_worker_rss_bytes'] = max(peaks['peak_worker_rss_bytes'],
+                            getattr(memory, 'peak_wset', memory.rss))
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            peaks['peak_process_tree_rss_bytes'] = max(peaks['peak_process_tree_rss_bytes'], total)
+            stop.wait(0.02)
+    monitor = threading.Thread(target=sample, daemon=True)
+    started = time.monotonic()
+    monitor.start()
+    try:
+        result = operation()
+    finally:
+        stop.set()
+        monitor.join()
+    return result, dict(elapsed_seconds=time.monotonic()-started, **peaks)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path)
     parser.add_argument('--raw', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--engineering-selection', action='store_true')
+    parser.add_argument('--measure-resources', action='store_true')
     parser.add_argument('--project-name', default='MS')
     args = parser.parse_args()
     root = args.output.resolve()
@@ -74,7 +108,11 @@ def main():
             print(root.name, phase, current[1], flush=True)
             last[:] = current
     started = time.monotonic()
-    result = run_extraction(project, args.raw, saved, [], lambda: False, progress)
+    operation = lambda: run_extraction(project, args.raw, saved, [], lambda: False, progress)
+    if args.measure_resources:
+        result, resources = measure_extraction(operation)
+    else:
+        result, resources = operation(), None
     extraction_seconds = time.monotonic() - started
     folder, record = read_result(project, result['result_id'], verify=True)
     matrix = ad.read_h5ad(folder / 'native_matrix.h5ad')
@@ -97,6 +135,7 @@ def main():
         review_unchanged_by_extraction_and_export=True, raw_sha256=saved['source']['sha256'],
         matrix_sha256=sha256(folder / 'native_matrix.h5ad'), result=result,
         matrix_path=str(folder / 'native_matrix.h5ad'), zip=str(root / exported['display_name']),
+        resources=resources,
         events=matrix.n_obs, features=matrix.n_vars,
         all_nan_rows=int(np.isnan(values).all(axis=1).sum()),
         all_nan_columns=int(np.isnan(values).all(axis=0).sum()),

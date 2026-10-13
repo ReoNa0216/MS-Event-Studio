@@ -11,13 +11,15 @@
   },
   "flame-feature-core": {
     "repository": "ReoNa0216/flame-feature-core",
-    "commit": "807a2a0df0ff9e4ec558087d6ac49faf27d49dc9",
-    "version": "0.2.0",
+    "commit": "df7a8050abf4fca22f23a9050ad1bf734da066c3",
+    "version": "0.2.1",
     "wheel": {
-      "filename": "flame_feature_core-0.2.0-py3-none-any.whl",
-      "sha256": "499ae0d4ec68ac9447aa20793bfb00cf3afdab301d2be3e2a9694f5fffda13c4",
-      "secret": "FLAME_FEATURE_CORE_020_WHEEL_BASE64"
+      "filename": "flame_feature_core-0.2.1-py3-none-any.whl",
+      "sha256": "2ae98ee9d89d39d87992f5e5fba88ece00004412ef881285e1d59643caf3579a",
+      "secret": "FLAME_FEATURE_CORE_021_WHEEL_BASE64"
     },
-    "release_tag": "v0.2.0"
+    "release_tag": "v0.2.1",
+    "release_manifest_sha256": "e33779739c61816de38c19cf4cfccfb1fd2df0b752f8bed9f58bc44f828f33ef",
+    "checksums_sha256": "95a8dbc9907ec069756148dee9d1626a01ded3f632b7761f018d420268408e70"
   }
 }

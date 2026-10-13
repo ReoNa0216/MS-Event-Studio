@@ -9,7 +9,7 @@ Windows x64 与 macOS Apple Silicon 下载都在同一仓库；不再维护单�
 在 GitHub 打开 **Actions → Build and release desktop packages → Run workflow**：
 
 1. `platform` 选 `all`，确保 Windows 与 macOS 来自同一个提交；
-2. `version` 填应用版本，开发构建例如 `0.6.1rc1`，正式发布使用已确认的稳定版本；
+2. `version` 填应用版本，开发构建例如 `0.6.2`，正式发布使用已确认的稳定版本；
 3. 首次审计保持 `publish_prerelease` 关闭，只下载 Actions artifacts 检查；
 4. 两个平台构建和隐藏启动均通过后，再以相同提交运行并打开
    `publish_prerelease`，供真实用户下载测试。
@@ -20,9 +20,9 @@ ZIP，因此文件名不会出现多余的 `v`。
 
 ## 固定计算源码
 
-Python 3.11 构建使用 `packaging/computation.json` 固定 `flame-ms-core` 与 `flame-feature-core` 的 commit 和包版本。`scripts/resolve_computation.py` 从干净 Git archive 安装；原 HRGC 源码不复制进产品仓库。Numba 源文件、LLVM、HDF5 和依赖版本元数据进入冻结包，隐藏科学冒烟实际启动子进程提取并重开 H5AD。
+Python 3.11 构建使用 `packaging/computation.json` 固定 `flame-ms-core` 与 `flame-feature-core` 的 commit 和包版本。`scripts/resolve_computation.py` 优先安装正式 feature Release wheel；无 Release 的 MS core 从干净 Git archive 安装；原 HRGC 源码不复制进产品仓库。Numba 源文件、LLVM、HDF5 和依赖版本元数据进入冻结包，隐藏科学冒烟实际启动子进程提取并重开 H5AD。
 
-Actions 优先使用 `FLAME_MS_CORE_011_WHEEL_BASE64` 和 `FLAME_FEATURE_CORE_020_WHEEL_BASE64` 中的固定 wheel，安装前严格校验 `packaging/computation.json` 的 SHA256。feature wheel 直接取自 core v0.2.0 正式 Release；MS core wheel 来自清单的精确 commit 干净 archive，均不改变计算源码；secret 保存的是安装包，不是账号 token。未配置 wheel 时仍可用 `FLAME_COMPUTATION_READ_TOKEN`（两个私有计算仓库的 contents:read）取得源码。旧 0.1.0 的 `FLAME_MS_CORE_WHEEL_BASE64` 不适用于当前 0.1.1。构建脚本失败时不要跳过依赖校验。
+Actions 优先使用 `FLAME_MS_CORE_011_WHEEL_BASE64` 和 `FLAME_FEATURE_CORE_021_WHEEL_BASE64` 中的固定 wheel，安装前严格校验 `packaging/computation.json` 的 SHA256。feature wheel 直接取自 core v0.2.1 正式 Release；MS core wheel 来自清单的精确 commit 干净 archive，均不改变计算源码；secret 保存的是安装包，不是账号 token。未配置 feature wheel 时，通过已认证 gh 下载锁定标签的正式 wheel、SHA256SUMS.txt 和 release-manifest.json，核对附件哈希、版本、commit 和运行源码哈希；下载或校验失败立即停止。MS core 无 wheel 时从锁定 commit 取得干净源码。读取私有仓库可用 `FLAME_COMPUTATION_READ_TOKEN`（两个计算仓库的 contents:read）。旧 0.1.0 的 `FLAME_MS_CORE_WHEEL_BASE64` 不适用于当前 0.1.1。构建脚本失败时不要跳过依赖校验。
 
 ## 每个平台实际证明什么
 

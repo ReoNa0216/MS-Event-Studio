@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ms-event-studio"
-version = "0.6.1"
+version = "0.6.2"
 description = "MS-only event extraction, review, and versioned export"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "flame-ms-core==0.1.1",
-  "flame-feature-core==0.2.0",
+  "flame-feature-core==0.2.1",
   "numpy>=1.26,<3",
   "pandas>=2.1,<3",
   "pyarrow==24.0.0",
@@ -23,7 +23,7 @@ packaging = [
   "Pillow>=10,<12",
   "pywebview==6.2.1",
 ]
-qa = ["playwright>=1.49,<2"]
+qa = ["playwright>=1.49,<2", "psutil==7.2.2"]
 
 [project.scripts]
 ms-event-studio = "ms_event_studio.cli:main"

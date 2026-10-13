@@ -1,12 +1,13 @@
-"""Install both private calculation packages from exact, clean Git commits.
+"""Install pinned calculation wheels, or clean Git archives without a Release.
 
 Local builds reuse sibling repositories via git archive (never their dirty
-working trees). Hosted builds use hash-pinned wheel secrets or authenticated gh
-access to both repositories.
+working trees). Feature builds use the official Release wheel and its provenance;
+hosted builds can also use the identical hash-pinned wheel secret.
 No release is created and no credential is serialized.
 """
 from pathlib import Path
 import base64
+from email.parser import BytesParser
 import hashlib
 import io
 import json
@@ -18,6 +19,49 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def verify_wheel(package, lock, path):
+    if hashlib.sha256(path.read_bytes()).hexdigest() != lock['wheel']['sha256']:
+        raise RuntimeError('Calculation wheel differs from pinned SHA256')
+    with zipfile.ZipFile(path) as archive:
+        metadata_files = [name for name in archive.namelist() if name.endswith('.dist-info/METADATA')]
+        if len(metadata_files) != 1:
+            raise RuntimeError('Calculation wheel metadata is ambiguous')
+        metadata = BytesParser().parsebytes(archive.read(metadata_files[0]))
+        if metadata['Name'] != package or metadata['Version'] != lock['version']:
+            raise RuntimeError('Calculation wheel package/version mismatch')
+
+
+def release_wheel(package, lock, work):
+    target = work / package
+    target.mkdir()
+    subprocess.run(['gh', 'release', 'download', lock['release_tag'], '--repo', lock['repository'],
+                    '--dir', str(target), '--pattern', lock['wheel']['filename'],
+                    '--pattern', 'SHA256SUMS.txt', '--pattern', 'release-manifest.json'], check=True)
+    for name, key in [('SHA256SUMS.txt', 'checksums_sha256'),
+                      ('release-manifest.json', 'release_manifest_sha256')]:
+        if hashlib.sha256((target / name).read_bytes()).hexdigest() != lock[key]:
+            raise RuntimeError(f'Calculation Release {name} differs from pinned SHA256')
+    manifest = json.loads((target / 'release-manifest.json').read_text('utf-8'))
+    if (lock['release_tag'] != 'v' + lock['version'] or manifest['version'] != lock['version']
+            or manifest['commit'] != lock['commit']):
+        raise RuntimeError('Calculation Release version/commit mismatch')
+    wheel = target / lock['wheel']['filename']
+    verify_wheel(package, lock, wheel)
+    checksums = dict(line.split(maxsplit=1)[::-1]
+                     for line in (target / 'SHA256SUMS.txt').read_text('utf-8').splitlines() if line.strip())
+    for name in [wheel.name, 'release-manifest.json']:
+        if checksums.get(name) != hashlib.sha256((target / name).read_bytes()).hexdigest():
+            raise RuntimeError('Calculation Release checksum list mismatch')
+    info = manifest['artifacts'][wheel.name]
+    if info['sha256'] != lock['wheel']['sha256'] or info['bytes'] != wheel.stat().st_size:
+        raise RuntimeError('Calculation Release wheel manifest mismatch')
+    with zipfile.ZipFile(wheel) as archive:
+        for name, digest in manifest['runtime_sha256'].items():
+            if hashlib.sha256(archive.read(name.removeprefix('src/'))).hexdigest() != digest:
+                raise RuntimeError('Calculation Release runtime source mismatch')
+    return wheel
 
 
 def pinned_wheel(lock, work):
@@ -40,7 +84,10 @@ def main():
         sources = []
         for package, lock in locks.items():
             wheel = pinned_wheel(lock, work)
+            if wheel is None and lock.get('release_tag'):
+                wheel = release_wheel(package, lock, work)
             if wheel is not None:
+                verify_wheel(package, lock, wheel)
                 print(f'{package} {lock["version"]} commit={lock["commit"]} verified wheel', flush=True)
                 sources.append(str(wheel))
                 continue
