@@ -1,27 +1,27 @@
-# MS Event Studio v0.6.1 Release Notes
+# MS Event Studio v0.6.2 Release Notes
 
 ## 中文
 
-本版将 feature 计算依赖升级至正式发布的 **flame-feature-core 0.2.0**，与 LMA Studio v0.7.2 配合使用。
+本版将计算依赖升级至正式 **flame-feature-core 0.2.1**，优化单 run HRGC 的查询、工作表内存与完整溯源写出，沿用现有提取、保存和导出流程。
 
-- 从已保留事件提取、随项目保存、重开、分析 ZIP 和 LMA 事件包导出的操作保持不变。
-- 已保存的 0.1.0 矩阵仍可直接重开和导出，不自动重算。主动重新提取时使用 0.2.0，保留旧结果及其版本记录。
-- core 0.2.0 使用 `mz_center` 做多 run 组轴，方法记录为 `B_owned_mz_center_v1`；Studio 仍按单项目、单 run 提取，未新增跨项目合并功能。单 run 的强度、NaN 和局部 feature 身份不变。
-- 构建固定官方 wheel、SHA-256 和源码 commit；`flame-ms-core` 继续使用 0.1.1，事件检峰及人工审阅语义不变。
+- 从当前已保留事件及 current apex 提取，保持 `B_owned_mz_center_v1`、局部 `B_owned_v1`、固定参数、事件与 feature ID、原始 float64 强度、NaN 和物理扫描身份。
+- 已保存的 0.1.0/0.2.0 结果按原版本重开、校验和导出。主动重新提取使用 0.2.1，旧结果保留。
+- 构建固定正式 wheel、SHA256、标签和源码 commit。没有 wheel secret 时，从正式 Release 下载并核对 wheel、SHA256SUMS.txt 和 release-manifest.json。打包冒烟记录实际 core 位置和运行源码哈希。
+- `flame-ms-core` 保持 0.1.1。与 LMA Studio v0.7.2 配合，矩阵按稳定事件 ID/版本导入和附加标签；沿用单 run 产品流程。
 
-**Windows 验证**：189 项 Studio 测试、19 项 core 测试和打包后的 WebView/HRGC 子进程检查通过；108 个标准浏览器页面及独立审查完成。真实 MPP 为 1,023 × 3,549，升级前后的数值、NaN、事件表、特征轴及局部代表完全一致；真实 LSK 为 1,794 × 2,888。MPP 经 LMA Studio v0.7.2 完成旧/新矩阵导入、保存重开及按事件 ID 附加标签导出，原始矩阵值保持不变。工程副本中的保留和配对不构成科学真值。
+**验证**：MS 192 项、仓库外安装 core 27 项、LMA 26 项相关回归，以及 108 页截图矩阵和三项独立审查通过。真实 MPP 隔离副本的 1,023 × 3,549 结果与 core 0.2.0 的矩阵、NaN、轴及全部溯源逐值一致；保存重开、两类 ZIP、LMA 矩阵更新和带标签导出保真。Windows 同环境后续运行各一次：core API 51.094→36.875 s，完整提取保存 67.422→52.984 s，子进程峰值工作集 3.13→1.42 GiB；首次编译另行记录。打包程序的 WebView/计算子进程检查及实际页面提取通过。原生点击和文件选择器的完整手动链路仍需复核，本轮原生输入自动化未完成。
 
-**安装**：完整解压 `MS-Event-Studio-0.6.1-windows-x64.zip`，运行 `MS-Event-Studio.exe`，不要只复制 EXE。Apple Silicon Mac 使用 `MS-Event-Studio-0.6.1-macos-arm64.zip`。两个 ZIP 均附 SHA-256；Mac 为 ad-hoc 签名，未公证。发布构建要求双平台各通过 189 项测试与打包 HRGC/WebView 检查；没有可用 Mac，真机界面验收仍待完成。
+**安装**：完整解压 `MS-Event-Studio-0.6.2-windows-x64.zip`，运行 `MS-Event-Studio.exe`。Apple Silicon Mac 使用 `MS-Event-Studio-0.6.2-macos-arm64.zip`。两个 ZIP 均附 SHA256。Mac 为 ad-hoc 签名，未公证；macOS 真机可见交互和未取得的正式投稿项目尚未逐项验收。
 
 ## English
 
-This release upgrades feature computation to the officially released **flame-feature-core 0.2.0** and works with LMA Studio v0.7.2.
+This release upgrades computation to the official **flame-feature-core 0.2.1**, reducing redundant queries, worksheet memory and complete-provenance writing costs in the existing single-run workflow.
 
-- Extraction from retained events, project persistence, reopening, analysis ZIP export and LMA handoff remain unchanged.
-- Saved 0.1.0 matrices remain readable and exportable without recomputation. Explicit re-extraction uses 0.2.0 while preserving previous results and their provenance.
-- Core 0.2.0 groups multiple runs by `mz_center`, recorded as `B_owned_mz_center_v1`. Studio still extracts one run per project and does not expose cross-project merging. Single-run intensities, NaNs and local feature identities are unchanged.
-- Builds pin the official wheel, SHA-256 and source commit. `flame-ms-core` stays at 0.1.1; event detection and human review semantics are unchanged.
+- Extraction uses current accepted events and their reviewed apexes. Method `B_owned_mz_center_v1`, local method `B_owned_v1`, fixed parameters, event/feature IDs, original float64 intensities, NaNs and physical scan identities are preserved.
+- Saved 0.1.0/0.2.0 results reopen, verify and export with their original version records. Explicit re-extraction uses 0.2.1 and retains previous results.
+- Builds pin the official wheel, SHA256, tag and source commit. Without a wheel secret, the resolver downloads and verifies the official wheel, SHA256SUMS.txt and release-manifest.json. Packaged smoke reports include the actual core location and runtime source hashes.
+- `flame-ms-core` remains at 0.1.1. LMA Studio v0.7.2 imports matrices and joins labels by stable event ID/version. The product continues to process one run per project.
 
-**Windows validation:** 189 Studio tests, 19 core tests and packaged WebView/HRGC subprocess smoke checks passed; 108 standard browser pages and independent reviews were completed. Real MPP data produced 1,023 × 3,549 with exact equality of values, NaNs, event records, feature axes and local representatives before/after the upgrade. Real LSK data produced 1,794 × 2,888. LMA Studio v0.7.2 imported old/new MPP matrices, reopened the saved project and exported labels joined by stable event ID without changing matrix values. Engineering selections and test relations are not scientific ground truth.
+**Validation:** 192 Studio tests, 27 out-of-source installed-core tests, 26 related LMA tests, 108 screenshot scenarios and three independent reviews passed. The isolated real MPP result (1,023 × 3,549) exactly matches core 0.2.0 in values, NaNs, axes and every provenance field. Reopen, both ZIP formats, LMA matrix updates and labeled exports preserve data. One warm measurement per version on the same Windows environment reduced core API time from 51.094 to 36.875 s, complete extraction/save from 67.422 to 52.984 s, and worker peak working set from 3.13 to 1.42 GiB; cold compilation is recorded separately. Packaged WebView/worker checks and extraction through the actual application page passed. Complete native click/file-picker operation awaits manual verification because native input automation could not complete this round.
 
-**Installation:** Extract the complete Windows x64 ZIP and launch `MS-Event-Studio.exe`. Use the macOS ARM64 ZIP for Apple Silicon. Both archives include SHA-256 files. The Mac app is ad-hoc signed and not notarized. Release builds require 189 tests and packaged HRGC/WebView checks on each platform. Physical Mac interface acceptance remains outstanding.
+**Installation:** Extract the complete Windows x64 archive and launch `MS-Event-Studio.exe`. Use the macOS ARM64 archive for Apple Silicon. Both include SHA256 files. The Mac app is ad-hoc signed and not notarized. Visible interaction on a physical Mac and project-by-project acceptance of unavailable publication projects remain outstanding.

@@ -1,5 +1,9 @@
 # MS Event Studio 当前产品状态
 
+2026-10-13：**v0.6.2** 固定正式 `flame-feature-core 0.2.1` wheel、SHA256、标签 `v0.2.1` 和 commit `df7a805`，保留 `flame-ms-core 0.1.1` 与现有单 run 流程。192 项 Studio 测试、27 项仓库外安装 core 测试、固定标签单/多 run 小样例、LMA v0.7.2 的 26 项相关回归、108 页截图矩阵及三项独立审查通过。真实 MPP 隔离副本的 1,023 × 3,549 矩阵、NaN、轴及全部溯源与 0.2.0 逐值一致，旧结果和原项目保留；两种 ZIP、保存重开、LMA 矩阵更新及带标签导出通过，LMA 无需代码修复。
+
+Windows 同环境后续运行各一次，core API 51.094→36.875 s，完整提取保存 67.422→52.984 s，计算子进程峰值工作集 3,362,086,912→1,525,161,984 bytes。首次编译另行记录，不将单次结果称为多次中位数。打包 WebView/spawn/JIT 检查确认实际 core 0.2.1 的模块路径与八个源码哈希；实际 EXE 后台配合页面操作完成真实提取，结果再次逐值核验通过。Windows 原生输入自动化未能完成点击/文件选择器全链路，页面验收与原生窗口检查分别记录；macOS 真机和未取得的正式投稿项目仍待验收。摘要见共享仓库 `records/evidence/task3_feature_core/windows_studio_core021.json`。
+
 2026-09-24：**v0.6.1** 已升级至官方 `flame-feature-core 0.2.0`，保留 `flame-ms-core 0.1.1`。189 项 Studio 测试、19 项 core 测试、Windows 打包冒烟及 108 页浏览器矩阵完成。真实 MPP 新旧提取结果严格一致，LSK 新核提取通过；LMA v0.7.2 完成矩阵更新、保存重开和带标签导出。只在隔离工程副本验证，不改原项目或人工标注；用户已授权正式发布；升级验证摘要保存在共享仓库 `records/evidence/task3_feature_core/windows_studio_core020.json`，正式构件与 CI 见 GitHub Release。
 
 `v0.6.0` 已完成 HRGC 提取、原文件自动定位与完整路径显示、提取取消、最近结果概览及按用途导出。分析 ZIP 的待定选项仅作用于 CSV；LMA 事件包保留全部审阅状态，可附当前有效矩阵。QC 排除只依据用户明确填写的时间范围，不由 MS 自动识别。LMA 接入原生 UMAP 与带标签矩阵导出，新建仅保留事件包 ZIP 入口。
@@ -10,7 +14,7 @@
 
 完整真实数据回归已通过：MPP 1,023 × 3,549、LSK 1,794 × 2,888、CAR-T-Bez 1,389 × 7,837（事件 × features），均完成提取、分析 ZIP、LMA 接入、原生 UMAP 与重开检查。原项目及矩阵原值保持不变；另有 10 个已有 LMA 项目通过兼容检查。LSK/CAR-T 的批量保留只发生在工程测试副本中，不是人工真值。统一证据为父工作区 `studio-validation/validation.json`，简单人工步骤见 [联合验收](guided_test_zh.md)。
 
-当前正式版本：[`v0.6.1`](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.6.1)
+当前版本：[`v0.6.2`](https://github.com/ReoNa0216/MS-Event-Studio/releases/tag/v0.6.2)。用户于 2026-10-13 明确授权直接正式发布；正式构件和 CI 记录见 Release。
 
 任务 1 正式版本：`0.5.0`。解析/calling 已接入固定版本 `flame-ms-core 0.1.0`，
 正式事件包升级为供 LMA 导入的 v2，界面名称统一为“LMA 事件包”。原审阅与保存语义保持；见 [接入说明](flame_task1.md)。

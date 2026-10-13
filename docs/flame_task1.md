@@ -4,9 +4,9 @@
 
 ## 安装与构建
 
-当前固定源码见 `packaging/computation.json`：MS core `0899d60`（0.1.1）、feature core `807a2a0`（0.2.0，官方 v0.2.0 wheel）。Python 3.11 环境运行 `python scripts/resolve_computation.py`，再安装 `pip install -e .`。解析脚本从相邻 Git 仓库的精确 commit 导出干净源码；没有本地仓库时通过已认证的 GitHub CLI clone。不会安装相邻仓库的未提交改动，也不会创建发布。
+当前固定源码见 `packaging/computation.json`：MS core `0899d60`（0.1.1）、feature core `df7a805`（0.2.1，官方 v0.2.1 wheel）。Python 3.11 环境运行 `python scripts/resolve_computation.py`，再安装 `pip install -e .`。解析脚本优先使用正式 feature Release wheel 并核对 SHA256、发布 manifest 和运行源码；MS core 从相邻 Git 仓库的精确 commit 导出干净源码，没有本地仓库时通过已认证的 GitHub CLI clone。不会安装相邻仓库的未提交改动，也不会创建发布。
 
-Windows/Mac 构建脚本使用同一来源锁。CI 优先使用哈希锁定的 `FLAME_MS_CORE_011_WHEEL_BASE64` 与 `FLAME_FEATURE_CORE_020_WHEEL_BASE64`；未配置时可用私有仓库读取 token，详见[构建说明](github_actions_builds.md)。安装成功后清除 wheel 环境变量，再运行测试与打包。
+Windows/Mac 构建脚本使用同一来源锁。CI 优先使用哈希锁定的 `FLAME_MS_CORE_011_WHEEL_BASE64` 与 `FLAME_FEATURE_CORE_021_WHEEL_BASE64`；未配置时可用私有仓库读取 token，详见[构建说明](github_actions_builds.md)。安装成功后清除 wheel 环境变量，再运行测试与打包。
 
 ## 事件传递
 
@@ -26,8 +26,8 @@ v0.4.0+ 项目加载沿用已保存事件、配对、标签、模型、名单顺
 
 新建独立分析使用共用 caller，得到稳定自动来源身份。旧 LMA 用扫描间隔近似计算峰宽，新核用实际采集时间；新分析不能覆盖历史投稿结果。±15 ppm 人工名单支持通道保留，自动 primary 使用 ±12 ppm，二者不合并。
 
-任务 2 等待专门数据，仅未来验收 label-correct；人工标签不是独立真值。标签与 feature 按事件 ID 并行产出。LIF→MS 采集时间对齐 QC 与跨批参照细胞不同，FLAME 没有色谱保留时间。HSC 特定参数不作为通用默认。测量、背景/质量证据、置信度、算法表示、化学注释和 metabolic state 分别表达。任务 3 已接入 MS HRGC 提取和 LMA 矩阵及原生 UMAP，正式版已完成 Windows 联合验收；0.6.1 只升级 feature core；任务 4 只保留接口，未实现自动标签或批次校正模型。
+任务 2 等待专门数据，仅未来验收 label-correct；人工标签不是独立真值。标签与 feature 按事件 ID 并行产出。LIF→MS 采集时间对齐 QC 与跨批参照细胞不同，FLAME 没有色谱保留时间。HSC 特定参数不作为通用默认。测量、背景/质量证据、置信度、算法表示、化学注释和 metabolic state 分别表达。任务 3 已接入 MS HRGC 提取和 LMA 矩阵及原生 UMAP，正式版已完成 Windows 联合验收；0.6.2 将 feature core 升至 0.2.1，维持单 run 流程；任务 4 只保留接口，未实现自动标签或批次校正模型。
 
 ## 验收证据
 
-正式版验证见父工作区 `studio-validation/validation.json`。v0.6.1 的 core 升级验证摘要见共享仓库 `records/evidence/task3_feature_core/windows_studio_core020.json`，正式构件与 CI 见 GitHub Release。共享交接随实际代码和检查同步。本机原项目不等于尚未取得的正式投稿项目，不能宣称逐投稿项目验收。Windows 人工 UAT 后再安排 macOS 真机可见验收。
+历史正式版验证见父工作区 `studio-validation/validation.json`。v0.6.2 的 core 0.2.1 升级摘要见共享仓库 `records/evidence/task3_feature_core/windows_studio_core021.json`：MS 192 项、core 27 项、LMA 26 项相关测试，MPP 新旧全字段精确对照、两种 ZIP、重开及 LMA 带标签导出通过。当前 Windows 资源测量和实际 EXE 页面提取另列，原生输入自动化未完成全部点击/文件选择器链路。v0.6.1 历史证据保留在 `windows_studio_core020.json`；正式构件与 CI 见 GitHub Release。本机原项目不等于尚未取得的正式投稿项目，不能宣称逐投稿项目验收；macOS 真机可见验收仍待安排。
